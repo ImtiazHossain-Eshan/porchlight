@@ -74,6 +74,8 @@ jobs:
         run: |
           ./gradlew assembleRelease --stacktrace
           mv app/build/outputs/apk/release/app-release.apk "porchlight-${VERSION_NAME}.apk"
+          # The debug build is already kept as a run artifact; the release ships only the signed APK.
+          rm -f porchlight-*-debug.apk
 
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/v')
