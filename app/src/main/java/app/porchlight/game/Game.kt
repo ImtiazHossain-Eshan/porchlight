@@ -30,6 +30,9 @@ fun rulesFor(lead: MothId): Rules = when (lead) {
     MothId.Sorbet -> Rules(pairBonusMs = 1_500)
 }
 
+/** Atlas -> Atlases, Iris -> Irises, Wick -> Wicks. */
+fun plural(name: String) = if (name.endsWith("s")) "${name}es" else "${name}s"
+
 fun deal(): List<MothId> = MothId.entries.flatMap { listOf(it, it) }.shuffled()
 
 fun multiplierAt(streak: Int, rules: Rules) = min(MAX_MULTIPLIER, rules.streakStart + streak)
@@ -84,7 +87,7 @@ data class Round(
         if (nowPairs < 6) {
             return copy(
                 open = emptyList(), matched = nowMatched, pairs = nowPairs, endsAt = nowEnds, left = nowLeft,
-                score = nowScore, streak = streak + 1, bestMultiplier = nowBest, say = "A pair of ${name}s, times $multiplier.",
+                score = nowScore, streak = streak + 1, bestMultiplier = nowBest, say = "A pair of ${plural(name)}, times $multiplier.",
             )
         }
         val seconds = (nowLeft / 1000).toInt()

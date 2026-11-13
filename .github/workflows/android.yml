@@ -1,6 +1,6 @@
 name: Android APK
 
-# Every push and pull request builds a debug APK you can download from the run.
+# Every push and pull request runs the unit tests and builds a debug APK you can download from the run.
 # Pushing a tag like v0.2.0 also publishes a GitHub Release with the APK attached.
 on:
   push:
@@ -36,6 +36,16 @@ jobs:
 
       # Git on Windows drops the executable bit, so set it here.
       - run: chmod +x gradlew
+
+      - name: Run unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Upload test report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-report
+          path: app/build/reports/tests/testDebugUnitTest/
 
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
