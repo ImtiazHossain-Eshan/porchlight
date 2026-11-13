@@ -222,6 +222,14 @@ git push origin v0.2.0
 
 Without signing secrets, a release carries the debug APK. That's fine for testing, but it can't go on the Play Store, and an update built on another machine won't install over it.
 
+**Quick way:** run the setup script once. It creates the key outside the repo and uploads the four secrets with the GitHub CLI:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\setup-signing.ps1
+```
+
+**By hand:**
+
 1. Create a keystore once and back it up. Losing it means you can't ship updates under the same key.
 
    ```bash
