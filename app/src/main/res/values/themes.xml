@@ -4,5 +4,13 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
-    <color name="wall">#17323A</color>
+
+    <!-- The splash: the night wall and the lit bulb, then straight into the game. -->
+    <style name="Theme.Porchlight.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/wall</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Porchlight</item>
+    </style>
+
+    <color name="wall">#0E1A24</color>
 </resources>

@@ -1,0 +1,4 @@
+# Baseline profile: compile the game's own code ahead of time, so the first rounds after
+# install run as smoothly as later ones. Installed by androidx.profileinstaller.
+HSPLapp/porchlight/game/**;->**(**)**
+Lapp/porchlight/game/**;

@@ -1,0 +1,17 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- The art, scaled up and centred in the safe zone. -->
+    <group android:pivotX="58" android:pivotY="52" android:scaleX="1.28" android:scaleY="1.28" android:translateX="-4" android:translateY="2">
+        <!-- Android 13 themed icon: one colour, the launcher tints it. -->
+        <path android:fillColor="#FFFFFFFF" android:pathData="M45,26h10v7h-10z" />
+        <path android:fillColor="#FFFFFFFF"
+            android:pathData="M46.5,34 C46.5,40 37,44 37,54 A13,13 0,0 0,63 54 C63,44 53.5,40 53.5,34 Z" />
+        <group android:translateX="56" android:translateY="54" android:scaleX="0.22" android:scaleY="0.22" android:rotation="18">
+            <path android:fillColor="#FFFFFFFF"
+                android:pathData="M64,46 C74,26 98,14 114,20 C113,38 100,54 82,60 C73,62 66,58 64,54 Z M56,46 C46,26 22,14 6,20 C7,38 20,54 38,60 C47,62 54,58 56,54 Z M64,54 C78,56 94,62 95,76 C95,86 88,92 85,102 C79,112 78,103 74,95 C68,85 64,70 64,54 Z M56,54 C42,56 26,62 25,76 C25,86 32,92 35,102 C41,112 42,103 46,95 C52,85 56,70 56,54 Z M53.5,56 Q60,52 66.5,56 Q67.5,78 60,94 Q52.5,78 53.5,56 Z" />
+        </group>
+    </group>
+</vector>
