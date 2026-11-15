@@ -61,6 +61,9 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 internal const val BOARD_COLUMNS = 4
+
+/** Three columns for a small board, four otherwise. */
+internal fun boardColumns(count: Int) = if (count <= 6) 3 else BOARD_COLUMNS
 private val GAP = 8.dp
 private val CARD_SHAPE = RoundedCornerShape(16.dp)
 private val WRONG = Color(0xFFFF8A75)
@@ -73,7 +76,7 @@ private val SILHOUETTE = Color(0xFF3A3328)
 internal fun Board(session: Session, modifier: Modifier) {
     val round = session.round
     val count = round.deck.size
-    val columns = if (count <= 6) 3 else BOARD_COLUMNS
+    val columns = boardColumns(count)
     val rows = (count + columns - 1) / columns
     BoxWithConstraints(
         modifier.onGloballyPositioned { session.boardTop = it.boundsInRoot().top }.graphicsLayer {
@@ -95,7 +98,7 @@ internal fun Board(session: Session, modifier: Modifier) {
                 Row(horizontalArrangement = Arrangement.spacedBy(GAP)) {
                     for (col in 0 until columns) {
                         val index = row * columns + col
-                        if (index < count) Card(index, session, cardW, cardH)
+                        if (index < count) Card(index, session, cardW, cardH, row, rows)
                     }
                 }
             }
@@ -109,10 +112,34 @@ internal fun Board(session: Session, modifier: Modifier) {
  * its moth flapping; matched is an empty dim slot, because the moth has flown to the bulb.
  */
 @Composable
-private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
+private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, rows: Int) {
     val round = session.round
     val id = round.deck[index]
-    val up = round.isFaceUp(index)
+    // During the deal and warm-up the cards lie face down, though the round is already in its peek.
+    val faceUp = round.isFaceUp(index) && !(round.phase == Phase.Peek && session.peekStage != PeekStage.Look)
+    // Turning up for the peek runs in a wave from the bulb down (top row first); folding shut at
+    // its end runs back up (bottom row first). A player's own flips turn at once.
+    var up by remember { mutableStateOf(faceUp) }
+    LaunchedEffect(faceUp) {
+        val wait = when {
+            session.calm -> 0L
+            faceUp && round.phase == Phase.Peek -> row * WAVE_STAGGER_MS
+            !faceUp && session.peekStage == PeekStage.Go -> (rows - 1 - row) * WAVE_STAGGER_MS
+            else -> 0L
+        }
+        if (wait > 0) delay(wait)
+        up = faceUp
+    }
+    // The deal: each card drops onto the board in turn and bounces a little as it lands.
+    val drop = remember { Animatable(1f) }
+    LaunchedEffect(session.dealt) {
+        if (session.dealt > 0 && round.phase == Phase.Peek && session.peekStage == PeekStage.Deal && !session.calm && !session.skipIntro) {
+            drop.snapTo(0f)
+            delay(index * DEAL_STAGGER_MS)
+            drop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = 520f))
+        }
+    }
+    LaunchedEffect(session.skipIntro) { if (session.skipIntro) drop.snapTo(1f) }
     val matched = round.matched[index]
     val lost = round.phase == Phase.Lost && !matched
     val wrong = round.miss && index in round.open
@@ -211,7 +238,8 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
                 rotationX = tiltX.value + 2f * sin(idle)
                 // Mid-flip the card rises off the board: its shadow grows from 2dp to 18dp and back.
                 val mid = sin(turn / 180f * Math.PI.toFloat()).coerceAtLeast(0f)
-                translationY = -6.dp.toPx() * mid - 3.dp.toPx() * lift
+                translationY = -6.dp.toPx() * mid - 3.dp.toPx() * lift - 36.dp.toPx() * (1f - drop.value)
+                alpha = drop.value.coerceIn(0f, 1f)
                 translationX = shake.value * density
                 if (swapWith != null && wander.value > 0f) {
                     // Start from the other card's spot and slide home, lifted above its neighbours.
@@ -346,8 +374,17 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
                         rivet(Offset(at, size.height - at), stud)
                         rivet(Offset(size.width - at, size.height - at), stud)
                     } else if (full > 0f && round.phase == Phase.Peek) {
-                        // While the cards are shown, each face is rimmed in the lamp's teal.
-                        drawRoundRect(Craft.bio, Offset(inset, inset), innerSize, innerCorner, alpha = 0.85f, style = Stroke(2.dp.toPx()))
+                        // While the cards are shown, each face is rimmed in the bulb's warm light,
+                        // brightening in the peek's last half second as a warning.
+                        val warn = if (session.peekLeft in 1..PEEK_WARNING_MS) 1f else 0f
+                        drawRoundRect(
+                            lerp(Dusk.glowDeep, Dusk.glow, warn),
+                            Offset(inset, inset),
+                            innerSize,
+                            innerCorner,
+                            alpha = 0.7f + 0.3f * warn,
+                            style = Stroke((2f + 0.8f * warn).dp.toPx()),
+                        )
                     }
                 }
             }

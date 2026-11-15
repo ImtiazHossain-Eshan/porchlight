@@ -12,7 +12,7 @@ import kotlin.random.Random
 
 enum class Sound {
     Flip, Match1, Match2, Match3, Match4, Match5, Match6, Bass, Miss, Thunk,
-    Start, Go, Tick, Buzz, Pop, Win, Lose, LevelUp, Locked, TopUp,
+    Start, Go, Tick, Buzz, Pop, Win, Lose, LevelUp, Locked, TopUp, Tap,
 }
 
 private const val RATE = 44_100
@@ -89,6 +89,11 @@ private fun synth(sound: Sound): FloatArray = when (sound) {
         Part(0, 240, 98.0, 82.0, Wave.Sine, volume = 0.3, decay = 3.0),
     )
     // The streak counter cracking: a low, dull thunk.
+    // A card set down on wood: a short knock with a little grain in it.
+    Sound.Tap -> render(
+        Part(0, 50, 520.0, 360.0, Wave.Sine, volume = 0.26, decay = 8.0),
+        Part(0, 14, 0.0, wave = Wave.Noise, volume = 0.16, decay = 10.0, tone = 0.12),
+    )
     Sound.Thunk -> render(
         Part(0, 160, 110.0, 60.0, Wave.Sine, volume = 0.5, decay = 5.0),
         Part(0, 30, 0.0, wave = Wave.Noise, volume = 0.2, decay = 9.0, tone = 0.1),
@@ -280,11 +285,14 @@ class Sfx {
         }
     }
 
-    /** Plays [sound]. [vary] nudges the pitch by up to that fraction so repeats don't sound stamped. */
-    fun play(sound: Sound, vary: Float = 0f, volume: Float = 1f) {
+    /**
+     * Plays [sound]. [vary] nudges the pitch by up to that fraction so repeats don't sound stamped;
+     * [pitch] sets it outright (1 is as made, higher is higher).
+     */
+    fun play(sound: Sound, vary: Float = 0f, volume: Float = 1f, pitch: Float = 1f) {
         if (muted) return
         val data = samples[sound.ordinal] ?: return
-        val rate = if (vary > 0f) 1f + (random.nextFloat() * 2f - 1f) * vary else 1f
+        val rate = pitch * if (vary > 0f) 1f + (random.nextFloat() * 2f - 1f) * vary else 1f
         synchronized(lock) {
             if (voices.size >= 16) voices.removeAt(0)
             voices += Voice(data, rate, volume)

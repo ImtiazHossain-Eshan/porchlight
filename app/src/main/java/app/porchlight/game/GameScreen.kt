@@ -24,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -109,6 +110,21 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
     /** Counts Sorbet top-ups, so the "+1.5s" can float off the bulb each time. */
     var topUps by mutableIntStateOf(0)
+
+    /** Where the opening of the round is: deal, warm-up, peek, GO. Screen timing only. */
+    var peekStage by mutableStateOf(PeekStage.None)
+
+    /** Milliseconds of the peek still to look, counted by the screen so a pause can hold it. */
+    var peekLeft by mutableLongStateOf(0L)
+
+    /** The peek is held: the app went to the background or the player paused during it. */
+    var peekPaused by mutableStateOf(false)
+
+    /** Counts deals, so each one drops the cards in afresh. */
+    var dealt by mutableIntStateOf(0)
+
+    /** The player tapped through the deal and warm-up. */
+    var skipIntro by mutableStateOf(false)
 
     /** How brightly the bulb burns right now; set by the root screen. */
     var power: () -> Float = { 0f }
@@ -317,12 +333,22 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
     /** Freezes the bulb: the app went to the background, or the player pressed pause. */
     fun pause() {
+        // During the opening the round's clock hasn't started: hold the screen's own countdown.
+        if (round.phase == Phase.Peek && !round.tutorial) {
+            peekPaused = true
+            return
+        }
         if (round.phase != Phase.Play || round.paused) return
         round = round.pause(now())
         flicker = 1f
     }
 
     fun resume() {
+        if (peekPaused) {
+            peekPaused = false
+            buzz(HapticFeedbackType.Confirm)
+            return
+        }
         if (!round.paused) return
         round = round.resume(now())
         sfx.play(Sound.Go)
@@ -366,6 +392,9 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         pops.clear()
         timeLeft = 1f
         flicker = 1f
+        peekStage = PeekStage.None
+        peekPaused = false
+        skipIntro = false
     }
 
     /** Opens one of the lobby's screens. */
@@ -428,13 +457,25 @@ fun GameScreen(store: Store, sfx: Sfx) {
     val low = round.phase == Phase.Play && !round.paused && round.left <= LOW_MS
     sfx.ambient = session.screen.isMenu || round.running
 
-    // The peek, the clock, and the bookkeeping when a round ends.
-    LaunchedEffect(round.phase) {
+    // The opening and peek, the clock, and the bookkeeping when a round ends. Keyed on the seed
+    // too, so starting over during a peek deals again.
+    LaunchedEffect(round.phase, round.seed) {
         when (round.phase) {
             Phase.Peek -> {
-                delay(round.rules.peekMs)
+                session.openRound(round, sfx)
+                // The round's own clock starts here, when the peek ends, exactly as before.
+                session.peekStage = PeekStage.Go
                 session.round = session.round.go(now())
                 if (session.foreground) sfx.play(Sound.Go) else session.pause()
+                if (!session.calm) session.flareUp(0.5f, 400)
+                // The cards fold shut bottom row first: a soft paper sound for each row.
+                val rows = (round.deck.size + boardColumns(round.deck.size) - 1) / boardColumns(round.deck.size)
+                for (row in 0 until rows) {
+                    sfx.play(Sound.Flip, volume = 0.45f, pitch = 0.9f + 0.05f * row)
+                    delay(if (session.calm) 0 else WAVE_STAGGER_MS)
+                }
+                delay(GO_MS + 250)
+                if (session.peekStage == PeekStage.Go) session.peekStage = PeekStage.None
             }
             Phase.Play -> while (session.round.phase == Phase.Play) {
                 withFrameMillis { }
@@ -532,6 +573,8 @@ fun GameScreen(store: Store, sfx: Sfx) {
     val on by animateFloatAsState(
         when {
             session.screen == Screen.Porch -> 0.9f
+            // Dark while the cards are dealt; it comes on with the warm-up.
+            round.phase == Phase.Peek && session.peekStage == PeekStage.Deal -> 0f
             burning -> 1f
             else -> 0f
         },
@@ -620,3 +663,72 @@ internal fun todaySeed(daysAgo: Int = 0): Long {
 
 /** The step the time readout shows: whole seconds, or tenths under ten seconds. */
 private fun readout(ms: Long): Long = if (ms < 10_000) ms / 100 else 100 + ms / 1000
+
+/**
+ * The opening of a round, up to the moment the peek ends: the deal, the warm-up and the counted
+ * peek. A pause holds the countdown where it is; tapping skips the deal and warm-up.
+ */
+private suspend fun Session.openRound(round: Round, sfx: Sfx) {
+    val rules = round.rules
+    peekPaused = false
+    if (!round.tutorial) {
+        // Deal: the bulb is dark and the cards drop in one by one, each tap a little higher.
+        skipIntro = false
+        peekStage = PeekStage.Deal
+        dealt += 1
+        val cards = round.deck.size
+        var spent = 0L
+        for (i in 0 until cards) {
+            if (skipIntro) break
+            sfx.play(Sound.Tap, volume = 0.5f, pitch = 0.85f + 0.45f * i / cards)
+            delay(DEAL_STAGGER_MS)
+            spent += DEAL_STAGGER_MS
+        }
+        while (!skipIntro && spent < DEAL_MS) {
+            delay(30)
+            if (!peekPaused) spent += 30
+        }
+        // Warm-up: two flickers, then the bulb holds and its light sweeps over the board.
+        peekStage = PeekStage.Warm
+        if (!skipIntro && !calm) {
+            for (k in 0 until 2) {
+                flicker = 0.25f
+                delay(70)
+                flicker = 1f
+                delay(110)
+            }
+        }
+        flicker = 1f
+        sfx.play(Sound.Buzz, volume = 0.8f)
+        var warm = 0L
+        while (!skipIntro && warm < WARM_MS - 360) {
+            delay(30)
+            if (!peekPaused) warm += 30
+        }
+    }
+
+    // The peek: counted down by the screen, frame by frame, so a pause can hold it exactly.
+    peekStage = PeekStage.Look
+    var left = rules.peekMs
+    peekLeft = left
+    var shown = peekNumber(left)
+    tickFor(shown, sfx)
+    var last = withFrameMillis { it }
+    while (left > 0) {
+        val frame = withFrameMillis { it }
+        if (!peekPaused) left -= frame - last
+        last = frame
+        peekLeft = left.coerceAtLeast(0)
+        val number = peekNumber(left)
+        if (number != shown && number > 0) {
+            shown = number
+            tickFor(number, sfx)
+        }
+    }
+}
+
+/** A soft tick and a light buzz for each number; the last one ticks a little lower. */
+private fun Session.tickFor(number: Int, sfx: Sfx) {
+    sfx.play(Sound.Tick, volume = 0.55f, pitch = if (number == 1) 0.8f else 1f)
+    buzz(HapticFeedbackType.SegmentTick)
+}

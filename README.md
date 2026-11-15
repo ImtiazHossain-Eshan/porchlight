@@ -40,14 +40,14 @@ Pick a lead moth before each round. Each one bends the rules its own way.
 <table>
   <tr>
     <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: a lit mason jar with moths resting around it, an oak sign reading Light the porch, and four menu tiles" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up under the bulb at full warm brightness, with READY 3 2 1 counting down" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up with a warm rim, REMEMBER and a big 2 under the bulb, and a thin ring around the bulb counting the peek down" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: the bulb glows gold in its brass works, found moths circle it, and MATCH pops rise off the pairs" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, the time band around it nearly empty, and the remaining cards are washed red" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="The scorecard: a gilded navy panel with stars, the score, a bonus table and the level gauge" width="100%"></td>
   </tr>
   <tr>
     <td align="center"><sub><b>The lobby</b><br>A jar, the moths, one sign</sub></td>
-    <td align="center"><sub><b>The peek</b><br>Ready, 3, 2, 1</sub></td>
+    <td align="center"><sub><b>The peek</b><br>Remember, 2, 1</sub></td>
     <td align="center"><sub><b>Overdrive</b><br>The light turns gold</sub></td>
     <td align="center"><sub><b>Last seconds</b><br>Red, smoke, flicker</sub></td>
     <td align="center"><sub><b>Scorecard</b><br>Stars and bonuses</sub></td>
@@ -188,7 +188,9 @@ Levels need 200, 500, 900, 1,400 and 2,000 XP in total.
 
 The porch is built by hand, and every surface is a made thing drawn in code: night-stained planks, walnut and oak panels with grain and bevels, brass and copper plates with rivets, gears and pipes, parchment, plum velvet and glass. No image files ship.
 
-The bulb is the clock. Its glow shrinks and its colour runs from warm white with time to spare, to amber at 40%, deep orange under 15%, and red in the last five seconds, when it also flickers two to four times a second. The peek burns at full warm brightness. When time runs out the bulb pops bright for an instant and goes dark, its glass still hanging there. Found pairs glow teal, and Overdrive turns the wall's light gold.
+The bulb is the clock. Its glow shrinks and its colour runs from warm white with time to spare, to amber at 40%, deep orange under 15%, and red in the last five seconds, when it also flickers two to four times a second. The peek burns at full warm brightness.
+
+A round opens like the porch light warming up. The cards drop onto the board face down one by one while the bulb is dark, then it flickers twice and comes on (tap to skip this). The cards turn up in a wave from the bulb down, the band says REMEMBER, and one big number counts the whole seconds left to look: 2, 1 for a 2-second peek, and 4, 3, 2, 1 for Iris's 3.4 seconds. A thin ring around the bulb drains over the same time, and the cards' warm rims brighten in the last half second. Then the cards fold shut from the bottom row up, GO! punches in, the bulb flares and the round's clock starts. Pausing during the peek holds the countdown exactly where it was. A recording is in [`docs/visuals/peek.mp4`](docs/visuals/peek.mp4). When time runs out the bulb pops bright for an instant and goes dark, its glass still hanging there. Found pairs glow teal, and Overdrive turns the wall's light gold.
 
 - **Lobby:** a mason jar with a filament inside, hung by a wire.
 - **Round:** an Edison bulb in brass works, with two gears that turn while it burns and a pressure gauge whose needle falls with the time left. A bold gold band follows the glass's outline, open at the neck, and drains clockwise as the time runs out. The seconds sit under it in the bulb's colour, with tenths under ten seconds. The ✕ leaves the round (it asks first), and the pause sign offers Keep playing, Start over and Leave round.
@@ -334,7 +336,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 
 ## Tests
 
-103 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
+109 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -345,6 +347,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 | [`GameTest`](app/src/test/java/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, nights, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
 | [`ProgressTest`](app/src/test/java/app/porchlight/game/ProgressTest.kt) | XP curve, levels, unlocks, stars, opening nights, mastery, the daily porch and its streak, the share line, badges |
 | [`FlightLogTest`](app/src/test/java/app/porchlight/game/FlightLogTest.kt) | The round's flight log: order, multipliers, misses, saving and restoring, and that no card position leaks into it; the daily share card's data and the unchanged share line |
+| [`PeekTest`](app/src/test/java/app/porchlight/game/PeekTest.kt) | The peek countdown shows the whole seconds left, rounded up: 2, 1 for 2 s and 4, 3, 2, 1 for 3.4 s |
 | [`BalanceTest`](app/src/test/java/app/porchlight/game/BalanceTest.kt) | Simulated perfect and typical players with every lead: none may beat the rest by more than 15% on both score and time |
 
 CI runs them on every push. A failing test stops the build and uploads the HTML report.

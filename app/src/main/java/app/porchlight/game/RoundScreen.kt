@@ -1,5 +1,15 @@
 package app.porchlight.game
 
+import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -99,7 +109,9 @@ internal fun RoundScreen(session: Session) {
             Box(
                 Modifier.semantics {
                     liveRegion = LiveRegionMode.Polite
-                    contentDescription = round.say
+                    contentDescription = if (round.phase == Phase.Peek) {
+                        "Remember the cards, ${peekNumber(round.rules.peekMs)} seconds"
+                    } else round.say
                 },
             )
         }
@@ -108,7 +120,16 @@ internal fun RoundScreen(session: Session) {
         FxLayer(session)
         Pops(session)
         if (round.tutorial) TutorialHints(session)
-        if (round.paused) Paused(session)
+        // Tapping anywhere during the deal and warm-up skips straight to the peek.
+        if (round.phase == Phase.Peek && (session.peekStage == PeekStage.Deal || session.peekStage == PeekStage.Warm) && !session.peekPaused) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { session.skipIntro = true }
+                    .semantics { contentDescription = "Dealing the cards. Tap to skip." },
+            )
+        }
+        if (round.paused || session.peekPaused) Paused(session)
         session.intro?.let { NightIntro(it, session) }
     }
 }
@@ -165,6 +186,11 @@ private fun Header(session: Session, modifier: Modifier) {
                     power = session.power,
                     last = { low },
                     arc = round.phase != Phase.Idle,
+                    peekRing = {
+                        if (round.phase == Phase.Peek && session.peekStage == PeekStage.Look) {
+                            session.peekLeft.toFloat() / round.rules.peekMs
+                        } else -1f
+                    },
                     smoke = { low },
                     still = session.calm,
                     modifier = Modifier
@@ -196,14 +222,14 @@ private fun Header(session: Session, modifier: Modifier) {
             BrassButton(
                 Glyph.Close,
                 if (round.tutorial) "Skip the tutorial" else "Leave round",
-                enabled = !round.paused,
+                enabled = !round.paused && !session.peekPaused,
                 size = 44.dp,
                 modifier = Modifier.align(Alignment.TopStart),
             ) { if (round.tutorial) session.endTutorial() else session.leaving = true }
         }
         Column(Modifier.align(Alignment.TopEnd), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            if (round.phase == Phase.Play && !round.tutorial) {
-                BrassButton(Glyph.Pause, "Pause", enabled = !round.paused, size = 44.dp, onClick = session::pause)
+            if ((round.phase == Phase.Play || round.phase == Phase.Peek) && !round.tutorial) {
+                BrassButton(Glyph.Pause, "Pause", enabled = !round.paused && !session.peekPaused, size = 44.dp, onClick = session::pause)
             }
             if (round.phase == Phase.Play && round.rules.flashes > 0) {
                 BrassButton(
@@ -219,22 +245,13 @@ private fun Header(session: Session, modifier: Modifier) {
 }
 
 /**
- * The band under the bulb. During the peek it counts READY 3, 2, 1; when a Wanderer moves cards it
- * warns SWAP; when the streak hits its cap it says OVERDRIVE.
+ * The band under the bulb. During the peek it says REMEMBER with one big number counting the
+ * seconds left to look; then GO!; when a Wanderer moves cards it warns SWAP; when the streak hits
+ * its cap it says OVERDRIVE.
  */
 @Composable
 private fun Band(session: Session, modifier: Modifier) {
     val round = session.round
-    var count by remember { mutableIntStateOf(0) }
-    LaunchedEffect(round.phase, round.paused) {
-        if (round.phase == Phase.Peek && !round.paused) {
-            for (n in 3 downTo 1) {
-                count = n
-                delay(round.rules.peekMs / 3)
-            }
-        }
-        count = 0
-    }
     val swap = remember { Animatable(0f) }
     LaunchedEffect(round.swaps) {
         if (round.swaps > 0) {
@@ -245,22 +262,8 @@ private fun Band(session: Session, modifier: Modifier) {
     }
     Box(modifier.height(40.dp), contentAlignment = Alignment.Center) {
         when {
-            round.phase == Phase.Peek && count > 0 -> Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text("READY!", style = Display.copy(shadow = Shadow(Dusk.glowDeep, Offset.Zero, 22f)), fontSize = 26.sp, color = Dusk.amber)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    for (n in 3 downTo 1) {
-                        Text(
-                            "$n",
-                            style = Display.copy(shadow = if (n == count) Shadow(Dusk.glowDeep, Offset.Zero, 18f) else null),
-                            fontSize = 22.sp,
-                            color = if (n == count) Color.White else Dusk.amber.copy(alpha = if (n > count) 0.25f else 0.55f),
-                        )
-                    }
-                }
-            }
+            round.phase == Phase.Peek && session.peekStage == PeekStage.Look -> PeekCount(session)
+            session.peekStage == PeekStage.Go -> GoWord(session.calm)
             swap.value > 0.01f -> Text(
                 "SWAP!",
                 style = Display.copy(shadow = Shadow(Craft.danger, Offset.Zero, 20f)),
@@ -276,6 +279,65 @@ private fun Band(session: Session, modifier: Modifier) {
             else -> OverdriveBanner(session.overdrives, session.calm)
         }
     }
+}
+
+/**
+ * REMEMBER and one big number: the whole seconds left in the peek, rounded up, so it matches the
+ * real time to look. Each number punches in and the last one burns red-amber. Screen readers hear
+ * the peek once from the round's status line, so this stays silent to them.
+ */
+@Composable
+private fun PeekCount(session: Session) {
+    val number by remember { derivedStateOf { peekNumber(session.peekLeft) } }
+    val calm = session.calm
+    Row(
+        Modifier.wrapContentHeight(unbounded = true).clearAndSetSemantics { },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text("REMEMBER", style = Display.copy(shadow = Shadow(Dusk.glowDeep, Offset.Zero, 24f)), fontSize = 30.sp, color = Dusk.amber)
+        AnimatedContent(
+            targetState = number,
+            transitionSpec = {
+                if (calm) fadeIn(tween(150)) togetherWith fadeOut(tween(150))
+                else (fadeIn(tween(110)) + scaleIn(spring(dampingRatio = 0.55f, stiffness = 900f), initialScale = 1.4f)) togetherWith
+                    fadeOut(tween(140))
+            },
+            contentAlignment = Alignment.Center,
+            label = "peekNumber",
+        ) { n ->
+            Text(
+                "$n",
+                style = Display.copy(shadow = Shadow(if (n == 1) Craft.danger else Dusk.glowDeep, Offset.Zero, 28f), lineHeight = 64.sp),
+                fontSize = 64.sp,
+                color = if (n == 1) lerp(Dusk.amber, Craft.danger, 0.5f) else Dusk.glow,
+            )
+        }
+    }
+}
+
+/** GO!: punches in as the cards fold shut, holds for a moment, then fades. */
+@Composable
+private fun GoWord(calm: Boolean) {
+    val scale = remember { Animatable(if (calm) 1f else 1.4f) }
+    val alpha = remember { Animatable(if (calm) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        launch { scale.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 900f)) }
+        alpha.animateTo(1f, tween(110))
+        delay(GO_MS)
+        alpha.animateTo(0f, tween(220))
+    }
+    Text(
+        "GO!",
+        style = Display.copy(shadow = Shadow(Dusk.glowDeep, Offset.Zero, 26f)),
+        fontSize = 40.sp,
+        color = Dusk.glow,
+        modifier = Modifier.wrapContentHeight(unbounded = true).clearAndSetSemantics { }.graphicsLayer {
+            this.alpha = alpha.value
+            scaleX = scale.value
+            scaleY = scale.value
+        },
+    )
 }
 
 /** Sorbet's top-up: "+1s" floats up off the bulb each time a pair lands. */
