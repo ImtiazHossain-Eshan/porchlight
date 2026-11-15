@@ -204,7 +204,7 @@ internal fun NightIntro(night: Night, session: Session) {
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(18.dp))
-            PlayButton("Light the porch", session.calm, Modifier.fillMaxWidth()) { session.beginAfterIntro() }
+            PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.beginAfterIntro() }
         }
     }
 }

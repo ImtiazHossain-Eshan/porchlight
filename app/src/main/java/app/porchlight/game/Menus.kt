@@ -274,7 +274,7 @@ internal fun NightsScreen(session: Session) {
             }
         }
         Spacer(Modifier.height(10.dp))
-        PlayButton("Light the porch", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
+        PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
     }
 }
 
@@ -438,18 +438,36 @@ private fun CalendarLeaf(seed: Long, modifier: Modifier) {
                 drawLine(Craft.brassLight, Offset(size.width * x, 2f), Offset(size.width * x, top + 6.dp.toPx()), 2.dp.toPx(), StrokeCap.Round)
             }
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            // The month, printed bold in the copper band, clear of the binder rings.
-            Spacer(Modifier.height(16.dp))
-            Text(
-                MONTHS[((seed / 100 % 100).toInt() - 1).coerceIn(0, 11)].uppercase(),
-                style = BodyText,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 2.sp,
-                color = Color.White,
-            )
-            Spacer(Modifier.height(6.dp))
-            Text("${seed % 100}", style = Display, fontSize = TypeScale.Title, color = Craft.parchmentInk)
+        // Each line sits in its own part of the leaf, measured from the drawing: the month centred
+        // in the copper band below the binder rings, the day centred on the paper beneath.
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val top = maxHeight * 0.1f
+            val band = maxHeight * 0.26f
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .offset(y = top + 6.dp)
+                    .height(band - 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    MONTHS[((seed / 100 % 100).toInt() - 1).coerceIn(0, 11)].uppercase(),
+                    style = BodyText.copy(lineHeight = TypeScale.Body),
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 2.sp,
+                    color = Color.White,
+                    maxLines = 1,
+                )
+            }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .offset(y = top + band)
+                    .height(maxHeight - top - band - 5.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("${seed % 100}", style = Display, fontSize = TypeScale.Title, color = Craft.parchmentInk, maxLines = 1)
+            }
         }
     }
 }

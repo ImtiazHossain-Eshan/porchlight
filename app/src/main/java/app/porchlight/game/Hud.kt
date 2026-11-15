@@ -367,8 +367,7 @@ private val signOnOak = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacin
 private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, -1.5f), 0f))
 
 /**
- * The play button: the porch's one big action. A taller oak sign with the bulb burned into it and
- * the words in wood type, a warm glow breathing behind it, and a band of light sliding across every
+ * The play button: the porch's one big action. A taller oak sign with one word in wood type, a warm glow breathing behind it, and a band of light sliding across every
  * few seconds. It sinks under the finger like the other signs. [calm] keeps it still.
  */
 @Composable
@@ -424,13 +423,6 @@ internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifi
             .padding(horizontal = 34.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            // The bulb, burned into the wood: dark with a light edge below.
-            Box {
-                GlyphArt(Glyph.Bulb, Color.White.copy(alpha = 0.35f), Modifier.size(28.dp).offset(y = 1.dp))
-                GlyphArt(Glyph.Bulb, Dusk.paperInk, Modifier.size(28.dp))
-            }
-            FitText(text.uppercase(), TextCarved, TypeScale.Title, Dusk.paperInk)
-        }
+        FitText(text.uppercase(), TextCarved.copy(letterSpacing = 4.sp), TypeScale.Title, Dusk.paperInk)
     }
 }

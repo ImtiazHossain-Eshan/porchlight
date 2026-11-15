@@ -178,7 +178,7 @@ private fun Controls(session: Session) {
             )
         }
         Spacer(Modifier.height(4.dp))
-        PlayButton("Light the porch", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
+        PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
         Spacer(Modifier.height(8.dp))
         Text(
             "NIGHT ${night.number} · ${nightLine(night).uppercase()}" + if (progress.best > 0) "   BEST ${progress.best.grouped()}" else "",

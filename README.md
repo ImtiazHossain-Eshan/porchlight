@@ -39,7 +39,7 @@ Pick a lead moth before each round. Each one bends the rules its own way.
 
 <table>
   <tr>
-    <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: the level emblem with its XP ring, a lit mason jar with moths resting around it, an oak sign reading Light the porch, and four menu tiles" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: the level emblem with its XP ring, a lit mason jar with moths resting around it, a big oak sign reading Play, and four menu tiles" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up with a warm rim, REMEMBER and a big 2 under the bulb" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: the bulb glows gold in its brass works, found moths circle it, and MATCH pops rise off the pairs" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, the time band around it nearly empty, and the remaining cards are washed red" width="100%"></td>
