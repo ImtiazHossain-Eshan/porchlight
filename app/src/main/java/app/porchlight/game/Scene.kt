@@ -1,7 +1,6 @@
 package app.porchlight.game
 
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.geometry.Size
 import android.os.Build
 import androidx.compose.foundation.layout.Box
@@ -164,7 +163,7 @@ internal fun NightScene(
                     center = Offset.Zero,
                     radius = 100f,
                 )
-                val glowBrush = glowShader?.let { ShaderBrush(it.shader) }
+                val glowBrush = glowShader?.brush
                 val corner = hypot(size.width, size.height) / 2f
                 val vignette = Brush.radialGradient(
                     0f to Color.Transparent,

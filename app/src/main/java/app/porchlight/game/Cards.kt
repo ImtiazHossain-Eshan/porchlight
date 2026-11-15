@@ -3,7 +3,6 @@ package app.porchlight.game
 import kotlin.math.cos
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.BlendMode
@@ -128,7 +127,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
     val flapPhase = remember { Random.nextFloat() * 6.283f }
     val foil = remember { FoilShader.create() }
     val goldFoil = remember(gold) { if (gold) FoilShader.create() else null }
-    val goldBrush = remember(goldFoil) { goldFoil?.let { ShaderBrush(it.shader) } }
+    val goldBrush = goldFoil?.brush
 
     // The flip: a spring that overshoots a little, so the card swings past and settles.
     val turn by animateFloatAsState(
@@ -276,7 +275,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
                     startX = 0f,
                     endX = size.width * 0.7f,
                 )
-                val foilBrush = foil?.let { ShaderBrush(it.shader) }
+                val foilBrush = foil?.brush
                 val half = frame.width / 2f
                 val frameSize = Size(size.width - frame.width, size.height - frame.width)
                 val hair = Stroke(1.dp.toPx())

@@ -3,7 +3,9 @@ package app.porchlight.game
 import android.graphics.RenderEffect
 import android.graphics.RuntimeShader
 import android.os.Build
+import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.annotation.RequiresApi
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -22,6 +24,7 @@ internal object Gpu {
 
     private val api get() = if (pretend > 0) minOf(pretend, Build.VERSION.SDK_INT) else Build.VERSION.SDK_INT
 
+    @get:ChecksSdkIntAtLeast(api = 33)
     val shaders get() = api >= 33
     val blur get() = api >= 31
 
@@ -128,7 +131,8 @@ half4 main(float2 p) {
 @RequiresApi(33)
 private fun compile(source: String): RuntimeShader? = runCatching { RuntimeShader(source) }.getOrNull()
 
-internal class FoilShader @RequiresApi(33) private constructor(val shader: RuntimeShader) {
+/** [brush] is built with the shader, inside the API-33 path, so callers never touch RuntimeShader. */
+internal class FoilShader @RequiresApi(33) private constructor(val shader: RuntimeShader, val brush: ShaderBrush) {
     @RequiresApi(33)
     fun update(width: Float, height: Float, tiltX: Float, tiltY: Float, time: Float, gold: Boolean, strength: Float) {
         shader.setFloatUniform("size", width, height)
@@ -143,11 +147,11 @@ internal class FoilShader @RequiresApi(33) private constructor(val shader: Runti
         fun create(): FoilShader? = if (Gpu.shaders) newFoil() else null
 
         @RequiresApi(33)
-        private fun newFoil() = compile(FOIL)?.let { FoilShader(it) }
+        private fun newFoil() = compile(FOIL)?.let { FoilShader(it, ShaderBrush(it)) }
     }
 }
 
-internal class GlowShader @RequiresApi(33) private constructor(val shader: RuntimeShader) {
+internal class GlowShader @RequiresApi(33) private constructor(val shader: RuntimeShader, val brush: ShaderBrush) {
     @RequiresApi(33)
     fun update(x: Float, y: Float, radius: Float, time: Float, level: Float, warmth: Float, hue: androidx.compose.ui.graphics.Color?) {
         shader.setFloatUniform("hue", hue?.red ?: 0f, hue?.green ?: 0f, hue?.blue ?: 0f)
@@ -163,7 +167,7 @@ internal class GlowShader @RequiresApi(33) private constructor(val shader: Runti
         fun create(): GlowShader? = if (Gpu.shaders) newGlow() else null
 
         @RequiresApi(33)
-        private fun newGlow() = compile(GLOW)?.let { GlowShader(it) }
+        private fun newGlow() = compile(GLOW)?.let { GlowShader(it, ShaderBrush(it)) }
     }
 }
 
@@ -193,7 +197,7 @@ internal class LayerEffects private constructor(private val shimmer: Any?, priva
 
     companion object {
         fun create(): LayerEffects =
-            if (Gpu.shaders && Build.VERSION.SDK_INT >= 33) LayerEffects(compile(SHIMMER), compile(ABERRATION))
+            if (Gpu.shaders) LayerEffects(compile(SHIMMER), compile(ABERRATION))
             else LayerEffects(null, null)
     }
 }

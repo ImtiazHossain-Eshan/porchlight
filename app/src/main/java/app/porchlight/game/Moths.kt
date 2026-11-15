@@ -32,7 +32,7 @@ enum class MothId(
     Luna("Luna", "The night owl", "Long-life bulb", "The round starts with 5 extra seconds."),
     Wick("Wick", "The sprinter", "Hot streak", "Streaks start at ×2, but the bulb is 3 seconds shorter."),
     Atlas("Atlas", "The mapmaker", "Second look", "Once a round, flash every card open for a moment."),
-    Dot("Dot", "The counter", "Quick hands", "Tap straight past a wrong pair, and your first miss keeps the streak."),
+    Dot("Dot", "The counter", "Quick hands", "Wrong pairs flip back instantly, and your first miss doesn't break the streak."),
     Iris("Iris", "The watcher", "Long look", "The opening peek lasts 3.4 seconds instead of 2."),
     Sorbet("Sorbet", "The sweet tooth", "Top-up", "Every pair you find adds a second to the bulb."),
     Sulphur("Sulphur", isLead = false),

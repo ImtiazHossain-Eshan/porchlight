@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -43,7 +44,9 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -275,7 +278,8 @@ internal fun DailyScreen(session: Session) {
         }
         Spacer(Modifier.height(12.dp))
 
-        // The week: one stud a day, gold when played.
+        // The week: a brass stud with its stars for a played day, an empty socket for a missed one,
+        // and a glowing ring around today.
         Row(
             Modifier
                 .fillMaxWidth()
@@ -286,21 +290,33 @@ internal fun DailyScreen(session: Session) {
             for (ago in 6 downTo 0) {
                 val seed = todaySeed(-ago)
                 val entry = progress.dailyLog.lastOrNull { it.day == seed }
+                val isToday = ago == 0
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(
                         Modifier
                             .size(34.dp)
-                            .metal(corner = 17.dp, dull = entry == null)
-                            .then(if (ago == 0) Modifier.border(2.dp, Craft.gold, CircleShape) else Modifier)
+                            .then(if (isToday) Modifier.drawBehind { todayGlow() } else Modifier)
+                            .then(
+                                when {
+                                    entry != null -> Modifier.metal(corner = 17.dp)
+                                    isToday -> Modifier.background(Color.Black.copy(alpha = 0.35f), CircleShape)
+                                    else -> Modifier.border(1.5.dp, Dusk.inkSoft.copy(alpha = 0.55f), CircleShape)
+                                },
+                            )
+                            .then(if (isToday) Modifier.border(2.5.dp, Craft.gold, CircleShape) else Modifier)
                             .semantics {
-                                contentDescription = dayLabel(seed) + if (entry != null) ", ${entry.stars} stars" else ", not played"
+                                contentDescription = dayLabel(seed) + when {
+                                    entry != null -> ", ${entry.stars} stars"
+                                    isToday -> ", today, not played yet"
+                                    else -> ", missed"
+                                }
                             },
                         contentAlignment = Alignment.Center,
                     ) {
                         if (entry != null) Text("${entry.stars}", style = Carved, fontSize = 15.sp, color = Dusk.paperInk)
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text("${seed % 100}", style = Label, color = if (ago == 0) Dusk.amber else Dusk.inkSoft)
+                    Text("${seed % 100}", style = Label, color = if (isToday) Dusk.amber else Dusk.inkSoft)
                 }
             }
         }
@@ -674,4 +690,18 @@ private fun Groove() {
         drawLine(Dusk.shadow, Offset(0f, 0f), Offset(size.width, 0f), 1.dp.toPx(), alpha = 0.7f)
         drawLine(Wood.Walnut.light, Offset(0f, 1.dp.toPx()), Offset(size.width, 1.dp.toPx()), 1.dp.toPx(), alpha = 0.6f)
     }
+}
+
+/** A soft lamplight halo behind today's stud, drawn with a plain gradient so it shows on every API level. */
+private fun DrawScope.todayGlow() {
+    val r = size.minDimension / 2f
+    drawCircle(
+        Brush.radialGradient(
+            0.55f to Craft.gold.copy(alpha = 0.55f),
+            1f to Color.Transparent,
+            center = center,
+            radius = r * 1.75f,
+        ),
+        radius = r * 1.75f,
+    )
 }

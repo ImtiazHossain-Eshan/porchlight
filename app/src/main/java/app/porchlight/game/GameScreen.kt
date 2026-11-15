@@ -1,8 +1,8 @@
 package app.porchlight.game
 
 import android.provider.Settings
-import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -393,7 +393,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
 
     // Going to the background pauses the round (a rotation doesn't); coming back asks to continue.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val activity = LocalContext.current as? Activity
+    val activity = LocalActivity.current
     DisposableEffect(lifecycle, session) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {

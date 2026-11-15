@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
@@ -47,6 +46,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
@@ -64,7 +64,7 @@ private fun brief(lead: MothId): String = when (lead) {
     MothId.Luna -> "+5 s bulb"
     MothId.Wick -> "streak starts ×2, −3 s bulb"
     MothId.Atlas -> "one second look"
-    MothId.Dot -> "taps past a wrong pair"
+    MothId.Dot -> "instant flip-back, 1 free miss"
     MothId.Iris -> "longer peek"
     MothId.Sorbet -> "+1 s a pair"
     else -> ""
@@ -273,14 +273,14 @@ private fun Stage(session: Session, modifier: Modifier) {
             )
             Box(
                 Modifier
-                    .offset(x - size / 2, y - size / 2)
+                    .offset { IntOffset((x - size / 2).roundToPx(), (y - size / 2).roundToPx()) }
                     .size(size)
-                    .clip(CircleShape)
                     .drawBehind {
                         // The lead hovers in a soft halo of the lamp's light.
                         if (chosen) drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.34f), Color.Transparent)))
                     }
-                    .clickable(role = Role.RadioButton) { session.pickLead(id) }
+                    // No clip here: a circle clip cut the wing tips off. The pick shows as the moth flying to the lead spot.
+                    .clickable(interactionSource = null, indication = null, role = Role.RadioButton) { session.pickLead(id) }
                     .semantics {
                         contentDescription =
                             if (open) "${id.label}: ${id.perkName}" else "${id.label}, locked until level ${id.unlockLevel}"

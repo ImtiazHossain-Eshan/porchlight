@@ -81,7 +81,7 @@ You start with Luna. Each level up brings the next lead to the porch.
 | <img src="docs/moths/luna.svg" width="56" alt=""> | **Luna** | The night owl | **Long-life bulb.** The round starts with 5 extra seconds. | Level 1 |
 | <img src="docs/moths/wick.svg" width="56" alt=""> | **Wick** | The sprinter | **Hot streak.** Streaks start at ×2, but the bulb is 3 seconds shorter. | Level 2 |
 | <img src="docs/moths/atlas.svg" width="56" alt=""> | **Atlas** | The mapmaker | **Second look.** Once a round, flash every card open for a moment. | Level 3 |
-| <img src="docs/moths/dot.svg" width="56" alt=""> | **Dot** | The counter | **Quick hands.** Tap straight past a wrong pair, and your first miss keeps the streak. | Level 4 |
+| <img src="docs/moths/dot.svg" width="56" alt=""> | **Dot** | The counter | **Quick hands.** Wrong pairs flip back instantly, and your first miss doesn't break the streak. | Level 4 |
 | <img src="docs/moths/iris.svg" width="56" alt=""> | **Iris** | The watcher | **Long look.** The opening peek lasts 3.4 seconds instead of 2. | Level 5 |
 | <img src="docs/moths/sorbet.svg" width="56" alt=""> | **Sorbet** | The sweet tooth | **Top-up.** Every pair you find adds a second to the bulb. | Level 6 |
 
@@ -210,7 +210,8 @@ Modern effects without a game engine or a WebView: Compose `graphicsLayer` for t
 
 **Fallbacks.** Shaders need Android 13; blur needs Android 12.
 - **Android 12 (no shaders):** a gradient glow replaces the god rays, and a sliding sheen replaces the foil.
-- **Below Android 12 (no blur):** there is no bloom, and the board does not blur behind the scorecard.
+- **Below Android 12 (no blur):** there is no bloom, and the board does not blur behind the scorecard, so a darker veil covers it instead.
+- Screenshots of both paths are in `docs/screens/fallback-android12-*.png` and `docs/screens/fallback-android9-11-*.png`.
 
 **Performance.** If frames start running long, the game halves the bloom's resolution, then thins the particles.
 

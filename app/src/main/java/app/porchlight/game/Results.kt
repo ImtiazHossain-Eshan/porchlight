@@ -128,7 +128,8 @@ internal fun Results(session: Session, report: Report) {
     Box(
         Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.5f * (1f - slide.value).coerceIn(0f, 1f)))
+            // Below Android 12 the round behind isn't blurred, so a darker veil keeps its plates and cards quiet.
+            .background(Color.Black.copy(alpha = (if (Gpu.blur) 0.5f else 0.8f) * (1f - slide.value).coerceIn(0f, 1f)))
             .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
                 skipped = true
                 step = STEP_END
@@ -184,6 +185,18 @@ internal fun Results(session: Session, report: Report) {
                 )
                 if (report.newBest && step >= STEP_SCORE) Chip("NEW BEST", Craft.danger, Color.White)
             }
+            // The record sits under the score it is measured against, not in the bonus table.
+            if (!report.practice && !report.newBest) {
+                Reveal(step >= STEP_SCORE, skipped) {
+                    Text(
+                        "Best ${progress.best.grouped()}",
+                        style = Label,
+                        fontSize = 13.sp,
+                        letterSpacing = 1.5.sp,
+                        color = Color(0xFFD9CDB4),
+                    )
+                }
+            }
             Spacer(Modifier.height(10.dp))
 
             // The bonus table, inked on a strip of the panel.
@@ -202,7 +215,7 @@ internal fun Results(session: Session, report: Report) {
                         if (won) String.format(Locale.US, "%.1f s", round.left / 1000f) else "none",
                         "+${timeBonus.grouped()}",
                     )
-                    Line("Wrong pairs", "${round.misses}", if (report.practice) "practice" else "best ${progress.best.grouped()}")
+                    Line("Wrong pairs", "${round.misses}", if (report.practice) "practice" else "")
                 }
             }
             Spacer(Modifier.height(12.dp))
