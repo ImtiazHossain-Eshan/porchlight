@@ -259,13 +259,9 @@ internal fun NightsScreen(session: Session) {
                         }
                     }
                     if (open) {
-                        Row(Modifier.padding(top = 3.dp), horizontalArrangement = Arrangement.spacedBy(1.dp)) {
+                        Row(Modifier.padding(top = 1.dp), horizontalArrangement = Arrangement.spacedBy((-2).dp)) {
                             repeat(3) { star ->
-                                GlyphArt(
-                                    Glyph.Star,
-                                    if (star < progress.nightStars[i]) Craft.goldDeep else Craft.parchmentShade,
-                                    Modifier.size(13.dp),
-                                )
+                                Star(star < progress.nightStars[i], shown = true, instant = true, modifier = Modifier.size(20.dp))
                             }
                         }
                     }
@@ -991,8 +987,17 @@ private fun NightConfirm(night: Night, stars: Int, session: Session, onClose: ()
         ) {
             Text("NIGHT ${night.number}", style = Display, fontSize = TypeScale.Title, color = Craft.parchmentInk)
             Spacer(Modifier.height(4.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                repeat(3) { i -> GlyphArt(Glyph.Star, if (i < stars) Craft.goldDeep else Craft.parchmentShade, Modifier.size(18.dp)) }
+            // The stars won on this night so far: the same bevelled gold stars as the scorecard,
+            // big enough to read at a glance; an unearned one is an empty socket.
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Bottom) {
+                repeat(3) { i ->
+                    Star(
+                        i < stars,
+                        shown = true,
+                        instant = true,
+                        modifier = Modifier.size(40.dp).padding(bottom = if (i == 1) 6.dp else 0.dp),
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
             Text(nightLine(night), style = TextInk, fontWeight = FontWeight.Bold, color = Craft.parchmentInk)
