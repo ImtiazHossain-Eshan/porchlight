@@ -95,17 +95,24 @@ half4 main(float2 p) {
 }
 """
 
-/** Heat shimmer: ripples the bulb sideways, more strongly towards the top, as if over a flame. */
+/**
+ * Heat shimmer: a gentle sideways ripple, stronger towards the top, as if over a flame. Long, slow
+ * waves keep the jar's outline whole, and the ripple fades to nothing over [edge] pixels at the
+ * layer's sides, so the layer's bounds never show as a hard cut.
+ */
 private const val SHIMMER = """
 uniform shader content;
 uniform float2 size;
 uniform float time;
 uniform float amount;
+uniform float edge;
 
 half4 main(float2 p) {
-    float wave = sin(p.y * 0.07 + time * 13.0) * 0.6 + sin(p.y * 0.19 - time * 8.0) * 0.4;
+    float wave = sin(p.y * 0.035 + time * 9.0) * 0.7 + sin(p.y * 0.08 - time * 6.0) * 0.3;
     float rise = 0.35 + 0.65 * smoothstep(size.y, 0.0, p.y);
-    return content.eval(p + float2(wave * amount * rise, 0.0));
+    float fade = smoothstep(0.0, edge, p.x) * smoothstep(size.x, size.x - edge, p.x)
+        * smoothstep(0.0, edge, p.y) * smoothstep(size.y, size.y - edge, p.y);
+    return content.eval(p + float2(wave * amount * rise * fade, 0.0));
 }
 """
 
@@ -174,15 +181,16 @@ internal class GlowShader @RequiresApi(33) private constructor(val shader: Runti
 /** Effects applied to a whole layer: they read what the layer drew and bend it. */
 internal class LayerEffects private constructor(private val shimmer: Any?, private val aberration: Any?) {
     /** Heat shimmer for a layer [width] x [height] pixels, or null where shaders aren't available. */
-    fun shimmer(width: Float, height: Float, time: Float, amount: Float): androidx.compose.ui.graphics.RenderEffect? =
-        if (Build.VERSION.SDK_INT >= 33 && shimmer != null) shimmer33(shimmer as RuntimeShader, width, height, time, amount) else null
+    fun shimmer(width: Float, height: Float, time: Float, amount: Float, edge: Float): androidx.compose.ui.graphics.RenderEffect? =
+        if (Build.VERSION.SDK_INT >= 33 && shimmer != null) shimmer33(shimmer as RuntimeShader, width, height, time, amount, edge) else null
 
     fun aberration(x: Float, y: Float, strength: Float): androidx.compose.ui.graphics.RenderEffect? =
         if (Build.VERSION.SDK_INT >= 33 && aberration != null) aberration33(aberration as RuntimeShader, x, y, strength) else null
 
     @RequiresApi(33)
-    private fun shimmer33(s: RuntimeShader, width: Float, height: Float, time: Float, amount: Float): androidx.compose.ui.graphics.RenderEffect {
+    private fun shimmer33(s: RuntimeShader, width: Float, height: Float, time: Float, amount: Float, edge: Float): androidx.compose.ui.graphics.RenderEffect {
         s.setFloatUniform("size", width, height)
+        s.setFloatUniform("edge", edge)
         s.setFloatUniform("time", time)
         s.setFloatUniform("amount", amount)
         return RenderEffect.createRuntimeShaderEffect(s, "content").asComposeRenderEffect()

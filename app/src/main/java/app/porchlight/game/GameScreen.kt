@@ -461,13 +461,15 @@ fun GameScreen(store: Store, sfx: Sfx) {
                     session.flareUp(0.5f, 700)
                     delay(1_100)
                 } else {
-                    // The bulb pops: a white flash, then darkness, and the moths scatter.
+                    // The lamp pops: a bright burst for 120 ms, then dark, with the glass still hanging
+                    // there. A faint flash crosses the screen with it, and the moths scatter.
                     session.timeLeft = 0f
                     session.flock.scatterAt = clock.seconds
                     sfx.play(Sound.Pop)
                     sfx.play(Sound.Lose)
                     session.buzz(HapticFeedbackType.LongPress)
-                    session.pop.snapTo(0.85f)
+                    session.flareUp(1.8f, 120)
+                    session.pop.snapTo(0.3f)
                     session.pop.animateTo(0f, tween(120))
                     delay(1_250)
                 }
@@ -547,13 +549,12 @@ fun GameScreen(store: Store, sfx: Sfx) {
         label = "behindSheet",
     )
 
-    // The light's colour is the round's state: teal while the cards are shown, gold in Overdrive,
-    // red in the last seconds, and its own warm colour otherwise.
+    // The wall's light follows the lamp: its own warm colour by the time left (the peek burns at
+    // full warm white), gold in Overdrive, red in the last seconds.
     val overdrive = round.phase == Phase.Play && multiplierAt(round.streak, round.rules) >= MAX_MULTIPLIER
     val hue: Color? = when {
         session.screen.isMenu -> null
         low -> Craft.danger
-        round.phase == Phase.Peek -> Craft.bio
         overdrive -> Craft.gold
         else -> null
     }

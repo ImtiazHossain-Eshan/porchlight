@@ -8,6 +8,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -43,8 +45,9 @@ private val needle = Stroke(2.4f, cap = StrokeCap.Round)
 /** Which lamp is hanging: the lobby's mason jar, or the round's bulb in its brass works. */
 internal enum class Lamp { Jar, Works }
 
-/** Warm white with time to spare, amber as it runs down, deep orange at the end. */
-internal fun glassColour(t: Float): Color = when {
+/** Warm white with time to spare, amber at 40%, deep orange under 15%, red in the last five seconds. */
+internal fun glassColour(t: Float, last: Boolean = false): Color = when {
+    last -> Craft.danger
     t >= 0.4f -> lerp(AMBER, WARM_WHITE, (t - 0.4f) / 0.6f)
     t >= 0.15f -> lerp(DEEP_ORANGE, AMBER, (t - 0.15f) / 0.25f)
     else -> DEEP_ORANGE
@@ -58,8 +61,9 @@ internal fun glassColour(t: Float): Color = when {
  * pressure gauge whose needle falls with the time left: the round.
  *
  * [timeLeft] is the fraction of the round remaining. [power] is how brightly it burns (0 off, 1 on,
- * more in a flare, less in a flicker). [hue] overrides the light's colour for a state: teal for the
- * peek, gold for Overdrive, red for the last seconds. [smoke] makes it smoulder.
+ * more in a flare or the burn-out pop, less in a flicker). The light's colour follows [timeLeft]
+ * (see [glassColour]); [last] turns it red for the final seconds, and [hue] can still override it.
+ * [arc] draws the round's time arc around the glass. [smoke] makes it smoulder.
  */
 @Composable
 internal fun Bulb(
@@ -69,6 +73,8 @@ internal fun Bulb(
     modifier: Modifier = Modifier,
     lamp: Lamp = Lamp.Works,
     hue: () -> Color? = { null },
+    last: () -> Boolean = { false },
+    arc: Boolean = false,
     smoke: () -> Boolean = { false },
     still: Boolean = false,
     /** Draw the lamp's own halo. On by default where the scene's glow shader can't; the share card always wants it. */
@@ -95,8 +101,10 @@ internal fun Bulb(
                 val raw = power().coerceIn(0f, 1.8f)
                 val on = raw.coerceAtMost(1f)
                 val time = if (still) 0f else clock.seconds
-                val light = hue() ?: glassColour(t)
+                val light = hue() ?: glassColour(t, last())
 
+                // The time ring sits behind the brass works, so the gears and gauge stay on top of it.
+                if (arc) timeArc(t)
                 if (lamp == Lamp.Works) works(time, t, on)
 
                 // Without the scene's glow shader, the lamp carries its own halo.
@@ -109,7 +117,7 @@ internal fun Bulb(
                     }
                 }
 
-                if (lamp == Lamp.Jar) jar(light, on, core, time) else bulb(light, on, t, core, time)
+                if (lamp == Lamp.Jar) jar(light, on, core, time) else bulb(light, on, raw, t, last(), core, time)
 
                 if (smoke() && !still) {
                     // The bulb smoulders: grey puffs rise from the top of the glass and thin out.
@@ -125,13 +133,16 @@ internal fun Bulb(
 }
 
 /** The Edison bulb: brass cap, coloured glass, a hot core and a filament. */
-private fun DrawScope.bulb(light: Color, on: Float, t: Float, core: Brush, time: Float) {
+private fun DrawScope.bulb(light: Color, on: Float, raw: Float, t: Float, last: Boolean, core: Brush, time: Float) {
     val glass = svg(GLASS)
-    drawPath(glass, lerp(COLD_GLASS, light, on))
+    // Dark, the glass is still there: only the light goes.
+    drawPath(glass, lerp(COLD_GLASS, light, on * (0.55f + 0.45f * t).coerceAtMost(1f)))
     if (on > 0.02f) {
+        // A flare (Sorbet's top-up, a big streak) or the burn-out pop swells the hot core.
+        val swell = 1f + 0.5f * (raw - on).coerceAtLeast(0f)
         translate(GLASS_CENTRE.x, GLASS_CENTRE.y - 8f) {
-            scale(0.34f, 0.34f, pivot = Offset.Zero) {
-                drawCircle(core, 100f, Offset.Zero, alpha = (on * (0.35f + 0.65f * t)).coerceAtMost(1f))
+            scale(0.34f * swell, 0.34f * swell, pivot = Offset.Zero) {
+                drawCircle(core, 100f, Offset.Zero, alpha = (raw * (0.35f + 0.65f * t)).coerceAtMost(1f))
             }
         }
     }
@@ -142,7 +153,7 @@ private fun DrawScope.bulb(light: Color, on: Float, t: Float, core: Brush, time:
     // The filament burns brighter with time left; near the end it pulses.
     val pulse = if (t < 0.25f) 0.6f + 0.4f * sin(time * 16f) else 1f
     val heat = (on * (0.45f + 0.55f * t) * pulse).coerceIn(0f, 1f)
-    drawPath(svg(FILAMENT), lerp(COLD_WIRE, if (t < 0.25f) Dusk.ember else Color.White, heat), style = filamentLine)
+    drawPath(svg(FILAMENT), lerp(COLD_WIRE, if (last || t < 0.25f) Dusk.ember else Color.White, heat), style = filamentLine)
 
     drawRect(Craft.brass, Offset(40f, 0f), Size(32f, 27f))
     drawRect(Craft.brassLight, Offset(44f, 0f), Size(5f, 27f), alpha = 0.6f)
@@ -191,12 +202,12 @@ private fun DrawScope.jar(light: Color, on: Float, core: Brush, time: Float) {
  */
 private fun DrawScope.works(time: Float, t: Float, on: Float) {
     val turn = time * 14f * on
-    gear(Offset(10f, 46f), 30f, 12, turn, copper = true)
-    gear(Offset(104f, 30f), 22f, 10, -turn * 1.36f - 8f)
-    gear(Offset(98f, 138f), 16f, 8, turn * 1.9f, copper = true, alpha = 0.9f)
+    gear(Offset(-12f, 40f), 28f, 12, turn, copper = true)
+    gear(Offset(124f, 26f), 21f, 10, -turn * 1.36f - 8f)
+    gear(Offset(122f, 132f), 15f, 8, turn * 1.9f, copper = true, alpha = 0.9f)
 
     // The gauge, lower left: a brass rim, a cream face, tick marks, a red zone and the needle.
-    val c = Offset(12f, 128f)
+    val c = Offset(-10f, 118f)
     drawCircle(Craft.brassDark, 25f, c)
     drawCircle(Craft.brass, 23f, c)
     drawCircle(Craft.parchment, 19f, c)
@@ -213,4 +224,26 @@ private fun DrawScope.works(time: Float, t: Float, on: Float) {
         drawLine(if (t < 1f / 6f) Craft.danger else Craft.parchmentInk, c, Offset(c.x + 15f, c.y), needle.width, StrokeCap.Round)
     }
     drawCircle(Craft.brassDark, 3f, c)
+}
+
+/**
+ * The round's clock: a bold band that follows the glass's own outline, a little outside it, open at
+ * the neck under the cap. It drains clockwise from the right of the neck, so what's left is the gold
+ * run from the left of the neck down and round; what's spent is a faint track.
+ */
+private const val TIME_BAND = "M38 36 C38 50 8 60 8 88 A48 48 0 0 0 104 88 C104 60 74 50 74 36"
+private val bandMeasure = PathMeasure()
+private val bandLeft = Path()
+
+private fun DrawScope.timeArc(t: Float) {
+    val band = svg(TIME_BAND)
+    drawPath(band, Color.White, alpha = 0.15f, style = Stroke(7f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    if (t <= 0f) return
+    bandMeasure.setPath(band, false)
+    bandLeft.reset()
+    bandMeasure.getSegment(0f, bandMeasure.length * t, bandLeft, true)
+    // A soft glow under the band, then the band itself, then a bright line along its middle.
+    drawPath(bandLeft, Craft.gold, alpha = 0.3f, style = Stroke(15f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    drawPath(bandLeft, Craft.gold, style = Stroke(7f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    drawPath(bandLeft, Craft.brassLight, alpha = 0.8f, style = Stroke(2.2f, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }

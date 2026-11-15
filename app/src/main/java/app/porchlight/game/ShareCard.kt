@@ -134,8 +134,8 @@ internal fun ShareCard(card: DailyCard, gold: Boolean, shape: CardShape, modifie
                 clock = clock,
                 timeLeft = { 1f },
                 power = { if (lit) 1f else 0f },
-                lamp = Lamp.Jar,
                 still = true,
+                lamp = Lamp.Jar,
                 ownHalo = true,
                 modifier = Modifier.size(bulbSize * 0.7f, bulbSize),
             )
@@ -273,7 +273,10 @@ internal fun ShareSheet(card: DailyCard, gold: Boolean, onClose: () -> Unit) {
                 .padding(14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Share today's porch", style = Gilt, fontSize = 20.sp, color = Dusk.amber)
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Text("Share today's porch", style = Gilt, fontSize = 20.sp, color = Dusk.amber)
+                BrassButton(Glyph.Close, "Close", enabled = true, size = 36.dp, modifier = Modifier.align(Alignment.CenterEnd), onClick = onClose)
+            }
             Spacer(Modifier.height(10.dp))
 
             // The preview: it springs in, and again whenever the shape changes.

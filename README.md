@@ -40,16 +40,16 @@ Pick a lead moth before each round. Each one bends the rules its own way.
 <table>
   <tr>
     <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: a lit mason jar with moths resting around it, an oak sign reading Light the porch, and four menu tiles" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up under a teal bulb, with READY 3 2 1 counting down" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up under the bulb at full warm brightness, with READY 3 2 1 counting down" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: the bulb glows gold in its brass works, found moths circle it, and MATCH pops rise off the pairs" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, the readout says 05s, and the remaining cards are washed red" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, the time band around it nearly empty, and the remaining cards are washed red" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="The scorecard: a gilded navy panel with stars, the score, a bonus table and the level gauge" width="100%"></td>
   </tr>
   <tr>
     <td align="center"><sub><b>The lobby</b><br>A jar, the moths, one sign</sub></td>
     <td align="center"><sub><b>The peek</b><br>Ready, 3, 2, 1</sub></td>
     <td align="center"><sub><b>Overdrive</b><br>The light turns gold</sub></td>
-    <td align="center"><sub><b>Last seconds</b><br>Red, smoke, 05s</sub></td>
+    <td align="center"><sub><b>Last seconds</b><br>Red, smoke, flicker</sub></td>
     <td align="center"><sub><b>Scorecard</b><br>Stars and bonuses</sub></td>
   </tr>
   <tr>
@@ -188,10 +188,10 @@ Levels need 200, 500, 900, 1,400 and 2,000 XP in total.
 
 The porch is built by hand, and every surface is a made thing drawn in code: night-stained planks, walnut and oak panels with grain and bevels, brass and copper plates with rivets, gears and pipes, parchment, plum velvet and glass. No image files ship.
 
-The light's colour is the round's state: amber while it burns, teal while the cards are shown and on every found pair, gold in Overdrive, and red in the last five seconds.
+The bulb is the clock. Its glow shrinks and its colour runs from warm white with time to spare, to amber at 40%, deep orange under 15%, and red in the last five seconds, when it also flickers two to four times a second. The peek burns at full warm brightness. When time runs out the bulb pops bright for an instant and goes dark, its glass still hanging there. Found pairs glow teal, and Overdrive turns the wall's light gold.
 
 - **Lobby:** a mason jar with a filament inside, hung by a wire.
-- **Round:** an Edison bulb in brass works. Two gears turn while it burns, and a pressure gauge's needle falls with the time left.
+- **Round:** an Edison bulb in brass works, with two gears that turn while it burns and a pressure gauge whose needle falls with the time left. A bold gold band follows the glass's outline, open at the neck, and drains clockwise as the time runs out. The seconds sit under it in the bulb's colour, with tenths under ten seconds. The ✕ leaves the round (it asks first), and the pause sign offers Keep playing, Start over and Leave round.
 - **Cards:** ebony tiles in embossed brass frames. Faces are parchment; a found pair leaves an empty, recessed socket.
 - **Signs:** the main action is always an oak sign with carved lettering. Quieter actions are walnut with gilt lettering.
 
@@ -205,7 +205,7 @@ Modern effects without a game engine or a WebView: Compose `graphicsLayer` for t
 - **Foil.** Card backs have a faint holographic foil that shifts with the tilt. Mastered moths get the same foil in gold, only on the moth.
 - **The bulb's light.**
   - A shader draws a soft volumetric glow with slow god rays and film grain, and cools from warm white to deep orange as time runs out.
-  - In the last five seconds the air above the bulb shimmers with heat.
+  - In the last five seconds the air above the bulb shimmers with heat: a gentle ripple that keeps the bulb's outline, on a layer wide enough that nothing near the bulb is cut off. Below Android 13 the bulb only flickers and turns red.
 - **Bloom.** The bulb's core, the sparks and the gold rims are drawn again, blurred, and added on top. The OVERDRIVE word has its own bloom.
 - **Depth.**
   - Tilting the phone tilts the board up to 4°. The wall (0.3×), the light (0.6×), the board (1×) and the flying moths (1.4×) slide at different depths.

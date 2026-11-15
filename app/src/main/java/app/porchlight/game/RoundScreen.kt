@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -41,6 +42,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.offset
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -143,40 +147,40 @@ private fun Header(session: Session, modifier: Modifier) {
             Modifier.align(if (tall) BiasAlignment(0f, -0.55f) else Alignment.TopCenter),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Bulb(
-                clock = session.clock,
-                timeLeft = { session.timeLeft },
-                power = session.power,
-                lamp = Lamp.Works,
-                hue = { session.hue },
-                smoke = { low },
-                still = session.calm,
-                modifier = Modifier
-                    .size(bulbH * 0.7f, bulbH)
-                    .tracksBulb(session)
+            // Under five seconds the air over the lamp shimmers with heat. The shader's layer reaches
+            // well past the bulb and its gears on every side, so nothing near it is cut off at a hard edge.
+            Box(
+                Modifier
+                    .overhang(SHIMMER_SIDE, SHIMMER_PAD)
                     .graphicsLayer {
-                        // Under five seconds the air over the bulb shimmers with heat.
                         renderEffect = if (low && !session.calm) {
-                            session.effects.shimmer(size.width, size.height, session.clock.seconds, 2.5f.dp.toPx())
+                            session.effects.shimmer(size.width, size.height, session.clock.seconds, 1.dp.toPx(), SHIMMER_PAD.toPx())
                         } else null
                     }
-                    .semantics { contentDescription = "${(round.left + 999) / 1000} seconds left" },
-            )
-            // The time, in the light's own colour. In the last seconds it is the biggest thing here.
+                    .padding(horizontal = SHIMMER_SIDE, vertical = SHIMMER_PAD),
+            ) {
+                Bulb(
+                    clock = session.clock,
+                    timeLeft = { session.timeLeft },
+                    power = session.power,
+                    last = { low },
+                    arc = round.phase != Phase.Idle,
+                    smoke = { low },
+                    still = session.calm,
+                    modifier = Modifier
+                        .size(bulbH * 0.7f, bulbH)
+                        .tracksBulb(session)
+                        .semantics { contentDescription = "${(round.left + 999) / 1000} seconds left" },
+                )
+            }
+            // The time, in the bulb's own colour: whole seconds, then tenths under ten.
             val seconds = round.left / 1000f
             Text(
-                when {
-                    low -> String.format(Locale.US, "%02ds", (round.left + 999) / 1000)
-                    seconds < 10f -> String.format(Locale.US, "%.1f", seconds)
-                    else -> "${seconds.toInt()}"
-                },
+                if (seconds < 10f) String.format(Locale.US, "%.1f", seconds) else "${seconds.toInt()}",
                 style = Gilt,
-                fontSize = if (low) 30.sp else 20.sp,
-                color = when {
-                    low -> Craft.danger
-                    seconds < 10f -> Dusk.glowDeep
-                    else -> Dusk.glow
-                },
+                fontSize = 24.sp,
+                color = glassColour(session.timeLeft, low || round.phase == Phase.Lost),
+                modifier = Modifier.offset(y = (-6).dp),
             )
         }
 
@@ -187,18 +191,29 @@ private fun Header(session: Session, modifier: Modifier) {
             TopUp(session.topUps, round.rules.pairBonusMs, Modifier.align(Alignment.TopCenter).padding(top = bulbH * 0.2f))
         }
 
-        if (round.phase == Phase.Play && !round.tutorial) {
-            BrassButton(Glyph.Pause, "Pause", enabled = !round.paused, modifier = Modifier.align(Alignment.TopStart), onClick = session::pause)
-        }
-
-        if (round.phase == Phase.Play && round.rules.flashes > 0) {
+        // Out of the round at any time: the cross asks first, then goes back to the porch.
+        if (round.running || round.phase == Phase.Idle) {
             BrassButton(
-                Glyph.Eye,
-                if (round.flashes > 0) "Second look" else "Second look used",
-                enabled = round.flashes > 0 && !round.flashing,
-                modifier = Modifier.align(Alignment.TopEnd),
-                onClick = session::flash,
-            )
+                Glyph.Close,
+                if (round.tutorial) "Skip the tutorial" else "Leave round",
+                enabled = !round.paused,
+                size = 44.dp,
+                modifier = Modifier.align(Alignment.TopStart),
+            ) { if (round.tutorial) session.endTutorial() else session.leaving = true }
+        }
+        Column(Modifier.align(Alignment.TopEnd), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (round.phase == Phase.Play && !round.tutorial) {
+                BrassButton(Glyph.Pause, "Pause", enabled = !round.paused, size = 44.dp, onClick = session::pause)
+            }
+            if (round.phase == Phase.Play && round.rules.flashes > 0) {
+                BrassButton(
+                    Glyph.Eye,
+                    if (round.flashes > 0) "Second look" else "Second look used",
+                    enabled = round.flashes > 0 && !round.flashing,
+                    size = 44.dp,
+                    onClick = session::flash,
+                )
+            }
         }
     }
 }
@@ -234,14 +249,14 @@ private fun Band(session: Session, modifier: Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("READY!", style = Display.copy(shadow = Shadow(Craft.bioDeep, Offset.Zero, 22f)), fontSize = 26.sp, color = Craft.bio)
+                Text("READY!", style = Display.copy(shadow = Shadow(Dusk.glowDeep, Offset.Zero, 22f)), fontSize = 26.sp, color = Dusk.amber)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (n in 3 downTo 1) {
                         Text(
                             "$n",
-                            style = Display.copy(shadow = if (n == count) Shadow(Craft.bioDeep, Offset.Zero, 18f) else null),
+                            style = Display.copy(shadow = if (n == count) Shadow(Dusk.glowDeep, Offset.Zero, 18f) else null),
                             fontSize = 22.sp,
-                            color = if (n == count) Color.White else Craft.bio.copy(alpha = if (n > count) 0.25f else 0.55f),
+                            color = if (n == count) Color.White else Dusk.amber.copy(alpha = if (n > count) 0.25f else 0.55f),
                         )
                     }
                 }
@@ -340,6 +355,13 @@ private fun Paused(session: Session) {
                 Text("Tap to continue", color = Color(0xFF3A2612), fontSize = 15.sp)
             }
             Spacer(Modifier.height(22.dp))
+            PrimaryButton("Keep playing", Modifier.fillMaxWidth()) { session.resume() }
+            // A daily porch can't be started over: it has one scored try.
+            if (!session.round.daily) {
+                Spacer(Modifier.height(8.dp))
+                SecondaryButton("Start over", Modifier.fillMaxWidth()) { session.start(daily = false) }
+            }
+            Spacer(Modifier.height(8.dp))
             SecondaryButton("Leave round", Modifier.fillMaxWidth()) { session.leaving = true }
         }
     }
@@ -373,4 +395,22 @@ internal fun LeaveNotice(session: Session) {
             SecondaryButton("Leave", Modifier.fillMaxWidth()) { session.toPorch() }
         }
     }
+}
+
+/**
+ * How far the heat-shimmer layer reaches past the bulb's box, so its ripple never meets a hard edge.
+ * Sideways it also has to clear the gears and the gauge, which stand out past the box.
+ */
+private val SHIMMER_PAD = 24.dp
+private val SHIMMER_SIDE = 64.dp
+
+/**
+ * Lays the content out bigger than it says it is ([sideways] left and right, [upDown] above and below): the parent places it as if
+ * it had no padding, while its layer still covers the margin. Used for the shimmer's bounds.
+ */
+private fun Modifier.overhang(sideways: Dp, upDown: Dp) = layout { measurable, constraints ->
+    val x = sideways.roundToPx()
+    val y = upDown.roundToPx()
+    val placeable = measurable.measure(constraints.offset(2 * x, 2 * y))
+    layout(placeable.width - 2 * x, placeable.height - 2 * y) { placeable.place(-x, -y) }
 }
