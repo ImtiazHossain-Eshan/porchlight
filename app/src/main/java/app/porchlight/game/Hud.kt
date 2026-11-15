@@ -1,5 +1,13 @@
 package app.porchlight.game
 
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -20,6 +28,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -115,8 +124,9 @@ internal fun StreakReadout(multiplier: Int, calm: Boolean, modifier: Modifier = 
         horizontalAlignment = Alignment.End,
     ) {
         Text(if (over) "OVERDRIVE" else "STREAK", style = Label, color = if (over) Craft.gold else Dusk.inkSoft)
+        // ×1 is no streak at all, so it shows a dash until the second pair in a row.
         Text(
-            "×$multiplier",
+            if (multiplier <= 1) "–" else "×$multiplier",
             style = TextGlow,
             fontSize = TypeScale.Title,
             modifier = Modifier.graphicsLayer {
@@ -142,22 +152,25 @@ internal fun BrassButton(
 ) {
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
-    val squeeze by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "squeeze")
+    // Pressed, the coin sinks onto its edge with a spring, and its mark goes with it.
+    val sink by animateFloatAsState(if (pressed) 1f else 0f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "sink")
     Box(
         modifier
             .size(size)
-            .graphicsLayer {
-                scaleX = squeeze
-                scaleY = squeeze
+            .drawBehind {
+                val (c, r) = coinFace(this.size)
+                coin(c, r, press = sink, dull = !enabled)
             }
-            .shadow(5.dp, CircleShape, ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
-            .metal(corner = size / 2, dull = !enabled)
             .clip(CircleShape)
             .clickable(interactionSource = press, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        GlyphArt(glyph, if (enabled) Dusk.paperInk else Dusk.locked, Modifier.size(size * 0.5f))
+        // The mark is stamped into the face: a dark cut with a light edge below it.
+        Box(Modifier.graphicsLayer { translationY = (sink * 0.05f - 0.04f) * this.size.height * 2f }) {
+            GlyphArt(glyph, Color.White.copy(alpha = if (enabled) 0.45f else 0.15f), Modifier.size(size * 0.46f).offset(y = 1.dp))
+            GlyphArt(glyph, if (enabled) Color(0xFF3E2810) else Dusk.locked, Modifier.size(size * 0.46f))
+        }
     }
 }
 
@@ -352,3 +365,72 @@ internal fun LeverSwitch(on: Boolean, description: String, modifier: Modifier = 
  */
 private val signOnOak = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = TextCarved.shadow)
 private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, -1.5f), 0f))
+
+/**
+ * The play button: the porch's one big action. A taller oak sign with the bulb burned into it and
+ * the words in wood type, a warm glow breathing behind it, and a band of light sliding across every
+ * few seconds. It sinks under the finger like the other signs. [calm] keeps it still.
+ */
+@Composable
+internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val squeeze by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "squeeze")
+    val loop = rememberInfiniteTransition(label = "play")
+    val breathe by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(1_600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
+    val sweep by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(3_200, easing = LinearEasing), RepeatMode.Restart), label = "sweep")
+    Box(
+        modifier
+            .height(72.dp)
+            // The glow it sits in: the porch light falling on the sign.
+            .drawBehind {
+                val pulse = if (calm) 0.6f else 0.45f + 0.35f * breathe
+                drawRoundRect(
+                    Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.55f * pulse), Color.Transparent), center, size.width * 0.62f),
+                    topLeft = Offset(-18.dp.toPx(), -16.dp.toPx()),
+                    size = androidx.compose.ui.geometry.Size(size.width + 36.dp.toPx(), size.height + 32.dp.toPx()),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(40.dp.toPx()),
+                )
+            }
+            .graphicsLayer {
+                scaleX = squeeze
+                scaleY = squeeze
+                translationY = (1f - squeeze) * 60f
+            }
+            .plank(Wood.Oak, corner = 14.dp, elevation = 12.dp, seed = 4)
+            .border(2.dp, BrassRule, RoundedCornerShape(14.dp))
+            .drawWithContent {
+                drawContent()
+                rivet(Offset(16.dp.toPx(), size.height / 2), 4.dp.toPx())
+                rivet(Offset(size.width - 16.dp.toPx(), size.height / 2), 4.dp.toPx())
+                if (!calm) {
+                    // The band of light: across in the first third of each cycle, then a rest.
+                    val p = (sweep * 3f).coerceAtMost(1f)
+                    if (p < 1f) {
+                        val x = -size.width * 0.3f + size.width * 1.6f * p
+                        clipRect {
+                            rotate(20f, Offset(x, size.height / 2)) {
+                                drawRect(
+                                    Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.35f), Color.Transparent), x - 30.dp.toPx(), x + 30.dp.toPx()),
+                                    Offset(x - 30.dp.toPx(), -size.height),
+                                    androidx.compose.ui.geometry.Size(60.dp.toPx(), size.height * 3f),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 34.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            // The bulb, burned into the wood: dark with a light edge below.
+            Box {
+                GlyphArt(Glyph.Bulb, Color.White.copy(alpha = 0.35f), Modifier.size(28.dp).offset(y = 1.dp))
+                GlyphArt(Glyph.Bulb, Dusk.paperInk, Modifier.size(28.dp))
+            }
+            FitText(text.uppercase(), TextCarved, TypeScale.Title, Dusk.paperInk)
+        }
+    }
+}

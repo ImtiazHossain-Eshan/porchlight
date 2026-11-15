@@ -1,5 +1,8 @@
 package app.porchlight.game
 
+import kotlin.math.sin
+import kotlin.math.abs
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.runtime.LaunchedEffect
@@ -145,6 +148,8 @@ internal fun NightsScreen(session: Session) {
             val w = maxWidth
             val h = maxHeight
             Canvas(Modifier.fillMaxSize()) {
+                // The country the nights cross, inked on the sheet before the route.
+                mapArt()
                 // The pipe: copper as far as the player has got, a faint inked route beyond.
                 for (i in 0 until STOPS.size - 1) {
                     val a = Offset(STOPS[i].x * size.width, STOPS[i].y * size.height)
@@ -189,37 +194,49 @@ internal fun NightsScreen(session: Session) {
                             role = Role.RadioButton,
                         ) {
                             if (open) {
+                                // A night on the map starts at once: pick it and light the porch.
                                 lockedHint = null
-                                session.sfx.play(Sound.Flip, vary = 0.06f)
                                 session.store.change { it.copy(night = night.number) }
+                                session.start(daily = false)
                             } else {
                                 lockedHint = "Night ${night.number} is locked: win two stars on night ${night.number - 1}."
                                 session.sfx.play(Sound.Locked)
                             }
                         }
                         .semantics {
-                            contentDescription = if (open) "Night ${night.number}, ${nightLine(night)}, best ${progress.nightStars[i]} stars"
+                            contentDescription = if (open) "Play night ${night.number}, ${nightLine(night)}, best ${progress.nightStars[i]} stars"
                             else "Night ${night.number}, locked. Win two stars on night ${night.number - 1}."
                             stateDescription = if (chosen) "Selected" else "Not selected"
                         },
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    // Each night is a thick brass coin standing on the map, leaning a little with
+                    // the phone; the picked one is gold and glows.
                     Box(
                         Modifier
-                            .size(size)
+                            .size(size + 8.dp)
                             .graphicsLayer {
                                 scaleX = grow
                                 scaleY = grow
+                                cameraDistance = 12f * density
+                                rotationY = session.tilt.x * 16f
+                                rotationX = -session.tilt.y * 16f
                             }
-                            .shadow(if (chosen) 10.dp else 4.dp, CircleShape, ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
-                            .metal(corner = size / 2, dull = !open)
-                            .then(if (chosen) Modifier.border(3.dp, Craft.gold, CircleShape) else Modifier),
+                            .drawBehind {
+                                val (c, rr) = coinFace(this.size)
+                                if (chosen) {
+                                    drawCircle(Brush.radialGradient(listOf(Craft.gold.copy(alpha = 0.55f), Color.Transparent), c, rr * 1.7f), rr * 1.7f, c)
+                                }
+                                coin(c, rr, dull = !open, gold = chosen)
+                            },
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (open) {
-                            Text("${night.number}", style = TextEngraved, fontSize = TypeScale.Title, color = Dusk.paperInk)
-                        } else {
-                            GlyphArt(Glyph.Lock, Dusk.inkSoft, Modifier.size(26.dp))
+                        Box(Modifier.offset(y = (-3).dp)) {
+                            if (open) {
+                                Text("${night.number}", style = TextEngraved, fontSize = TypeScale.Title, color = Color(0xFF3E2810))
+                            } else {
+                                GlyphArt(Glyph.Lock, Color(0xFF111316), Modifier.size(24.dp))
+                            }
                         }
                     }
                     if (open) {
@@ -257,7 +274,7 @@ internal fun NightsScreen(session: Session) {
             }
         }
         Spacer(Modifier.height(10.dp))
-        PrimaryButton("Light the porch", Modifier.fillMaxWidth()) { session.start(daily = false) }
+        PlayButton("Light the porch", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
     }
 }
 
@@ -422,8 +439,15 @@ private fun CalendarLeaf(seed: Long, modifier: Modifier) {
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(14.dp))
-            Text(MONTHS[((seed / 100 % 100).toInt() - 1).coerceIn(0, 11)].uppercase(), style = Label, color = Color(0xFFFFF0DC))
+            // The month, printed bold in the copper band, clear of the binder rings.
+            Spacer(Modifier.height(16.dp))
+            Text(
+                MONTHS[((seed / 100 % 100).toInt() - 1).coerceIn(0, 11)].uppercase(),
+                style = BodyText,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+                color = Color.White,
+            )
             Spacer(Modifier.height(6.dp))
             Text("${seed % 100}", style = Display, fontSize = TypeScale.Title, color = Craft.parchmentInk)
         }
@@ -460,7 +484,7 @@ internal fun MothsScreen(session: Session) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                ShowcaseJar(moth, open, gold, Modifier.size(84.dp, 118.dp))
+                ShowcaseJar(moth, open, gold, session.clock, session.calm, Modifier.size(84.dp, 118.dp))
                 Column(Modifier.weight(1f)) {
                     // The name and its chips wrap onto two lines when a big font leaves no room.
                     FlowRow(
@@ -526,7 +550,7 @@ private fun Pips(label: String, value: Int) {
 
 /** A specimen jar: a walnut base, a brass lid, and the moth behind thick glass. Locked, it holds a shadow. */
 @Composable
-private fun ShowcaseJar(moth: MothId, open: Boolean, gold: Boolean, modifier: Modifier) {
+private fun ShowcaseJar(moth: MothId, open: Boolean, gold: Boolean, clock: Clock, calm: Boolean, modifier: Modifier) {
     Box(modifier, contentAlignment = Alignment.Center) {
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
@@ -537,12 +561,32 @@ private fun ShowcaseJar(moth: MothId, open: Boolean, gold: Boolean, modifier: Mo
             // The glass, pale against the velvet.
             drawRoundRect(Color(0xFFBFE2F0), Offset(w * 0.1f, h * 0.14f), Size(w * 0.8f, h * 0.76f), CornerRadius(w * 0.22f), alpha = 0.16f)
         }
-        MothArt(
-            moth,
-            Modifier.fillMaxWidth(0.72f).height(72.dp).offset(y = 6.dp),
-            flat = if (open) null else Color(0xFF1A0B18),
-            gold = gold,
-        )
+        // A met moth is alive in its jar: its wings beat in depth (they fold towards you and
+        // open again), and it turns slowly as if hovering. Each jar keeps its own rhythm.
+        // Everything is read while drawing, so the list never recomposes for it.
+        val phase = moth.ordinal * 1.7f
+        Canvas(
+            Modifier
+                .fillMaxWidth(0.72f)
+                .height(72.dp)
+                .offset(y = 6.dp)
+                .graphicsLayer {
+                    if (open && !calm) {
+                        val t = clock.seconds
+                        cameraDistance = 10f * density
+                        rotationY = 22f * sin(t * 0.9f + phase)
+                        rotationX = 8f * sin(t * 1.3f + phase)
+                        translationY = 3.dp.toPx() * sin(t * 1.9f + phase)
+                    }
+                },
+        ) {
+            val t = clock.seconds
+            // Quick beats in bursts, then a glide with the wings nearly open.
+            val burst = (sin(t * 0.8f + phase) + 1f) / 2f
+            val beat = if (open && !calm) abs(sin(t * 9f + phase)) else 1f
+            val wing = 1f - (0.75f * burst) * (1f - beat)
+            inUnitSquare { mothUnit(moth, wing, if (open) null else Color(0xFF1A0B18), gold) }
+        }
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
@@ -769,4 +813,100 @@ private fun DrawScope.todayGlow() {
         ),
         radius = r * 1.75f,
     )
+}
+
+/**
+ * The country the six nights cross, inked lightly on the parchment: the porch the route starts
+ * from, rolling hills, pines, a river, a moon and stars, a compass rose, and a few moths near the
+ * last night. Sized to the sheet, and kept clear of the night markers.
+ */
+private fun DrawScope.mapArt() {
+    val w = size.width
+    val h = size.height
+    val ink = Craft.parchmentInkSoft
+    val line = Stroke(1.4f * density, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    fun at(x: Float, y: Float) = Offset(w * x, h * y)
+
+    // Soft stains, so the sheet looks handled.
+    for ((x, y, r) in listOf(Triple(0.62f, 0.12f, 0.16f), Triple(0.18f, 0.55f, 0.2f), Triple(0.82f, 0.78f, 0.18f))) {
+        drawCircle(Brush.radialGradient(listOf(Craft.parchmentShade.copy(alpha = 0.35f), Color.Transparent), at(x, y), w * r), w * r, at(x, y))
+    }
+
+    // The river, wandering down the middle.
+    val river = Path().apply {
+        moveTo(w * 0.52f, 0f)
+        cubicTo(w * 0.42f, h * 0.18f, w * 0.62f, h * 0.3f, w * 0.5f, h * 0.48f)
+        cubicTo(w * 0.4f, h * 0.64f, w * 0.6f, h * 0.78f, w * 0.48f, h)
+    }
+    drawPath(river, Craft.bioDeep, alpha = 0.18f, style = Stroke(9f * density, cap = StrokeCap.Round))
+    drawPath(river, ink, alpha = 0.35f, style = Stroke(1.1f * density, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 7f))))
+
+    // Hills along the left and right edges.
+    for ((x, y, s) in listOf(Triple(0.08f, 0.3f, 1f), Triple(0.9f, 0.43f, 0.9f), Triple(0.1f, 0.88f, 1.1f), Triple(0.92f, 0.08f, 0.8f))) {
+        val hill = Path().apply {
+            moveTo(w * (x - 0.1f * s), h * y)
+            quadraticTo(w * x, h * (y - 0.07f * s), w * (x + 0.1f * s), h * y)
+        }
+        drawPath(hill, ink, alpha = 0.45f, style = line)
+        drawLine(ink, at(x - 0.03f * s, y - 0.02f * s), at(x + 0.01f * s, y - 0.035f * s), line.width * 0.7f, StrokeCap.Round, alpha = 0.3f)
+    }
+
+    // Pines in small stands.
+    fun pine(x: Float, y: Float, s: Float) {
+        val tree = Path().apply {
+            moveTo(w * x, h * (y - 0.045f * s))
+            lineTo(w * (x - 0.03f * s), h * y)
+            lineTo(w * (x + 0.03f * s), h * y)
+            close()
+        }
+        drawPath(tree, Craft.bioDeep.copy(alpha = 0.12f))
+        drawPath(tree, ink, alpha = 0.5f, style = line)
+        drawLine(ink, at(x, y), at(x, y + 0.012f * s), line.width, StrokeCap.Round, alpha = 0.5f)
+    }
+    pine(0.58f, 0.2f, 1f); pine(0.64f, 0.18f, 0.8f)
+    pine(0.13f, 0.43f, 0.9f); pine(0.2f, 0.47f, 1.1f)
+    pine(0.86f, 0.66f, 1f); pine(0.92f, 0.69f, 0.8f)
+    pine(0.47f, 0.62f, 0.8f)
+
+    // The porch the route starts from, with its lamp lit.
+    val house = Path().apply {
+        moveTo(w * 0.08f, h * 0.12f)
+        lineTo(w * 0.08f, h * 0.06f)
+        lineTo(w * 0.13f, h * 0.025f)
+        lineTo(w * 0.18f, h * 0.06f)
+        lineTo(w * 0.18f, h * 0.12f)
+        close()
+    }
+    drawPath(house, Craft.parchmentShade.copy(alpha = 0.5f))
+    drawPath(house, ink, alpha = 0.6f, style = line)
+    drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.8f), Color.Transparent), at(0.13f, 0.085f), w * 0.04f), w * 0.04f, at(0.13f, 0.085f))
+    drawRect(Dusk.glowDeep, Offset(w * 0.115f, h * 0.075f), Size(w * 0.03f, h * 0.02f))
+
+    // A crescent moon and a few stars over the far side.
+    val moon = at(0.86f, 0.25f)
+    drawCircle(Dusk.glow.copy(alpha = 0.35f), w * 0.045f, moon)
+    drawCircle(Craft.parchment, w * 0.04f, Offset(moon.x + w * 0.022f, moon.y - w * 0.012f))
+    drawCircle(ink, w * 0.045f, moon, alpha = 0.4f, style = line)
+    for ((x, y) in listOf(0.72f to 0.33f, 0.94f to 0.35f, 0.66f to 0.08f, 0.4f to 0.95f, 0.08f to 0.7f)) {
+        val c = at(x, y)
+        val r = w * 0.012f
+        drawLine(ink, Offset(c.x - r, c.y), Offset(c.x + r, c.y), line.width * 0.8f, StrokeCap.Round, alpha = 0.45f)
+        drawLine(ink, Offset(c.x, c.y - r), Offset(c.x, c.y + r), line.width * 0.8f, StrokeCap.Round, alpha = 0.45f)
+    }
+
+    // A compass rose.
+    val rose = at(0.5f, 0.86f)
+    val rr = w * 0.06f
+    drawCircle(ink, rr, rose, alpha = 0.35f, style = line)
+    for (k in 0 until 4) {
+        val a = Math.toRadians(k * 90.0 - 90.0)
+        val tip = Offset(rose.x + (rr * 1.3f * kotlin.math.cos(a)).toFloat(), rose.y + (rr * 1.3f * kotlin.math.sin(a)).toFloat())
+        drawLine(ink, rose, tip, line.width, StrokeCap.Round, alpha = if (k == 0) 0.7f else 0.4f)
+    }
+    drawCircle(Craft.copper, rr * 0.12f, rose, alpha = 0.7f)
+
+    // Moths fluttering near the last night.
+    for ((x, y) in listOf(0.84f to 0.84f, 0.9f to 0.94f, 0.56f to 0.92f)) {
+        glyph(Glyph.Moth, at(x, y), w * 0.05f, ink, alpha = 0.4f)
+    }
 }

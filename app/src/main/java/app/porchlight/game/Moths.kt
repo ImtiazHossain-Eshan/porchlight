@@ -212,7 +212,7 @@ private val MIRROR_PIVOT = Offset(60f, 0f)
 private val WING_PIVOT = Offset(60f, 56f)
 
 /** Draws [block] in a centered 120 x 120 space that fills the canvas. */
-private inline fun DrawScope.inUnitSquare(block: DrawScope.() -> Unit) {
+internal inline fun DrawScope.inUnitSquare(block: DrawScope.() -> Unit) {
     val s = size.minDimension / 120f
     translate((size.width - 120f * s) / 2f, (size.height - 120f * s) / 2f) {
         scale(s, s, pivot = Offset.Zero) { block() }
