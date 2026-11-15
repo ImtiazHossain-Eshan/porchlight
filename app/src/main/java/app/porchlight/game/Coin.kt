@@ -72,7 +72,7 @@ internal fun DrawScope.coin(c: Offset, r: Float, press: Float = 0f, dull: Boolea
 
 /** Where a coin's face sits for a box of [size]: centred, with room for its edge and shadow below. */
 internal fun coinFace(size: Size): Pair<Offset, Float> {
-    val r = minOf(size.width, size.height) * 0.42f
+    val r = minOf(size.width, size.height) * 0.47f
     return Offset(size.width / 2f, size.height / 2f - r * 0.06f) to r
 }
 

@@ -218,20 +218,20 @@ private fun Header(session: Session, modifier: Modifier) {
                 Glyph.Close,
                 if (round.tutorial) "Skip the tutorial" else "Leave round",
                 enabled = !round.paused && !session.peekPaused,
-                size = 44.dp,
+                size = 50.dp,
                 modifier = Modifier.align(Alignment.TopStart),
             ) { if (round.tutorial) session.endTutorial() else session.leaving = true }
         }
         Column(Modifier.align(Alignment.TopEnd), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             if ((round.phase == Phase.Play || round.phase == Phase.Peek) && !round.tutorial) {
-                BrassButton(Glyph.Pause, "Pause", enabled = !round.paused && !session.peekPaused, size = 44.dp, onClick = session::pause)
+                BrassButton(Glyph.Pause, "Pause", enabled = !round.paused && !session.peekPaused, size = 50.dp, onClick = session::pause)
             }
             if (round.phase == Phase.Play && round.rules.flashes > 0) {
                 BrassButton(
                     Glyph.Eye,
                     if (round.flashes > 0) "Second look" else "Second look used",
                     enabled = round.flashes > 0 && !round.flashing,
-                    size = 44.dp,
+                    size = 50.dp,
                     onClick = session::flash,
                 )
             }

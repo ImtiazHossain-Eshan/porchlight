@@ -147,7 +147,7 @@ internal fun BrassButton(
     description: String,
     enabled: Boolean,
     modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
+    size: Dp = 52.dp,
     onClick: () -> Unit,
 ) {
     val press = remember { MutableInteractionSource() }

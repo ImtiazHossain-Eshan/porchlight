@@ -278,7 +278,7 @@ internal fun ShareSheet(card: DailyCard, gold: Boolean, level: Int, onClose: () 
         ) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Text("Share today's porch", style = BodyText, fontWeight = FontWeight.Bold, fontSize = TypeScale.Heading, color = Dusk.amber)
-                BrassButton(Glyph.Close, "Close", enabled = true, size = 36.dp, modifier = Modifier.align(Alignment.CenterEnd), onClick = onClose)
+                BrassButton(Glyph.Close, "Close", enabled = true, size = 42.dp, modifier = Modifier.align(Alignment.CenterEnd), onClick = onClose)
             }
             Spacer(Modifier.height(10.dp))
 
