@@ -1,5 +1,14 @@
 package app.porchlight.game
 
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -80,15 +89,17 @@ internal fun MenuFrame(title: String, session: Session, scroll: Boolean = true, 
     ) {
         Box(Modifier.fillMaxWidth().height(56.dp)) {
             BrassButton(Glyph.Left, "Back to the porch", enabled = true, modifier = Modifier.align(Alignment.CenterStart)) { session.toPorch() }
+            // The plaque keeps clear of the back button on both sides, so it stays centred.
             Box(
                 Modifier
                     .align(Alignment.Center)
+                    .padding(horizontal = 56.dp)
                     .plank(Wood.Oak, corner = 10.dp, elevation = 6.dp, seed = title.length)
                     .border(1.5.dp, BrassRule, RoundedCornerShape(10.dp))
                     .padding(horizontal = 22.dp, vertical = 9.dp)
                     .semantics { heading() },
             ) {
-                Text(title.uppercase(), style = Carved, fontSize = 17.sp, color = Dusk.paperInk, maxLines = 1)
+                FitText(title.uppercase(), TextCarved, TypeScale.Title, Dusk.paperInk)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -206,7 +217,7 @@ internal fun NightsScreen(session: Session) {
                         contentAlignment = Alignment.Center,
                     ) {
                         if (open) {
-                            Text("${night.number}", style = Carved, fontSize = 24.sp, color = Dusk.paperInk)
+                            Text("${night.number}", style = TextEngraved, fontSize = TypeScale.Title, color = Dusk.paperInk)
                         } else {
                             GlyphArt(Glyph.Lock, Dusk.inkSoft, Modifier.size(26.dp))
                         }
@@ -233,15 +244,16 @@ internal fun NightsScreen(session: Session) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text("NIGHT ${picked.number}", style = Gilt, fontSize = 20.sp, color = Dusk.amber, modifier = Modifier.weight(1f))
-                Text("${progress.nights} OF ${NIGHTS.size} OPEN", style = Label, color = Dusk.inkSoft)
+                Text("Night ${picked.number}", style = BodyText, fontWeight = FontWeight.Bold, fontSize = TypeScale.Heading, color = Dusk.amber, modifier = Modifier.weight(1f))
+                val shut = NIGHTS.size - progress.nights
+                Text(if (shut > 0) "$shut TO OPEN" else "ALL OPEN", style = Label, color = Dusk.inkSoft)
             }
-            Text(nightLine(picked), color = Dusk.ink, fontSize = 15.sp)
+            Text(nightLine(picked), color = Dusk.ink, fontSize = TypeScale.Body)
             val hint = lockedHint
             if (hint != null) {
-                Text(hint, color = Dusk.amber, fontSize = 13.sp)
+                Text(hint, color = Dusk.amber, fontSize = TypeScale.Body)
             } else if (picked.twist != Twist.None) {
-                Text(picked.twist.tip, color = Dusk.inkSoft, fontSize = 13.sp)
+                Text(picked.twist.tip, color = Dusk.inkSoft, fontSize = TypeScale.Body)
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -270,9 +282,9 @@ internal fun DailyScreen(session: Session) {
         ) {
             CalendarLeaf(today, Modifier.size(92.dp, 108.dp))
             Column(Modifier.weight(1f)) {
-                Text("Today's porch", style = Gilt, fontSize = 20.sp, color = Dusk.amber)
+                Text("Today's porch", style = BodyText, fontWeight = FontWeight.Bold, fontSize = TypeScale.Heading, color = Dusk.amber)
                 Spacer(Modifier.height(4.dp))
-                Text("The same 16 cards for everyone today. You get one scored try.", color = Dusk.ink, fontSize = 14.sp, lineHeight = 19.sp)
+                Text("The same 16 cards for everyone today. You get one scored try.", color = Dusk.ink, fontSize = TypeScale.Body, lineHeight = 20.sp)
             }
         }
         Spacer(Modifier.height(12.dp))
@@ -312,7 +324,7 @@ internal fun DailyScreen(session: Session) {
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (entry != null) Text("${entry.stars}", style = Carved, fontSize = 15.sp, color = Dusk.paperInk)
+                        if (entry != null) Text("${entry.stars}", style = TextEngraved, fontSize = TypeScale.Body, color = Dusk.paperInk)
                     }
                     Spacer(Modifier.height(4.dp))
                     Text("${seed % 100}", style = Label, color = if (isToday) Dusk.amber else Dusk.inkSoft)
@@ -340,19 +352,19 @@ internal fun DailyScreen(session: Session) {
             Spacer(Modifier.height(6.dp))
             val best = progress.dailyLog.sortedByDescending { it.score }.take(3)
             if (best.isEmpty()) {
-                Text("Nothing here yet. Play today's porch to start your record.", color = Craft.parchmentInk, fontSize = 14.sp)
+                Text("Nothing here yet. Play today's porch to start your record.", style = TextInk, color = Craft.parchmentInk)
             }
             best.forEachIndexed { i, entry ->
                 Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("${i + 1}", style = Display, fontSize = 16.sp, color = Craft.parchmentInkSoft, modifier = Modifier.width(26.dp))
-                    Text(dayLabel(entry.day), color = Craft.parchmentInk, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                    Text("${i + 1}", style = TextInk, fontWeight = FontWeight.Bold, color = Craft.parchmentInkSoft, modifier = Modifier.width(26.dp))
+                    Text(dayLabel(entry.day), style = TextInk, color = Craft.parchmentInk, modifier = Modifier.weight(1f))
                     Row {
                         repeat(3) { GlyphArt(Glyph.Star, if (it < entry.stars) Craft.goldDeep else Craft.parchmentShade, Modifier.size(14.dp)) }
                     }
                     Text(
                         entry.score.grouped(),
-                        style = Display,
-                        fontSize = 16.sp,
+                        style = TextInk,
+                        fontWeight = FontWeight.Bold,
                         color = Craft.parchmentInk,
                         textAlign = TextAlign.End,
                         modifier = Modifier.width(76.dp),
@@ -387,8 +399,8 @@ private fun Figure(label: String, value: String, unit: String, modifier: Modifie
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(label, style = Label, color = Dusk.inkSoft)
-        Text(value, style = Gilt, fontSize = 20.sp, color = Dusk.amber, maxLines = 1)
-        Text(unit, color = Dusk.inkSoft, fontSize = 11.sp, maxLines = 1)
+        Text(value, style = BodyText, fontWeight = FontWeight.Bold, fontSize = TypeScale.Heading, color = Dusk.amber, maxLines = 1)
+        Text(unit, style = BodyText, color = Dusk.inkSoft, maxLines = 2, textAlign = TextAlign.Center)
     }
 }
 
@@ -413,7 +425,7 @@ private fun CalendarLeaf(seed: Long, modifier: Modifier) {
             Spacer(Modifier.height(14.dp))
             Text(MONTHS[((seed / 100 % 100).toInt() - 1).coerceIn(0, 11)].uppercase(), style = Label, color = Color(0xFFFFF0DC))
             Spacer(Modifier.height(6.dp))
-            Text("${seed % 100}", style = Display, fontSize = 38.sp, color = Craft.parchmentInk)
+            Text("${seed % 100}", style = Display, fontSize = TypeScale.Title, color = Craft.parchmentInk)
         }
     }
 }
@@ -422,6 +434,7 @@ private fun CalendarLeaf(seed: Long, modifier: Modifier) {
 // Lead moths: each in a glass jar on velvet, with what it is good at.
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 internal fun MothsScreen(session: Session) {
     val progress = session.store.progress
     MenuFrame("Lead moths", session) {
@@ -449,24 +462,30 @@ internal fun MothsScreen(session: Session) {
             ) {
                 ShowcaseJar(moth, open, gold, Modifier.size(84.dp, 118.dp))
                 Column(Modifier.weight(1f)) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(moth.label, style = Gilt, fontSize = 21.sp, color = if (open) Dusk.amber else Dusk.inkSoft)
+                    // The name and its chips wrap onto two lines when a big font leaves no room.
+                    FlowRow(
+                        itemVerticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(moth.label, style = BodyText, fontWeight = FontWeight.Bold, fontSize = TypeScale.Heading, color = if (open) Dusk.amber else Dusk.inkSoft)
                         if (leading) Chip("LEADING", Craft.gold, Dusk.paperInk)
                         if (gold) Chip("GOLD", Craft.goldDeep, Color(0xFFFFF6DC))
                     }
                     if (open) {
-                        Text("${moth.role} · ${moth.perkName}", color = Dusk.inkSoft, fontSize = 13.sp)
+                        Text("${moth.role} · ${moth.perkName}", color = Dusk.inkSoft, fontSize = TypeScale.Body)
                         Spacer(Modifier.height(6.dp))
                         Pips("TIME", stats.time)
                         Pips("LOOK", stats.look)
                         Pips("STREAK", stats.streak)
                         Spacer(Modifier.height(6.dp))
-                        Text(moth.perk, color = Dusk.ink, fontSize = 13.sp, lineHeight = 18.sp)
+                        Text(moth.perk, color = Dusk.ink, fontSize = TypeScale.Body, lineHeight = 20.sp)
                     } else {
                         Spacer(Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            GlyphArt(Glyph.Lock, Dusk.inkSoft, Modifier.size(16.dp))
-                            Text("Reach level ${moth.unlockLevel} to meet ${moth.label}.", color = Dusk.ink, fontSize = 14.sp)
+                            Emblem(moth.unlockLevel, Modifier.size(34.dp), still = true)
+                            val toGo = (xpFor(moth.unlockLevel) - progress.xp).coerceAtLeast(0)
+                            Text("${toGo.grouped()} XP to meet ${moth.label}", color = Dusk.ink, fontSize = TypeScale.Body)
                         }
                     }
                 }
@@ -483,7 +502,7 @@ private fun Pips(label: String, value: Int) {
         Modifier.padding(vertical = 2.dp).semantics(mergeDescendants = true) { contentDescription = "$label $value of 3" },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = Label, fontSize = 10.sp, color = Dusk.inkSoft, modifier = Modifier.width(58.dp))
+        Text(label, style = Label, color = Dusk.inkSoft, softWrap = false, modifier = Modifier.widthIn(min = 58.dp).padding(end = 6.dp))
         Canvas(Modifier.size(66.dp, 10.dp)) {
             for (i in 0 until 3) {
                 val x = 5.dp.toPx() + i * 22.dp.toPx()
@@ -546,9 +565,14 @@ private fun ShowcaseJar(moth: MothId, open: Boolean, gold: Boolean, modifier: Mo
 @Composable
 internal fun BadgesScreen(session: Session) {
     val progress = session.store.progress
-    var picked by remember { mutableStateOf(Badge.entries.firstOrNull { it in progress.badges } ?: Badge.FirstLight) }
+    // Badges earned since they were last looked at: they stamp in here and wear a glowing dot.
+    val fresh = remember { progress.badges - session.seenBadges }
+    DisposableEffect(Unit) { onDispose { session.seenBadges = session.store.progress.badges } }
+    var picked by remember { mutableStateOf(fresh.firstOrNull() ?: Badge.entries.firstOrNull { it in progress.badges } ?: Badge.FirstLight) }
+    val tilt = session.tilt
     MenuFrame("Badges", session) {
-        Text("${progress.badges.size} OF ${Badge.entries.size} EARNED", style = Label, color = Dusk.inkSoft)
+        val toGo = Badge.entries.size - progress.badges.size
+        Text(if (toGo == 0) "ALL ${Badge.entries.size} EARNED" else "$toGo ${if (toGo == 1) "BADGE" else "BADGES"} TO GO", style = Label, color = Dusk.inkSoft)
         Spacer(Modifier.height(10.dp))
         Column(
             Modifier
@@ -562,7 +586,19 @@ internal fun BadgesScreen(session: Session) {
                     row.forEach { badge ->
                         val earned = badge in progress.badges
                         val chosen = badge == picked
-                        val grow by animateFloatAsState(if (chosen) 1.12f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "grow")
+                        val new = badge in fresh
+                        val grow by animateFloatAsState(if (chosen) 1.1f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "grow")
+                        // A newly earned badge stamps in, a shine crosses it, and its ribbon unfurls.
+                        val shine = remember { Animatable(if (new && !session.calm) 0f else 1f) }
+                        val ribbon = remember { Animatable(if (new && !session.calm) 0f else 1f) }
+                        if (new && !session.calm) {
+                            LaunchedEffect(Unit) {
+                                val order = fresh.toList().indexOf(badge)
+                                delay(260L + order * 380L)
+                                shine.animateTo(1f, tween(520))
+                                ribbon.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
+                            }
+                        }
                         Column(
                             Modifier
                                 .weight(1f)
@@ -575,29 +611,58 @@ internal fun BadgesScreen(session: Session) {
                                     session.sfx.play(Sound.Flip, vary = 0.06f)
                                 }
                                 .semantics {
-                                    contentDescription = "${badge.title}. ${badge.detail} " + if (earned) "Earned." else "Not earned yet."
+                                    contentDescription = "${badge.title}. ${badge.detail} " + when {
+                                        new -> "Newly earned, ${badge.metal.name.lowercase()}."
+                                        earned -> "Earned, ${badge.metal.name.lowercase()}."
+                                        else -> "Not earned yet."
+                                    }
                                     stateDescription = if (chosen) "Selected" else "Not selected"
                                 },
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            BadgeMedal(
-                                badge,
-                                earned,
-                                Modifier
-                                    .size(68.dp)
-                                    .graphicsLayer {
-                                        scaleX = grow
-                                        scaleY = grow
-                                    },
-                            )
-                            Spacer(Modifier.height(5.dp))
+                            Box {
+                                Stamp(
+                                    instant = !new,
+                                    calm = session.calm,
+                                    delayMs = fresh.toList().indexOf(badge).coerceAtLeast(0) * 380L,
+                                    onLand = { session.sfx.play(Sound.Thunk, volume = 0.7f) },
+                                ) {
+                                    BadgeMedal(
+                                        badge,
+                                        earned,
+                                        Modifier
+                                            .size(64.dp)
+                                            .graphicsLayer {
+                                                scaleX = grow
+                                                scaleY = grow
+                                                // Each medal leans a little with the phone, like the cards.
+                                                cameraDistance = 12f * density
+                                                rotationY = tilt.x * 14f
+                                                rotationX = -tilt.y * 14f
+                                            },
+                                        shine = if (shine.value < 1f) shine.value else -1f,
+                                    )
+                                }
+                                if (new) {
+                                    Box(
+                                        Modifier
+                                            .align(Alignment.TopEnd)
+                                            .size(12.dp)
+                                            .drawBehind {
+                                                drawCircle(Brush.radialGradient(listOf(Dusk.glow, Color.Transparent)), size.minDimension)
+                                                drawCircle(Dusk.glow, size.minDimension * 0.3f)
+                                            },
+                                    )
+                                }
+                            }
+                            if (earned) TierRibbon(badge.metal, Modifier.size(60.dp, 7.dp), open = ribbon.value) else Spacer(Modifier.height(7.dp))
+                            Spacer(Modifier.height(4.dp))
                             Text(
                                 badge.title.uppercase(),
                                 style = Label,
-                                fontSize = 10.sp,
                                 color = if (chosen) Dusk.amber else if (earned) Dusk.ink else Dusk.inkSoft,
                                 textAlign = TextAlign.Center,
-                                maxLines = 1,
+                                maxLines = 2,
                             )
                         }
                     }
@@ -616,8 +681,8 @@ internal fun BadgesScreen(session: Session) {
         ) {
             BadgeMedal(picked, picked in progress.badges, Modifier.size(52.dp))
             Column(Modifier.weight(1f)) {
-                Text(picked.title, style = Display, fontSize = 18.sp, color = Craft.parchmentInk)
-                Text(picked.detail, color = Craft.parchmentInk, fontSize = 14.sp, lineHeight = 19.sp)
+                Text(picked.title, style = TextInk, fontWeight = FontWeight.Bold, fontSize = TypeScale.Heading, color = Craft.parchmentInk)
+                Text(picked.detail, style = TextInk, color = Craft.parchmentInk, lineHeight = 20.sp)
                 Text(
                     if (picked in progress.badges) "EARNED · ${picked.metal.name.uppercase()}" else "NOT EARNED YET",
                     style = Label,
@@ -660,8 +725,8 @@ internal fun SettingsScreen(session: Session) {
         Text(
             "Porchlight keeps everything on this phone. No account, no adverts, no network.",
             color = Dusk.inkSoft,
-            fontSize = 13.sp,
-            lineHeight = 18.sp,
+            fontSize = TypeScale.Body,
+            lineHeight = 20.sp,
             textAlign = TextAlign.Center,
         )
     }
@@ -676,8 +741,8 @@ private fun Lever(glyph: Glyph, title: String, detail: String, on: Boolean, onTo
     ) {
         GlyphArt(glyph, if (on) Craft.brassLight else Dusk.locked, Modifier.size(26.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, color = Dusk.ink, fontSize = 16.sp)
-            Text(detail, color = Dusk.inkSoft, fontSize = 13.sp, lineHeight = 17.sp)
+            Text(title, color = Dusk.ink, fontSize = TypeScale.Body, fontWeight = FontWeight.SemiBold)
+            Text(detail, color = Dusk.inkSoft, fontSize = TypeScale.Body, lineHeight = 19.sp)
         }
         LeverSwitch(on, title, onToggle = onToggle)
     }

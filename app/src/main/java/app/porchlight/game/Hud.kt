@@ -52,6 +52,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -70,16 +71,10 @@ internal fun Modifier.plate(shape: Shape = RoundedCornerShape(10.dp), lit: Color
         .clip(shape)
         .border(1.5.dp, if (lit != null) Brush.linearGradient(listOf(lit, Craft.brassLight, lit)) else BrassRule, shape)
 
-/** Lettering cut into wood: dark, with a light edge below and to the right. */
-internal val Carved = Display.copy(shadow = Shadow(Color.White.copy(alpha = 0.35f), Offset(1f, 1.5f), 0f))
-
-/** Lettering in gold leaf on dark timber: a dark edge below gives it thickness. */
-internal val Gilt = Display.copy(shadow = Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 3f), 4f))
 
 /** Score, top left of the round. It counts up instead of jumping. */
 @Composable
 internal fun ScoreReadout(score: Int, modifier: Modifier = Modifier) {
-    val shown by animateIntAsState(score, tween(450, easing = FastOutSlowInEasing), label = "score")
     Column(
         modifier
             .plate()
@@ -87,7 +82,7 @@ internal fun ScoreReadout(score: Int, modifier: Modifier = Modifier) {
             .semantics(mergeDescendants = true) { contentDescription = "Score $score" },
     ) {
         Text("SCORE", style = Label, color = Dusk.inkSoft)
-        Text(shown.grouped(), style = Gilt, fontSize = 22.sp, color = Dusk.amber)
+        CountUp(score, TextGlow, TypeScale.Title, durationMs = 450)
     }
 }
 
@@ -122,9 +117,8 @@ internal fun StreakReadout(multiplier: Int, calm: Boolean, modifier: Modifier = 
         Text(if (over) "OVERDRIVE" else "STREAK", style = Label, color = if (over) Craft.gold else Dusk.inkSoft)
         Text(
             "×$multiplier",
-            style = Gilt,
-            fontSize = 22.sp,
-            color = if (over) Craft.gold else Dusk.amber,
+            style = TextGlow,
+            fontSize = TypeScale.Title,
             modifier = Modifier.graphicsLayer {
                 scaleX = pulse.value
                 scaleY = pulse.value
@@ -167,50 +161,31 @@ internal fun BrassButton(
     }
 }
 
-/** The level in a brass medallion, with the XP gauge beside it: an amber fill in a brass tube. */
-@Composable
-internal fun LevelBar(xp: Int, modifier: Modifier = Modifier, animate: Boolean = true) {
+/** XP still needed for the next level. */
+internal fun xpToGo(xp: Int): Int = xpFor(levelFor(xp) + 1) - xp
+
+/** How far through the current level [xp] is, 0..1. */
+internal fun levelFill(xp: Int): Float {
     val level = levelFor(xp)
-    val floor = xpFor(level)
-    val next = xpFor(level + 1)
-    val fill by animateFloatAsState(
-        ((xp - floor).toFloat() / (next - floor)).coerceIn(0f, 1f),
-        tween(if (animate) 800 else 0, easing = FastOutSlowInEasing),
-        label = "xp",
-    )
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        Box(
-            Modifier
-                .size(44.dp)
-                .shadow(4.dp, CircleShape, ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
-                .metal(corner = 22.dp)
-                .semantics { contentDescription = "Level $level" },
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("$level", style = Carved, fontSize = 19.sp, color = Dusk.paperInk)
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Row {
-                Text("LEVEL $level", style = Label, color = Dusk.ink, modifier = Modifier.weight(1f))
-                Text("${xp - floor} / ${next - floor} XP", style = Label, color = Dusk.inkSoft)
-            }
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(12.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(Dusk.slot)
-                    .border(1.5.dp, BrassRule, RoundedCornerShape(6.dp))
-                    .padding(2.5.dp),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(fill)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Brush.verticalGradient(listOf(Dusk.glow, Dusk.amber, Dusk.glowDeep))),
-                )
-            }
+    return ((xp - xpFor(level)).toFloat() / (xpFor(level + 1) - xpFor(level))).coerceIn(0f, 1f)
+}
+
+/**
+ * The level in the top bar: the emblem with its XP ring, the level as a label, and what's next in
+ * words ("172 XP to level 12") rather than raw totals.
+ */
+@Composable
+internal fun LevelPlate(xp: Int, modifier: Modifier = Modifier, still: Boolean = false) {
+    val level = levelFor(xp)
+    Row(
+        modifier.semantics(mergeDescendants = true) { contentDescription = "Level $level. ${xpToGo(xp).grouped()} XP to level ${level + 1}" },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Emblem(level, Modifier.size(64.dp), xp = levelFill(xp), still = still)
+        Column {
+            Text("LEVEL $level", style = Label, color = Dusk.ink, maxLines = 1)
+            Text("${xpToGo(xp).grouped()} XP to level ${level + 1}", style = BodyText, color = Dusk.inkSoft, maxLines = 1)
         }
     }
 }
@@ -264,76 +239,16 @@ internal fun Star(filled: Boolean, shown: Boolean, modifier: Modifier = Modifier
     }
 }
 
-internal fun Mold.glyph(): Glyph = when (this) {
-    Mold.Moth -> Glyph.Moth
-    Mold.Beetle -> Glyph.Beetle
-    Mold.Trophy -> Glyph.Trophy
-    Mold.Star -> Glyph.Star
-    Mold.Flame -> Glyph.Flame
-    Mold.Moon -> Glyph.Moon
-    Mold.Calendar -> Glyph.Calendar
-    Mold.Clock -> Glyph.Clock
-    Mold.Check -> Glyph.Check
-}
-
-private val BRONZE = listOf(Color(0xFFE2A56E), Color(0xFFA9683A), Color(0xFF5A3218))
-private val SILVER = listOf(Color(0xFFF2F4F6), Color(0xFFA9B2BC), Color(0xFF58626E))
-private val GOLD = listOf(Color(0xFFFFF0B0), Color(0xFFE9B23E), Color(0xFF8C5E12))
-private val IRON = listOf(Color(0xFF4A4F56), Color(0xFF2C3036), Color(0xFF16181C))
-
-/**
- * A cast badge: a scalloped rim, a sunken face, and the badge's mold pressed into it. Bronze,
- * silver or gold when earned (gold badges carry a gem); dull iron until then.
- */
-@Composable
-internal fun BadgeMedal(badge: Badge, earned: Boolean, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        val metal = when {
-            !earned -> IRON
-            badge.metal == Metal.Bronze -> BRONZE
-            badge.metal == Metal.Silver -> SILVER
-            else -> GOLD
-        }
-        val c = Offset(size.width / 2, size.height / 2)
-        val r = size.minDimension / 2 - 1.dp.toPx()
-        val rim = Path()
-        val scallops = 16
-        for (i in 0..scallops * 2) {
-            val a = i * Math.PI / scallops
-            val rr = if (i % 2 == 0) r else r * 0.92f
-            val x = c.x + (rr * cos(a)).toFloat()
-            val y = c.y + (rr * sin(a)).toFloat()
-            if (i == 0) rim.moveTo(x, y) else rim.lineTo(x, y)
-        }
-        rim.close()
-        val across = Offset(size.width, size.height)
-        drawPath(rim, Brush.linearGradient(listOf(metal[0], metal[1], metal[2]), Offset.Zero, across))
-        drawPath(rim, metal[2], style = Stroke(1.dp.toPx(), join = StrokeJoin.Round))
-        drawCircle(Brush.linearGradient(listOf(metal[2], metal[1]), Offset.Zero, across), r * 0.74f, c)
-        drawCircle(metal[0], r * 0.74f, c, alpha = 0.6f, style = Stroke(1.dp.toPx()))
-        // The mold: a dark cut with a light edge beside it.
-        val w = r * 0.9f
-        glyph(badge.mold.glyph(), Offset(c.x + 0.7.dp.toPx(), c.y + 0.9.dp.toPx()), w, metal[0], alpha = if (earned) 0.7f else 0.25f)
-        glyph(badge.mold.glyph(), c, w, metal[2])
-        if (earned && badge.metal == Metal.Gold) {
-            val gem = Offset(c.x, c.y - r * 0.82f)
-            drawCircle(Craft.goldDeep, r * 0.15f, gem)
-            drawCircle(Craft.bio, r * 0.11f, gem)
-            drawCircle(Color.White, r * 0.04f, Offset(gem.x - r * 0.03f, gem.y - r * 0.03f), alpha = 0.8f)
-        }
-    }
-}
-
 /** The main action: an oak sign with carved lettering, held on by two brass rivets. */
 @Composable
 internal fun PrimaryButton(text: String, modifier: Modifier = Modifier, busy: Boolean = false, onClick: () -> Unit) {
-    SignButton(text, Wood.Oak, Dusk.paperInk, Carved, modifier, onClick, busy)
+    SignButton(text, Wood.Oak, Dusk.paperInk, signOnOak, modifier, onClick, busy)
 }
 
 /** A quieter action: a walnut sign with gilt lettering. */
 @Composable
 internal fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    SignButton(text, Wood.Walnut, Dusk.amber, Gilt, modifier, onClick)
+    SignButton(text, Wood.Walnut, Dusk.amber, signOnWalnut, modifier, onClick)
 }
 
 @Composable
@@ -369,7 +284,7 @@ private fun SignButton(text: String, wood: Wood, ink: Color, style: TextStyle, m
                     modifier = Modifier.padding(end = 10.dp).size(16.dp),
                 )
             }
-            Text(text.uppercase(), style = style, fontSize = 17.sp, color = ink, textAlign = TextAlign.Center, maxLines = 1)
+            FitText(text.uppercase(), style, TypeScale.Heading, ink)
         }
     }
 }
@@ -380,8 +295,9 @@ internal fun Chip(text: String, background: Color, color: Color, modifier: Modif
     Text(
         text,
         style = Label,
-        fontSize = 12.sp,
         color = color,
+        maxLines = 1,
+        softWrap = false,
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(background)
@@ -429,3 +345,10 @@ internal fun LeverSwitch(on: Boolean, description: String, modifier: Modifier = 
         }
     }
 }
+
+/**
+ * A plank button's caption, painted on the wood: the body font in bold capitals. On light oak the
+ * ink is dark with a light edge below; on dark walnut it is amber paint with a dark cut above.
+ */
+private val signOnOak = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = TextCarved.shadow)
+private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, -1.5f), 0f))

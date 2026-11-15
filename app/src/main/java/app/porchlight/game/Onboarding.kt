@@ -64,7 +64,7 @@ internal fun TutorialHints(session: Session) {
                 .padding(horizontal = 18.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("SKIP", style = Label, fontSize = 12.sp, color = Dusk.amber)
+            Text("SKIP", style = Label, color = Dusk.amber)
         }
     }
 
@@ -105,8 +105,9 @@ internal fun TutorialHints(session: Session) {
         // The advice, on a paper tag.
         Text(
             words,
-            style = Display,
-            fontSize = 16.sp,
+            style = TextInk,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+            fontSize = TypeScale.Heading,
             color = Craft.parchmentInk,
             textAlign = TextAlign.Center,
             modifier = Modifier
@@ -187,7 +188,7 @@ internal fun NightIntro(night: Night, session: Session) {
             Text(
                 if (night.twist != Twist.None) "Night ${night.number}: ${night.twist.title}" else "Night ${night.number}: new moths",
                 style = Display,
-                fontSize = 22.sp,
+                fontSize = TypeScale.Title,
                 color = Craft.parchmentInk,
                 textAlign = TextAlign.Center,
             )
@@ -197,8 +198,8 @@ internal fun NightIntro(night: Night, session: Session) {
             Text(
                 if (night.twist != Twist.None) night.twist.tip
                 else "${moths.joinToString(" and ") { it.label }} join the porch. ${night.pairs} pairs tonight.",
+                style = TextInk,
                 color = Craft.parchmentInk,
-                fontSize = 15.sp,
                 lineHeight = 21.sp,
                 textAlign = TextAlign.Center,
             )

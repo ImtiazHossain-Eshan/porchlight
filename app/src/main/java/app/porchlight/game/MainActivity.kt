@@ -26,6 +26,10 @@ class MainActivity : ComponentActivity() {
             }
         }
         val store = Store(getSharedPreferences("porchlight", MODE_PRIVATE))
+        //   ... --ei setXp 6500   (debug only: set the XP, to see the level emblem at a given level)
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("setXp")) {
+            store.change { it.copy(xp = intent.getIntExtra("setXp", 0).coerceAtLeast(0)) }
+        }
         setContent { GameScreen(store, sfx) }
     }
 

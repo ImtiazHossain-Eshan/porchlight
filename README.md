@@ -10,7 +10,7 @@ Moths gather at a porch bulb, and the bulb is the clock. Find every pair before 
 <a href="https://github.com/ImtiazHossain-Eshan/porchlight/actions/workflows/android.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/ImtiazHossain-Eshan/porchlight/android.yml?branch=main&style=flat-square&label=build&labelColor=15181a&color=2c6f6c"></a>
 <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-f4c20d?style=flat-square&logo=android&logoColor=white&labelColor=15181a">
 <img alt="Kotlin with Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-f4c20d?style=flat-square&logo=kotlin&logoColor=white&labelColor=15181a">
-<img alt="88 tests passing" src="https://img.shields.io/badge/tests-88%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
+<img alt="109 tests passing" src="https://img.shields.io/badge/tests-109%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
 <img alt="Sound synthesized in app" src="https://img.shields.io/badge/sound-synthesized-f4c20d?style=flat-square&labelColor=15181a">
 <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-f4c20d?style=flat-square&labelColor=15181a"></a>
 
@@ -39,11 +39,11 @@ Pick a lead moth before each round. Each one bends the rules its own way.
 
 <table>
   <tr>
-    <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: a lit mason jar with moths resting around it, an oak sign reading Light the porch, and four menu tiles" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up with a warm rim, REMEMBER and a big 2 under the bulb, and a thin ring around the bulb counting the peek down" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: the level emblem with its XP ring, a lit mason jar with moths resting around it, an oak sign reading Light the porch, and four menu tiles" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up with a warm rim, REMEMBER and a big 2 under the bulb" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: the bulb glows gold in its brass works, found moths circle it, and MATCH pops rise off the pairs" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, the time band around it nearly empty, and the remaining cards are washed red" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="The scorecard: a gilded navy panel with stars, the score, a bonus table and the level gauge" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="The scorecard after a lost round: the headline cooled to ember, 0 of 6 pairs, and the level emblem at its new level 10 with wings and a lit bulb" width="100%"></td>
   </tr>
   <tr>
     <td align="center"><sub><b>The lobby</b><br>A jar, the moths, one sign</sub></td>
@@ -56,14 +56,14 @@ Pick a lead moth before each round. Each one bends the rules its own way.
     <td align="center"><img src="docs/screens/6-nights.png" alt="Six nights: a parchment map with a copper pipe running between six brass night markers" width="100%"></td>
     <td align="center"><img src="docs/screens/9-daily.png" alt="Daily porch: a calendar leaf with today's date, the week's studs, and your own best days" width="100%"></td>
     <td align="center"><img src="docs/screens/7-moths.png" alt="Lead moths: each moth in a glass jar on velvet, with its strengths as brass pips" width="100%"></td>
-    <td align="center"><img src="docs/screens/8-badges.png" alt="Badges: twelve cast medals in bronze, silver and gold on a walnut board" width="100%"></td>
+    <td align="center"><img src="docs/screens/8-badges.png" alt="Badges: twelve medals, each with its own mark, in bronze, silver and gold with tier ribbons; the ones not yet earned are dark outlines" width="100%"></td>
     <td align="center"><img src="docs/screens/10-settings.png" alt="Settings: a walnut switchboard with four brass lever switches" width="100%"></td>
   </tr>
   <tr>
     <td align="center"><sub><b>Six nights</b><br>A map on parchment</sub></td>
     <td align="center"><sub><b>Daily porch</b><br>One scored try a day</sub></td>
     <td align="center"><sub><b>Lead moths</b><br>Specimens on velvet</sub></td>
-    <td align="center"><sub><b>Badges</b><br>Twelve castings</sub></td>
+    <td align="center"><sub><b>Badges</b><br>Twelve medals</sub></td>
     <td align="center"><sub><b>Settings</b><br>Brass levers</sub></td>
   </tr>
 </table>
@@ -190,7 +190,7 @@ The porch is built by hand, and every surface is a made thing drawn in code: nig
 
 The bulb is the clock. Its glow shrinks and its colour runs from warm white with time to spare, to amber at 40%, deep orange under 15%, and red in the last five seconds, when it also flickers two to four times a second. The peek burns at full warm brightness.
 
-A round opens like the porch light warming up. The cards drop onto the board face down one by one while the bulb is dark, then it flickers twice and comes on (tap to skip this). The cards turn up in a wave from the bulb down, the band says REMEMBER, and one big number counts the whole seconds left to look: 2, 1 for a 2-second peek, and 4, 3, 2, 1 for Iris's 3.4 seconds. A thin ring around the bulb drains over the same time, and the cards' warm rims brighten in the last half second. Then the cards fold shut from the bottom row up, GO! punches in, the bulb flares and the round's clock starts. Pausing during the peek holds the countdown exactly where it was. A recording is in [`docs/visuals/peek.mp4`](docs/visuals/peek.mp4). When time runs out the bulb pops bright for an instant and goes dark, its glass still hanging there. Found pairs glow teal, and Overdrive turns the wall's light gold.
+A round opens like the porch light warming up. The cards drop onto the board face down one by one while the bulb is dark, then it flickers twice and comes on (tap to skip this). The cards turn up in a wave from the bulb down, the band says REMEMBER, and one big number counts the whole seconds left to look: 2, 1 for a 2-second peek, and 4, 3, 2, 1 for Iris's 3.4 seconds. The cards' warm rims brighten in the last half second. Then the cards fold shut from the bottom row up, GO! punches in, the bulb flares and the round's clock starts. Pausing during the peek holds the countdown exactly where it was. A recording is in [`docs/visuals/peek.mp4`](docs/visuals/peek.mp4). When time runs out the bulb pops bright for an instant and goes dark, its glass still hanging there. Found pairs glow teal, and Overdrive turns the wall's light gold.
 
 - **Lobby:** a mason jar with a filament inside, hung by a wire.
 - **Round:** an Edison bulb in brass works, with two gears that turn while it burns and a pressure gauge whose needle falls with the time left. A bold gold band follows the glass's outline, open at the neck, and drains clockwise as the time runs out. The seconds sit under it in the bulb's colour, with tenths under ten seconds. The ✕ leaves the round (it asks first), and the pause sign offers Keep playing, Start over and Leave round.
@@ -304,7 +304,7 @@ flowchart LR
 - Phones and tablets work in both orientations; on wide screens the board sits beside the bulb.
 - A baseline profile compiles the game ahead of time.
 
-**Type:** [Alfa Slab One](https://fonts.google.com/specimen/Alfa+Slab+One), a wood-type slab, for signs, titles and numbers, under the SIL Open Font License ([`licenses/AlfaSlabOne-OFL.txt`](licenses/AlfaSlabOne-OFL.txt)).
+**Type:** [Alfa Slab One](https://fonts.google.com/specimen/Alfa+Slab+One), a wood-type slab, only for the big words (titles, the score, the level number), and [Fredoka](https://fonts.google.com/specimen/Fredoka), a rounded sans, for everything else. Both are under the SIL Open Font License ([`licenses/AlfaSlabOne-OFL.txt`](licenses/AlfaSlabOne-OFL.txt), [`licenses/Fredoka-OFL.txt`](licenses/Fredoka-OFL.txt)). The type scale, the four text treatments and the level emblem are described in [`DESIGN.md`](DESIGN.md); [`docs/visuals/type-and-emblem-before-after.png`](docs/visuals/type-and-emblem-before-after.png) compares them with v0.4.0.
 
 ## Get started
 
@@ -415,7 +415,7 @@ Tagged releases are then signed with your key. `.gitignore` keeps `*.jks` files 
 
 ## License
 
-[MIT](LICENSE) © 2026 Imtiaz Hossain. The moths, artwork and sounds are original to this project. Alfa Slab One is © The Alfa Slab One Project Authors, under the SIL Open Font License.
+[MIT](LICENSE) © 2026 Imtiaz Hossain. The moths, artwork and sounds are original to this project. Alfa Slab One is © The Alfa Slab One Project Authors and Fredoka is © The Fredoka Project Authors, both under the SIL Open Font License.
 
 <div align="center">
 <br>

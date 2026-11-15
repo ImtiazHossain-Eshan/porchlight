@@ -186,11 +186,6 @@ private fun Header(session: Session, modifier: Modifier) {
                     power = session.power,
                     last = { low },
                     arc = round.phase != Phase.Idle,
-                    peekRing = {
-                        if (round.phase == Phase.Peek && session.peekStage == PeekStage.Look) {
-                            session.peekLeft.toFloat() / round.rules.peekMs
-                        } else -1f
-                    },
                     smoke = { low },
                     still = session.calm,
                     modifier = Modifier
@@ -203,8 +198,8 @@ private fun Header(session: Session, modifier: Modifier) {
             val seconds = round.left / 1000f
             Text(
                 if (seconds < 10f) String.format(Locale.US, "%.1f", seconds) else "${seconds.toInt()}",
-                style = Gilt,
-                fontSize = 24.sp,
+                style = Display.copy(shadow = glowOf(glassColour(session.timeLeft, low || round.phase == Phase.Lost), 14f)),
+                fontSize = TypeScale.Title,
                 color = glassColour(session.timeLeft, low || round.phase == Phase.Lost),
                 modifier = Modifier.offset(y = (-6).dp),
             )
@@ -266,8 +261,8 @@ private fun Band(session: Session, modifier: Modifier) {
             session.peekStage == PeekStage.Go -> GoWord(session.calm)
             swap.value > 0.01f -> Text(
                 "SWAP!",
-                style = Display.copy(shadow = Shadow(Craft.danger, Offset.Zero, 20f)),
-                fontSize = 28.sp,
+                style = Display.copy(shadow = glowOf(Craft.danger, 20f)),
+                fontSize = TypeScale.Title,
                 color = Color(0xFFFFE9D6),
                 modifier = Modifier.graphicsLayer {
                     alpha = swap.value
@@ -295,7 +290,7 @@ private fun PeekCount(session: Session) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Text("REMEMBER", style = Display.copy(shadow = Shadow(Dusk.glowDeep, Offset.Zero, 24f)), fontSize = 30.sp, color = Dusk.amber)
+        Text("REMEMBER", style = TextGlow, fontSize = TypeScale.Title)
         AnimatedContent(
             targetState = number,
             transitionSpec = {
@@ -306,12 +301,12 @@ private fun PeekCount(session: Session) {
             contentAlignment = Alignment.Center,
             label = "peekNumber",
         ) { n ->
-            Text(
-                "$n",
-                style = Display.copy(shadow = Shadow(if (n == 1) Craft.danger else Dusk.glowDeep, Offset.Zero, 28f), lineHeight = 64.sp),
-                fontSize = 64.sp,
-                color = if (n == 1) lerp(Dusk.amber, Craft.danger, 0.5f) else Dusk.glow,
-            )
+            // The last number burns red-amber; the others are the bulb's warm glow.
+            if (n == 1) {
+                Text("$n", style = Display.copy(shadow = glowOf(Craft.danger, 28f), lineHeight = TypeScale.Hero), fontSize = TypeScale.Hero, color = lerp(Dusk.amber, Craft.danger, 0.5f))
+            } else {
+                Text("$n", style = TextGlow.copy(lineHeight = TypeScale.Hero), fontSize = TypeScale.Hero)
+            }
         }
     }
 }
@@ -329,9 +324,8 @@ private fun GoWord(calm: Boolean) {
     }
     Text(
         "GO!",
-        style = Display.copy(shadow = Shadow(Dusk.glowDeep, Offset.Zero, 26f)),
-        fontSize = 40.sp,
-        color = Dusk.glow,
+        style = TextGlow,
+        fontSize = TypeScale.Hero,
         modifier = Modifier.wrapContentHeight(unbounded = true).clearAndSetSemantics { }.graphicsLayer {
             this.alpha = alpha.value
             scaleX = scale.value
@@ -353,9 +347,8 @@ private fun TopUp(count: Int, bonusMs: Long, modifier: Modifier) {
     val text = String.format(Locale.US, "+%.1fs", bonusMs / 1000f).replace(".0s", "s")
     Text(
         text,
-        style = Gilt,
-        fontSize = 18.sp,
-        color = Dusk.glow,
+        style = TextGlow,
+        fontSize = TypeScale.Heading,
         modifier = modifier.graphicsLayer {
             alpha = 1f - rise.value
             translationY = -44.dp.toPx() * rise.value
@@ -413,8 +406,8 @@ private fun Paused(session: Session) {
                     .padding(vertical = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("PAUSED", style = Carved, fontSize = 34.sp, color = Dusk.paperInk)
-                Text("Tap to continue", color = Color(0xFF3A2612), fontSize = 15.sp)
+                Text("PAUSED", style = TextCarved, fontSize = TypeScale.Title, color = Dusk.paperInk)
+                Text("Tap to continue", style = BodyText, color = Color(0xFF3A2612))
             }
             Spacer(Modifier.height(22.dp))
             PrimaryButton("Keep playing", Modifier.fillMaxWidth()) { session.resume() }
@@ -442,12 +435,12 @@ internal fun LeaveNotice(session: Session) {
                 .padding(horizontal = 22.dp, vertical = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("Leave this round?", style = Display, fontSize = 22.sp, color = Craft.parchmentInk, textAlign = TextAlign.Center)
+            Text("Leave this round?", style = Display, fontSize = TypeScale.Title, color = Craft.parchmentInk, textAlign = TextAlign.Center)
             Spacer(Modifier.height(6.dp))
             Text(
                 "The bulb goes out and this round won't count.",
                 color = Craft.parchmentInk,
-                fontSize = 15.sp,
+                fontSize = TypeScale.Body,
                 lineHeight = 20.sp,
                 textAlign = TextAlign.Center,
             )

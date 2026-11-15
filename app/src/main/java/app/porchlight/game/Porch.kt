@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
@@ -107,7 +108,7 @@ internal fun Porch(session: Session) {
                 ) {
                     TopRow(session)
                     Spacer(Modifier.height(10.dp))
-                    Logo()
+                    Logo(session.calm)
                     Controls(session)
                 }
             }
@@ -115,7 +116,7 @@ internal fun Porch(session: Session) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 TopRow(session)
                 Spacer(Modifier.height(6.dp))
-                Logo()
+                Logo(session.calm)
                 Stage(session, Modifier.fillMaxWidth().weight(1f))
                 Controls(session)
             }
@@ -126,21 +127,24 @@ internal fun Porch(session: Session) {
 @Composable
 private fun TopRow(session: Session) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        LevelBar(session.store.progress.xp, Modifier.weight(1f))
+        LevelPlate(session.store.progress.xp, Modifier.weight(1f), still = session.calm)
         BrassButton(Glyph.Gear, "Settings", enabled = true) { session.open(Screen.Settings) }
     }
 }
 
-/** The name, in gold leaf with the lamp's glow behind it. */
+/** The name lights letter by letter like a neon sign, once each time the app starts. */
+private var logoLit = false
+
 @Composable
-private fun Logo() {
-    Text(
+private fun Logo(calm: Boolean) {
+    val first = remember { !logoLit }
+    LaunchedEffect(Unit) { logoLit = true }
+    NeonOn(
         "PORCHLIGHT",
-        style = Display.copy(shadow = Shadow(Dusk.glowDeep.copy(alpha = 0.75f), Offset(0f, 2f), 26f)),
-        fontSize = 33.sp,
-        letterSpacing = 2.sp,
-        color = Craft.gold,
-        maxLines = 1,
+        TextGlow.copy(letterSpacing = 2.sp),
+        TypeScale.Title,
+        instant = !first,
+        calm = calm,
     )
 }
 
@@ -167,7 +171,7 @@ private fun Controls(session: Session) {
             Text(
                 session.notice ?: "${lead.label} · ${brief(lead)}",
                 color = if (session.notice != null) Dusk.amber else Dusk.ink,
-                fontSize = 15.sp,
+                fontSize = TypeScale.Body,
                 textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -208,7 +212,7 @@ private fun MenuTile(glyph: Glyph, label: String, modifier: Modifier, onClick: (
     ) {
         GlyphArt(glyph, Craft.brassLight, Modifier.size(26.dp))
         Spacer(Modifier.height(4.dp))
-        Text(label.uppercase(), style = Label, fontSize = 10.sp, color = Dusk.ink, maxLines = 1)
+        Text(label.uppercase(), style = Label, color = Dusk.ink, maxLines = 1)
     }
 }
 

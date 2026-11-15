@@ -18,6 +18,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -110,6 +111,9 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
     /** Counts Sorbet top-ups, so the "+1.5s" can float off the bulb each time. */
     var topUps by mutableIntStateOf(0)
+
+    /** Badges already looked at on the Badges screen; any others are new. Kept for this run of the app. */
+    var seenBadges: Set<Badge> = store.progress.badges
 
     /** Where the opening of the round is: deal, warm-up, peek, GO. Screen timing only. */
     var peekStage by mutableStateOf(PeekStage.None)
@@ -603,6 +607,8 @@ fun GameScreen(store: Store, sfx: Sfx) {
     }
     session.hue = hue
 
+    // Every bare Text in the game reads in the body font at body size, with tabular figures.
+    ProvideTextStyle(BodyText) {
     Box(Modifier.fillMaxSize().background(Dusk.wallTop)) {
         NightScene(
             clock = clock,
@@ -642,8 +648,9 @@ fun GameScreen(store: Store, sfx: Sfx) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = session.pop.value }.background(Color.White))
         if (session.leaving) LeaveNotice(session)
         session.sharing?.let { card ->
-            ShareSheet(card, gold = card.lead in session.store.progress.mastered) { session.sharing = null }
+            ShareSheet(card, gold = card.lead in session.store.progress.mastered, level = session.store.progress.level) { session.sharing = null }
         }
+    }
     }
 }
 

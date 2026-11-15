@@ -16,10 +16,15 @@
 package app.porchlight.game
 
 import android.os.SystemClock
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import java.util.Locale
@@ -86,19 +91,73 @@ internal object Craft {
     val dangerDeep = Color(0xFF7A0F0A)
 }
 
-/** Alfa Slab One (SIL Open Font License): a wood-type slab for signs, titles and numbers. */
+/**
+ * Alfa Slab One (SIL Open Font License): wood type, only for the big words. Screen titles, the
+ * Results headline, the score, the level number, OVERDRIVE, the peek count and GO!.
+ */
 internal val DisplayFont: FontFamily = FontFamily(Font(R.font.alfa_slab_one, FontWeight.Normal))
 
-/** Signs, titles, scores. Tabular figures keep a counting score from jittering. */
+/**
+ * Fredoka (SIL Open Font License): a rounded, friendly sans for everything else, with real
+ * weights. It is a variable font, so each weight sets its axis explicitly.
+ */
+@OptIn(ExperimentalTextApi::class)
+internal val BodyFont: FontFamily = FontFamily(
+    Font(R.font.fredoka, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
+    Font(R.font.fredoka, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+    Font(R.font.fredoka, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+)
+
+/**
+ * The type scale. Nothing is set outside it, and no card or panel uses more than three of these.
+ * Micro is for the share card only.
+ */
+internal object TypeScale {
+    val Hero = 56.sp
+    val Title = 28.sp
+    val Heading = 18.sp
+    val Body = 15.sp
+    val Label = 11.sp
+    val Micro = 9.sp
+}
+
+/** Big words in wood type. Tabular figures keep a changing number from jittering. */
 internal val Display = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.Normal, fontFeatureSettings = "tnum", letterSpacing = 0.5.sp)
 
-/** Engraved plate lettering: small condensed capitals. */
+/** Every line, caption and sentence. Tabular figures, so changing numbers stay still. */
+internal val BodyText = TextStyle(fontFamily = BodyFont, fontWeight = FontWeight.Normal, fontSize = TypeScale.Body, fontFeatureSettings = "tnum")
+
+/** Small labels: capitals with +1.5 sp tracking, in the body font. Write them in capitals. */
 internal val Label = TextStyle(
-    fontFamily = FontFamily.SansSerif,
-    fontWeight = FontWeight.Bold,
-    fontSize = 11.sp,
-    letterSpacing = 1.4.sp,
+    fontFamily = BodyFont,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = TypeScale.Label,
+    letterSpacing = 1.5.sp,
+    fontFeatureSettings = "tnum",
 )
+
+// One text treatment per surface. Use these instead of ad-hoc shadows.
+
+/** Painted on wood (screen signs, plank buttons): ink pressed into the grain, a light edge below. */
+internal val TextCarved = Display.copy(shadow = Shadow(Color.White.copy(alpha = 0.32f), Offset(0f, 1.5f), 0f))
+
+/**
+ * Lit by the bulb (the score, OVERDRIVE, the Results headline, the PORCHLIGHT title): an amber
+ * gradient with a soft glow around it, and no dark shadow. Don't pass a colour with it.
+ */
+internal val TextGlow = Display.copy(
+    brush = Brush.verticalGradient(listOf(Color(0xFFFFE08A), Color(0xFFF2A93B))),
+    shadow = Shadow(Dusk.glowDeep.copy(alpha = 0.75f), Offset.Zero, 22f),
+)
+
+/** Engraved in metal (the level number, badge text, coin labels): a light edge below the cut. */
+internal val TextEngraved = Display.copy(shadow = Shadow(Color.White.copy(alpha = 0.45f), Offset(0f, 1f), 0f))
+
+/** On paper (cards, the best-days list): plain ink, no effects. */
+internal val TextInk = BodyText
+
+/** A glow the colour of [colour], for a lit word in another colour (red for the last number). */
+internal fun glowOf(colour: Color, blur: Float = 22f) = Shadow(colour.copy(alpha = 0.75f), Offset.Zero, blur)
 
 internal fun now() = SystemClock.elapsedRealtime()
 

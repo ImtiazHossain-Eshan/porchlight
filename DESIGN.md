@@ -27,11 +27,20 @@ A porch at night, built by hand. Every surface is a made object drawn in code: t
 
 ## Type
 
-- **Display:** Alfa Slab One (`res/font/alfa_slab_one.ttf`, OFL). Signs, titles, scores, the countdown. One weight.
-  - `Carved` (dark with a light lower edge) on oak and brass.
-  - `Gilt` (light with a dark lower edge) on dark timber.
-- **Label:** system sans, bold, 11 sp, 1.4 sp tracking, capitals. Plate captions and tile names.
-- **Body:** system sans, 13–16 sp. All sizes are in sp.
+Everything is in `Theme.kt`. Nothing is set outside the scale, and no card or panel uses more than three sizes.
+
+- **Display:** Alfa Slab One (`res/font/alfa_slab_one.ttf`, OFL), only for big words: screen titles, the Results headline, the score, the level number, OVERDRIVE, the peek count and GO!. ALL CAPS only here.
+- **Body / UI:** Fredoka (`res/font/fredoka.ttf`, OFL), a rounded sans at 400, 600 and 700. Every label, line and button caption. It is provided app-wide, so a bare `Text` is already right.
+- **Numbers:** tabular figures everywhere (`tnum`), so a changing number never jitters.
+- **Scale (`TypeScale`):** Hero 56 (the score, the peek count), Title 28 (headlines, screen signs), Heading 18, Body 15, Label 11 (capitals, +1.5 sp tracking), Micro 9 (the share card only).
+- **Treatments, one per surface:**
+  - `TextCarved`: painted on wood (screen signs, plank buttons). Dark ink with a light edge below; amber paint with a dark cut above on dark walnut.
+  - `TextGlow`: lit by the bulb (the score, OVERDRIVE, the Results headline, PORCHLIGHT). Amber gradient #FFE08A → #F2A93B with a soft glow, never a black shadow. Pass no colour with it. `glowOf(colour)` lights another colour the same way.
+  - `TextEngraved`: cut in metal (the level number, badge text, seals). A light edge below; the emblem also cuts a dark edge above.
+  - `TextInk`: on paper. Plain ink.
+  - `FitText`: one line that steps down only as far as it must (a big font scale on a narrow phone). Signs and plank buttons.
+- **Copy:** sentence case for sentences, capitals for labels. Numbers grouped ("3,240"). Never "none", "+0" or "0 of 0": hide the line. Say what's next ("172 XP to level 12", "2 badges to go", "312 short of your best").
+- **Motion (`TextMotion.kt`):** `CountUp` (odometer digits), `PunchIn` (scale 1.3 → 1), `NeonOn` / `NeonOff` (letters light up; a loss flickers and cools to ember), `Stamp` (1.6 → 1 with a 3 dp shake). All fall back to a plain fade with reduce motion.
 
 ## Materials (`Materials.kt`)
 
@@ -61,9 +70,9 @@ One set, `Glyph`: a 24-unit box, one 2-unit round stroke. No text glyph or emoji
 
 - `plate()`: ebony with a brass rule. Score, streak, daily figures, the tutorial's Skip.
 - `BrassButton`: a 48 dp brass disc with a glyph; iron when disabled.
-- `LevelBar`: level in a brass medallion, XP as an amber fill in a brass tube.
+- `Emblem` (`Emblem.kt`): the level, in four looks that grow with the player. 1–4 a brass disc with a moth over the number; 5–9 adds eight rivets and a laurel of moth wings; 10–19 a silver rim, wider wings and a tiny lit bulb on top; 20+ gold, glowing wings, gold rays and a shine every 4 s. XP is a gold ring filling clockwise. The level-up lifts it, spins it once in 3D, flips the number split-flap style, empties and refills the ring, throws sparks and pops the new tier's parts on one by one. Used in the top bar (`LevelPlate`), Results, the share card and the Moths screen.
 - `Star`: bevelled gold; an unearned star is an empty iron socket.
-- `BadgeMedal`: scalloped rim, sunken face, the badge's mold; bronze, silver or gold, gold with a gem; iron until earned.
+- `BadgeMedal` (`Emblem.kt`): scalloped rim, sunken face, and each badge's own mark (no two share one). Bronze is warm copper, silver is cool with a bright shine line, gold is warm with a glow. Not yet earned it is a dark outline only. A new badge stamps in, a shine crosses it and its `TierRibbon` unfurls; on the Badges screen it wears a glowing dot until seen.
 - `LeverSwitch`: a brass knob in an ebony slot that glows amber when on. It is a switch to screen readers.
 
 ## The lamp (`Bulb.kt`)

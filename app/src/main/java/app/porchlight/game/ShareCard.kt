@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
@@ -102,7 +103,7 @@ internal fun cardDate(day: Long): String {
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun ShareCard(card: DailyCard, gold: Boolean, shape: CardShape, modifier: Modifier = Modifier, stars: Int = 3) {
+internal fun ShareCard(card: DailyCard, gold: Boolean, shape: CardShape, modifier: Modifier = Modifier, stars: Int = 3, level: Int = 0) {
     val clock = remember { Clock() }
     val tilt = remember { Tilt() }
     val story = shape == CardShape.Story
@@ -127,8 +128,11 @@ internal fun ShareCard(card: DailyCard, gold: Boolean, shape: CardShape, modifie
             Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = if (story) 26.dp else 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("PORCHLIGHT · DAILY PORCH", style = Label, fontSize = 10.sp, letterSpacing = 2.sp, color = Dusk.amber)
-            Text(cardDate(card.day), style = Label, fontSize = 9.sp, color = Dusk.inkSoft)
+            Text("PORCHLIGHT · DAILY PORCH", style = Label, color = Dusk.amber)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(cardDate(card.day), style = Label, fontSize = TypeScale.Micro, color = Dusk.inkSoft)
+                if (level > 0) Emblem(level, Modifier.size(22.dp), still = true)
+            }
             Spacer(Modifier.height(if (story) 10.dp else 2.dp))
             Bulb(
                 clock = clock,
@@ -150,13 +154,12 @@ internal fun ShareCard(card: DailyCard, gold: Boolean, shape: CardShape, modifie
                     )
                 }
             }
-            Text(
-                card.score.grouped(),
-                style = Gilt,
-                fontSize = if (story) 58.sp else 44.sp,
-                color = if (lit) Craft.gold else Dusk.inkSoft,
-            )
-            Text(card.line, fontSize = 12.sp, color = Dusk.ink, textAlign = TextAlign.Center)
+            if (lit) {
+                Text(card.score.grouped(), style = TextGlow, fontSize = TypeScale.Hero)
+            } else {
+                Text(card.score.grouped(), style = Display, fontSize = TypeScale.Hero, color = Dusk.inkSoft)
+            }
+            Text(card.line, style = BodyText, color = Dusk.ink, textAlign = TextAlign.Center)
             Spacer(Modifier.height(if (story) 22.dp else 10.dp))
 
             // The flight log: the order of the round, and nothing about where the cards lay.
@@ -181,7 +184,7 @@ internal fun ShareCard(card: DailyCard, gold: Boolean, shape: CardShape, modifie
                 }
             }
             Spacer(Modifier.weight(1f))
-            Text("Can you beat my porch? · Porchlight", style = Label, fontSize = 10.sp, color = Dusk.inkSoft)
+            Text("Can you beat my porch? · Porchlight", style = Label, fontSize = TypeScale.Micro, color = Dusk.inkSoft)
         }
     }
 }
@@ -244,7 +247,7 @@ private fun logDescription(log: List<LogEntry>): String =
  * rendered from the composable at 1080 pixels wide, not taken from the screen.
  */
 @Composable
-internal fun ShareSheet(card: DailyCard, gold: Boolean, onClose: () -> Unit) {
+internal fun ShareSheet(card: DailyCard, gold: Boolean, level: Int, onClose: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var shape by remember { mutableStateOf(CardShape.Post) }
@@ -274,7 +277,7 @@ internal fun ShareSheet(card: DailyCard, gold: Boolean, onClose: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text("Share today's porch", style = Gilt, fontSize = 20.sp, color = Dusk.amber)
+                Text("Share today's porch", style = BodyText, fontWeight = FontWeight.Bold, fontSize = TypeScale.Heading, color = Dusk.amber)
                 BrassButton(Glyph.Close, "Close", enabled = true, size = 36.dp, modifier = Modifier.align(Alignment.CenterEnd), onClick = onClose)
             }
             Spacer(Modifier.height(10.dp))
@@ -307,7 +310,7 @@ internal fun ShareSheet(card: DailyCard, gold: Boolean, onClose: () -> Unit) {
                         .clip(RoundedCornerShape(10.dp))
                         .border(1.5.dp, Craft.goldDeep, RoundedCornerShape(10.dp)),
                 ) {
-                    FullSizeCard(card, gold, shape, layer, w, starsShown)
+                    FullSizeCard(card, gold, shape, layer, w, starsShown, level)
                 }
             }
             Spacer(Modifier.height(12.dp))
@@ -357,7 +360,7 @@ internal fun ShareSheet(card: DailyCard, gold: Boolean, onClose: () -> Unit) {
  * image is identical whatever the phone's density or font scale.
  */
 @Composable
-private fun FullSizeCard(card: DailyCard, gold: Boolean, shape: CardShape, layer: GraphicsLayer, shownWidth: androidx.compose.ui.unit.Dp, stars: Int) {
+private fun FullSizeCard(card: DailyCard, gold: Boolean, shape: CardShape, layer: GraphicsLayer, shownWidth: androidx.compose.ui.unit.Dp, stars: Int, level: Int) {
     val screen = LocalDensity.current
     val scale = with(screen) { shownWidth.toPx() } / CARD_PX
     CompositionLocalProvider(LocalDensity provides Density(UNIT_PX.toFloat(), 1f)) {
@@ -366,6 +369,7 @@ private fun FullSizeCard(card: DailyCard, gold: Boolean, shape: CardShape, layer
             gold,
             shape,
             stars = stars,
+            level = level,
             modifier = Modifier
                 .layout { measurable, constraints ->
                     val placeable = measurable.measure(Constraints.fixed(CARD_PX, shape.heightPx))

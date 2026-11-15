@@ -48,6 +48,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,7 +92,22 @@ internal fun Results(session: Session, report: Report) {
                 add(Reward("${moth.label} joined", moth.perkName) { MothArt(moth, Modifier.size(54.dp)) })
             }
             report.newBadges.forEach { badge ->
-                add(Reward(badge.title, badge.detail) { BadgeMedal(badge, true, Modifier.size(54.dp)) })
+                add(
+                    Reward(badge.title, badge.detail) {
+                        // A new badge: it stamps down (the card does), a shine crosses it, its ribbon unfurls.
+                        val shine = remember { Animatable(0f) }
+                        val ribbon = remember { Animatable(0f) }
+                        LaunchedEffect(Unit) {
+                            delay(250)
+                            shine.animateTo(1f, tween(520))
+                            ribbon.animateTo(1f, tween(360))
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            BadgeMedal(badge, true, Modifier.size(54.dp), shine = if (shine.value < 1f) shine.value else -1f)
+                            TierRibbon(badge.metal, Modifier.size(50.dp, 6.dp), open = ribbon.value)
+                        }
+                    },
+                )
             }
         }
     }
@@ -159,47 +175,62 @@ internal fun Results(session: Session, report: Report) {
                 }
             }
             Spacer(Modifier.height(6.dp))
-            Text(
-                if (won) "EVERY PAIR FOUND" else "THE BULB BURNED OUT",
-                style = Display,
-                fontSize = 17.sp,
-                letterSpacing = 2.sp,
-                color = Color(0xFFFFF0C8),
-                textAlign = TextAlign.Center,
-            )
+            // The headline: a win lights up letter by letter; a loss flickers and cools to an ember.
+            if (won) {
+                NeonOn("EVERY PAIR FOUND", TextGlow, TypeScale.Title, instant = skipped, calm = session.calm)
+            } else {
+                NeonOff(
+                    "THE BULB BURNED OUT",
+                    TextGlow,
+                    TypeScale.Title,
+                    ember = Craft.copperLight,
+                    instant = skipped,
+                    calm = session.calm,
+                    onFizzle = { session.sfx.play(Sound.Buzz, volume = 0.6f, pitch = 0.8f) },
+                )
+            }
             Spacer(Modifier.height(8.dp))
 
-            val score by animateIntAsState(
-                if (step >= STEP_SCORE) round.score else 0,
-                tween(if (skipped) 0 else 700, easing = FastOutSlowInEasing),
-                label = "score",
-            )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    score.grouped(),
-                    style = Display.copy(shadow = Shadow(Craft.goldDeep, Offset(0f, 3f), 0f)),
-                    fontSize = 44.sp,
-                    color = Craft.gold,
-                    modifier = Modifier.semantics { contentDescription = "Score ${round.score}" },
-                )
-                if (report.newBest && step >= STEP_SCORE) Chip("NEW BEST", Craft.danger, Color.White)
-            }
-            // The record sits under the score it is measured against, not in the bonus table.
-            if (!report.practice && !report.newBest) {
-                Reveal(step >= STEP_SCORE, skipped) {
-                    Text(
-                        "Best ${progress.best.grouped()}",
-                        style = Label,
-                        fontSize = 13.sp,
-                        letterSpacing = 1.5.sp,
-                        color = Color(0xFFD9CDB4),
+            // The hero: the score rolls up like an odometer. Nobody wants a giant zero, so a round
+            // with no score shows the pairs found instead, dimmer.
+            if (round.score > 0) {
+                Box(contentAlignment = Alignment.Center) {
+                    CountUp(
+                        if (step >= STEP_SCORE) round.score else 0,
+                        TextGlow,
+                        TypeScale.Hero,
+                        durationMs = 800,
+                        instant = skipped,
+                        calm = session.calm,
                     )
+                }
+                if (report.newBest && step >= STEP_SCORE) {
+                    Stamp(
+                        instant = skipped,
+                        calm = session.calm,
+                        delayMs = 750,
+                        onLand = {
+                            session.sfx.play(Sound.Thunk)
+                            session.buzz(HapticFeedbackType.LongPress)
+                        },
+                    ) { Chip("NEW BEST", Craft.danger, Color.White) }
+                }
+            } else {
+                Text("${round.pairs} / ${round.pairCount} pairs", style = Display, fontSize = TypeScale.Title, color = Dusk.inkSoft)
+            }
+            // What's next, not a raw number: how far short of the record.
+            val short = progress.best - round.score
+            if (!report.practice && !report.newBest && round.score > 0 && short > 0) {
+                Reveal(step >= STEP_SCORE, skipped) {
+                    Text("${short.grouped()} short of your best", style = BodyText, color = Dusk.inkSoft)
                 }
             }
             Spacer(Modifier.height(10.dp))
 
-            // The bonus table, inked on a strip of the panel.
-            Reveal(step >= STEP_SCORE, skipped) {
+            // The tally: only the lines that say something. With no score the hero already says the
+            // pairs, so a round with nothing else to tell has no tally at all.
+            val tally = round.score > 0 || round.bestMultiplier >= 2 || round.misses > 0 || report.practice
+            if (tally) Reveal(step >= STEP_SCORE, skipped) {
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -208,58 +239,22 @@ internal fun Results(session: Session, report: Report) {
                         .border(1.dp, Craft.goldDeep.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                 ) {
-                    Line("Pairs found", "${round.pairs} of ${round.pairCount}", (round.score - timeBonus).grouped())
-                    Line(
-                        "Time left",
-                        if (won) String.format(Locale.US, "%.1f s", round.left / 1000f) else "none",
-                        "+${timeBonus.grouped()}",
-                    )
-                    Line("Wrong pairs", "${round.misses}", if (report.practice) "practice" else "")
+                    if (round.score > 0) Line(Glyph.Moth, "${round.pairs} of ${round.pairCount} pairs", (round.score - timeBonus).takeIf { it > 0 }?.let { "+${it.grouped()}" } ?: "")
+                    if (round.bestMultiplier >= 2) Line(Glyph.Flame, "Best streak ×${round.bestMultiplier}", "")
+                    if (won && timeBonus > 0) {
+                        Line(Glyph.Clock, String.format(Locale.US, "%.1f s left", round.left / 1000f), "+${timeBonus.grouped()}")
+                    }
+                    if (round.misses > 0) Line(Glyph.Close, if (round.misses == 1) "1 miss" else "${round.misses} misses", "")
+                    if (won && round.misses == 0) {
+                        Row(Modifier.padding(top = 4.dp)) { Chip("CLEAN!", Craft.goldDeep, Color(0xFFFFF6DC)) }
+                    }
+                    if (report.practice) Text("Practice round", style = BodyText, color = Dusk.inkSoft, modifier = Modifier.padding(top = 4.dp))
                 }
             }
             Spacer(Modifier.height(12.dp))
 
             Reveal(step >= STEP_XP, skipped) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (report.levelAfter > report.levelBefore) {
-                        // Levelling up is an event: the old number gives way to the new one.
-                        val flip by animateFloatAsState(
-                            if (step >= STEP_XP) 1f else 0f,
-                            if (skipped) tween(0) else spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessLow),
-                            label = "flip",
-                        )
-                        Row(
-                            Modifier.semantics(mergeDescendants = true) { contentDescription = "Level up: level ${report.levelAfter}" },
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Text("${report.levelBefore}", style = Display, fontSize = 24.sp, color = Color(0xFF8C97A6))
-                            GlyphArt(Glyph.Right, Craft.gold, Modifier.size(20.dp))
-                            Text(
-                                "${report.levelAfter}",
-                                style = Display.copy(shadow = Shadow(Craft.gold.copy(alpha = 0.8f), Offset.Zero, 24f)),
-                                fontSize = 40.sp,
-                                color = Craft.gold,
-                                modifier = Modifier.graphicsLayer {
-                                    scaleX = 0.4f + 0.6f * flip
-                                    scaleY = 0.4f + 0.6f * flip
-                                },
-                            )
-                        }
-                    }
-                    Text(
-                        when {
-                            report.practice -> "PRACTICE ROUND · NO XP"
-                            report.levelAfter > report.levelBefore -> "LEVEL UP · +${report.xp} XP"
-                            else -> "+${report.xp} XP"
-                        },
-                        style = Display,
-                        fontSize = 14.sp,
-                        letterSpacing = 2.sp,
-                        color = Color(0xFFFFF0C8),
-                    )
-                    LevelBar(if (step >= STEP_XP) progress.xp else progress.xp - report.xp, Modifier.fillMaxWidth(), animate = !skipped)
-                }
+                LevelSection(session, report, play = step >= STEP_XP, instant = skipped)
             }
 
             if (rewards.isNotEmpty()) {
@@ -272,7 +267,7 @@ internal fun Results(session: Session, report: Report) {
                         Reveal(step >= STEP_REWARDS, skipped, stamp = true, delayMs = i * 140) {
                             Column(
                                 Modifier
-                                    .width(118.dp)
+                                    .width(136.dp)
                                     .clip(RoundedCornerShape(12.dp))
                                     .background(Color.Black.copy(alpha = 0.28f))
                                     .border(1.dp, Craft.goldDeep.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
@@ -282,8 +277,8 @@ internal fun Results(session: Session, report: Report) {
                             ) {
                                 reward.art()
                                 Spacer(Modifier.height(6.dp))
-                                Text(reward.title, style = Label, fontSize = 10.sp, color = Craft.gold, textAlign = TextAlign.Center, maxLines = 2)
-                                Text(reward.detail, color = Color(0xFFD9CDB4), fontSize = 11.sp, lineHeight = 14.sp, textAlign = TextAlign.Center, maxLines = 3)
+                                Text(reward.title.uppercase(), style = Label, color = Craft.gold, textAlign = TextAlign.Center, maxLines = 2)
+                                Text(reward.detail, style = BodyText, color = Color(0xFFD9CDB4), lineHeight = 19.sp, textAlign = TextAlign.Center, maxLines = 3)
                             }
                         }
                     }
@@ -295,8 +290,8 @@ internal fun Results(session: Session, report: Report) {
                 Text(
                     if (report.practice) "Today's scored try is already in. A new porch comes tomorrow."
                     else "Daily porch · ${report.dailyStreak} ${if (report.dailyStreak == 1) "day" else "days"} running",
+                    style = BodyText,
                     color = Color(0xFFD9CDB4),
-                    fontSize = 13.sp,
                     textAlign = TextAlign.Center,
                 )
             }
@@ -318,13 +313,88 @@ internal fun Results(session: Session, report: Report) {
     }
 }
 
-/** One row of the bonus table: what, how much of it, and what it was worth. */
+/** One tally line: an icon, what happened, and what it was worth (if anything). */
 @Composable
-private fun Line(label: String, amount: String, worth: String) {
-    Row(Modifier.padding(vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, color = Color(0xFFD9CDB4), fontSize = 14.sp, modifier = Modifier.weight(1f))
-        Text(amount, color = Color(0xFFFFF0C8), fontSize = 14.sp, modifier = Modifier.padding(end = 14.dp))
-        Text(worth, style = Display, fontSize = 14.sp, color = Craft.gold, textAlign = TextAlign.End, modifier = Modifier.width(92.dp))
+private fun Line(icon: Glyph, what: String, worth: String) {
+    Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        GlyphArt(icon, Craft.brassLight, Modifier.size(18.dp))
+        Text(what, style = BodyText, color = Color(0xFFFFF0C8), modifier = Modifier.weight(1f))
+        if (worth.isNotEmpty()) Text(worth, style = BodyText, fontWeight = FontWeight.Bold, color = Craft.gold, textAlign = TextAlign.End)
+    }
+}
+
+/**
+ * XP and the level: the emblem with its ring filling, "+40 XP", and what's next. A level-up lifts
+ * the emblem, spins it once in 3D, flips the number like a split-flap, empties and refills the
+ * ring, throws sparks, and pops on any new tier's wings, rivets and bulb one by one.
+ */
+@Composable
+private fun LevelSection(session: Session, report: Report, play: Boolean, instant: Boolean) {
+    val progress = session.store.progress
+    val xpAfter = progress.xp
+    val xpBefore = xpAfter - report.xp
+    val up = report.levelAfter > report.levelBefore
+    val newTier = tierFor(report.levelAfter) != tierFor(report.levelBefore)
+    val calm = session.calm
+    val ring = remember(report) { Animatable(levelFill(xpBefore)) }
+    val lift = remember(report) { Animatable(0f) }
+    val spin = remember(report) { Animatable(0f) }
+    val flip = remember(report) { Animatable(if (up) 0f else 1f) }
+    val burst = remember(report) { Animatable(0f) }
+    val parts = remember(report) { Animatable(if (up && newTier) 0f else 1f) }
+    LaunchedEffect(report, play, instant) {
+        if (!play) return@LaunchedEffect
+        if (instant || calm) {
+            ring.snapTo(levelFill(xpAfter))
+            flip.snapTo(1f)
+            parts.snapTo(1f)
+            lift.snapTo(0f)
+            spin.snapTo(0f)
+            return@LaunchedEffect
+        }
+        if (!up) {
+            ring.animateTo(levelFill(xpAfter), tween(800, easing = FastOutSlowInEasing))
+            return@LaunchedEffect
+        }
+        ring.animateTo(1f, tween(450))
+        launch { lift.animateTo(1f, tween(220)) }
+        launch { spin.animateTo(360f, tween(900, easing = FastOutSlowInEasing)) }
+        delay(250)
+        flip.animateTo(1f, tween(420))
+        launch { burst.snapTo(0f); burst.animateTo(1f, tween(650)) }
+        session.sfx.play(Sound.LevelUp)
+        ring.snapTo(0f)
+        launch { ring.animateTo(levelFill(xpAfter), tween(600, easing = FastOutSlowInEasing)) }
+        if (newTier) parts.animateTo(1f, tween(900))
+        lift.animateTo(0f, spring(dampingRatio = 0.5f))
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Emblem(
+            report.levelAfter,
+            Modifier
+                .size(if (up) 96.dp else 72.dp)
+                .graphicsLayer {
+                    cameraDistance = 12f * density
+                    rotationY = spin.value
+                    translationY = -10.dp.toPx() * lift.value
+                },
+            xp = ring.value,
+            from = report.levelBefore,
+            flip = flip.value,
+            parts = parts.value,
+            burst = burst.value,
+            still = calm,
+        )
+        Text(
+            when {
+                report.practice -> "PRACTICE ROUND · NO XP"
+                up -> "LEVEL ${report.levelAfter} · +${report.xp} XP"
+                else -> "+${report.xp} XP"
+            },
+            style = Label,
+            color = Color(0xFFFFF0C8),
+        )
+        Text("${xpToGo(xpAfter).grouped()} XP to level ${levelFor(xpAfter) + 1}", style = BodyText, color = Dusk.inkSoft)
     }
 }
 
@@ -332,7 +402,7 @@ private fun Line(label: String, amount: String, worth: String) {
 @Composable
 private fun NightSeal(number: Int) {
     Box(Modifier.size(54.dp).metal(corner = 27.dp), contentAlignment = Alignment.Center) {
-        Text("$number", style = Carved, fontSize = 24.sp, color = Dusk.paperInk)
+        Text("$number", style = TextEngraved, fontSize = TypeScale.Title, color = Dusk.paperInk)
     }
 }
 

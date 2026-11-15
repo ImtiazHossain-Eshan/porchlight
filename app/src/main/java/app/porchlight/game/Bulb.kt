@@ -75,8 +75,6 @@ internal fun Bulb(
     hue: () -> Color? = { null },
     last: () -> Boolean = { false },
     arc: Boolean = false,
-    /** The share of the peek left to look, 1 to 0, drawn as a thin ring; negative for none. */
-    peekRing: () -> Float = { -1f },
     smoke: () -> Boolean = { false },
     still: Boolean = false,
     /** Draw the lamp's own halo. On by default where the scene's glow shader can't; the share card always wants it. */
@@ -107,8 +105,6 @@ internal fun Bulb(
 
                 // The time ring sits behind the brass works, so the gears and gauge stay on top of it.
                 if (arc) timeArc(t)
-                val look = peekRing()
-                if (look >= 0f) peekArc(look)
                 if (lamp == Lamp.Works) works(time, t, on)
 
                 // Without the scene's glow shader, the lamp carries its own halo.
@@ -252,13 +248,3 @@ private fun DrawScope.timeArc(t: Float) {
     drawPath(bandLeft, Craft.brassLight, alpha = 0.8f, style = Stroke(2.2f, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
 
-/** The peek's own ring: thin, outside the time band, draining clockwise over the peek. */
-private fun DrawScope.peekArc(left: Float) {
-    val r = 62f
-    val topLeft = Offset(GLASS_CENTRE.x - r, GLASS_CENTRE.y - r)
-    val ring = Size(r * 2f, r * 2f)
-    drawArc(Color.White, -90f, 360f, false, topLeft, ring, alpha = 0.12f, style = Stroke(2.5f))
-    if (left > 0f) {
-        drawArc(Dusk.glow, -90f + 360f * (1f - left), 360f * left, false, topLeft, ring, style = Stroke(3f, cap = StrokeCap.Round))
-    }
-}

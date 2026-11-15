@@ -246,15 +246,15 @@ internal fun Pops(session: Session) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         pop.word,
-                        style = Display.copy(shadow = Shadow(glow, Offset.Zero, 18f)),
-                        fontSize = if (pop.big) 22.sp else 19.sp,
+                        style = Display.copy(shadow = glowOf(glow, 18f)),
+                        fontSize = TypeScale.Heading,
                         color = Color.White,
                         maxLines = 1,
                     )
                     Text(
                         pop.text,
-                        style = Display.copy(shadow = Shadow(Color.Black.copy(alpha = 0.8f), Offset(0f, 2f), 6f)),
-                        fontSize = 16.sp,
+                        style = Display.copy(shadow = glowOf(glow, 10f)),
+                        fontSize = TypeScale.Heading,
                         color = glow,
                         maxLines = 1,
                     )
@@ -289,7 +289,7 @@ internal fun OverdriveBanner(count: Int, calm: Boolean, modifier: Modifier = Mod
             Text(
                 "OVERDRIVE",
                 style = Display,
-                fontSize = 34.sp,
+                fontSize = TypeScale.Title,
                 letterSpacing = 3.sp,
                 color = Dusk.ember,
                 maxLines = 1,
@@ -301,10 +301,9 @@ internal fun OverdriveBanner(count: Int, calm: Boolean, modifier: Modifier = Mod
         }
         Text(
             "OVERDRIVE",
-            style = Display.copy(shadow = if (Gpu.blur) null else Shadow(Dusk.ember, Offset.Zero, 28f)),
-            fontSize = 34.sp,
+            style = if (Gpu.blur) TextGlow.copy(shadow = null) else TextGlow.copy(shadow = glowOf(Dusk.ember, 28f)),
+            fontSize = TypeScale.Title,
             letterSpacing = 3.sp,
-            color = Dusk.glow,
             maxLines = 1,
         )
     }
