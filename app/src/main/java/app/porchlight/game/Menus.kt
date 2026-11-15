@@ -1,5 +1,8 @@
 package app.porchlight.game
 
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.hoverable
 import kotlin.math.sin
 import kotlin.math.abs
 import androidx.compose.ui.graphics.PathEffect
@@ -129,6 +132,9 @@ internal fun NightsScreen(session: Session) {
     val progress = session.store.progress
     val picked = NIGHTS[progress.night - 1]
     var lockedHint by remember { mutableStateOf<String?>(null) }
+    // The night waiting for a yes in the confirmation card, if one is open.
+    var asking by remember { mutableStateOf<Night?>(null) }
+    Box(Modifier.fillMaxSize()) {
     MenuFrame("Six nights", session, scroll = false) {
         BoxWithConstraints(
             Modifier
@@ -182,22 +188,34 @@ internal fun NightsScreen(session: Session) {
             NIGHTS.forEachIndexed { i, night ->
                 val open = night.number <= progress.nights
                 val chosen = night.number == progress.night
-                val grow by animateFloatAsState(if (chosen) 1.14f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "grow")
+                // Under a finger (or a mouse pointer) a coin rises and grows, so it's clear what
+                // will be picked.
+                val touch = remember { MutableInteractionSource() }
+                val held by touch.collectIsPressedAsState()
+                val hovered by touch.collectIsHoveredAsState()
+                val near = held || hovered
+                val grow by animateFloatAsState(
+                    (if (chosen) 1.14f else 1f) * (if (near && open) 1.18f else 1f),
+                    spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium),
+                    label = "grow",
+                )
                 val size = 60.dp
                 Column(
                     Modifier
                         .offset(w * STOPS[i].x - 45.dp, h * STOPS[i].y - size / 2)
                         .width(90.dp)
+                        .hoverable(touch)
                         .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
+                            interactionSource = touch,
                             indication = null,
-                            role = Role.RadioButton,
+                            role = Role.Button,
                         ) {
                             if (open) {
-                                // A night on the map starts at once: pick it and light the porch.
+                                // Pick it, then ask before lighting the porch.
                                 lockedHint = null
+                                session.sfx.play(Sound.Flip, vary = 0.06f)
                                 session.store.change { it.copy(night = night.number) }
-                                session.start(daily = false)
+                                asking = night
                             } else {
                                 lockedHint = "Night ${night.number} is locked: win two stars on night ${night.number - 1}."
                                 session.sfx.play(Sound.Locked)
@@ -218,6 +236,7 @@ internal fun NightsScreen(session: Session) {
                             .graphicsLayer {
                                 scaleX = grow
                                 scaleY = grow
+                                translationY = if (near && open) -4.dp.toPx() else 0f
                                 cameraDistance = 12f * density
                                 rotationY = session.tilt.x * 16f
                                 rotationX = -session.tilt.y * 16f
@@ -275,6 +294,8 @@ internal fun NightsScreen(session: Session) {
         }
         Spacer(Modifier.height(10.dp))
         PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
+    }
+    asking?.let { night -> NightConfirm(night, progress.nightStars[night.number - 1], session) { asking = null } }
     }
 }
 
@@ -929,5 +950,62 @@ private fun DrawScope.mapArt() {
     // Moths fluttering near the last night.
     for ((x, y) in listOf(0.84f to 0.84f, 0.9f to 0.94f, 0.56f to 0.92f)) {
         glyph(Glyph.Moth, at(x, y), w * 0.05f, ink, alpha = 0.4f)
+    }
+}
+
+/**
+ * Asks before a night starts: a parchment card that springs up from the coin, with the night's
+ * name, its pairs, time and twist, the stars won so far, PLAY and Not now. Tapping outside or
+ * Back closes it.
+ */
+@Composable
+private fun NightConfirm(night: Night, stars: Int, session: Session, onClose: () -> Unit) {
+    val rise = remember(night) { Animatable(0f) }
+    LaunchedEffect(night) { rise.animateTo(1f, if (session.calm) tween(180) else spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow)) }
+    androidx.activity.compose.BackHandler(onBack = onClose)
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Dusk.shadow.copy(alpha = 0.65f * rise.value.coerceIn(0f, 1f)))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            Modifier
+                .padding(28.dp)
+                .widthIn(max = 360.dp)
+                .graphicsLayer {
+                    val t = rise.value
+                    alpha = t.coerceIn(0f, 1f)
+                    if (!session.calm) {
+                        scaleX = 0.8f + 0.2f * t
+                        scaleY = 0.8f + 0.2f * t
+                        translationY = (1f - t) * 40.dp.toPx()
+                    }
+                }
+                .shadow(14.dp, RoundedCornerShape(10.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                .parchment(10.dp)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
+                .padding(horizontal = 22.dp, vertical = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("NIGHT ${night.number}", style = Display, fontSize = TypeScale.Title, color = Craft.parchmentInk)
+            Spacer(Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                repeat(3) { i -> GlyphArt(Glyph.Star, if (i < stars) Craft.goldDeep else Craft.parchmentShade, Modifier.size(18.dp)) }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(nightLine(night), style = TextInk, fontWeight = FontWeight.Bold, color = Craft.parchmentInk)
+            if (night.twist != Twist.None) {
+                Text(night.twist.tip, style = TextInk, color = Craft.parchmentInkSoft, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
+            }
+            Spacer(Modifier.height(16.dp))
+            PlayButton("Play", session.calm, Modifier.fillMaxWidth()) {
+                onClose()
+                session.start(daily = false)
+            }
+            Spacer(Modifier.height(8.dp))
+            SecondaryButton("Not now", Modifier.fillMaxWidth(), onClick = onClose)
+        }
     }
 }

@@ -1,5 +1,12 @@
 package app.porchlight.game
 
+import androidx.compose.ui.graphics.graphicsLayer
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -114,6 +121,8 @@ internal fun Porch(session: Session) {
                     TopRow(session)
                     Spacer(Modifier.height(10.dp))
                     Logo(session.calm)
+                    Tonight(session)
+                    Spacer(Modifier.height(12.dp))
                     Controls(session)
                 }
             }
@@ -122,6 +131,7 @@ internal fun Porch(session: Session) {
                 TopRow(session)
                 Spacer(Modifier.height(6.dp))
                 Logo(session.calm)
+                Tonight(session)
                 Stage(session, Modifier.fillMaxWidth().weight(1f))
                 Controls(session)
             }
@@ -186,45 +196,92 @@ private fun Controls(session: Session) {
                 Text(brief(lead), style = BodyText, color = Dusk.ink, maxLines = 1)
             }
         }
-        Spacer(Modifier.height(4.dp))
+        // Room to breathe between the tag, the sign and the tiles.
+        Spacer(Modifier.height(16.dp))
         PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
-        Spacer(Modifier.height(8.dp))
-        // Tonight at a glance: four small engraved plates, each with its mark.
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Fact(Glyph.Map, "NIGHT ${night.number}")
-            Fact(Glyph.Moth, "${night.pairs} PAIRS")
-            Fact(Glyph.Clock, "${night.roundMs / 1000} S")
-            if (progress.best > 0) Fact(Glyph.Trophy, progress.best.grouped())
-        }
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MenuTile(Glyph.Map, "Nights", Modifier.weight(1f)) { session.open(Screen.Nights) }
-            MenuTile(Glyph.Calendar, "Daily", Modifier.weight(1f)) { session.open(Screen.Daily) }
-            MenuTile(Glyph.Moth, "Moths", Modifier.weight(1f)) { session.open(Screen.Moths) }
-            MenuTile(Glyph.Trophy, "Badges", Modifier.weight(1f)) { session.open(Screen.Badges) }
+            MenuTile(Glyph.Map, "Nights", 0, session, Modifier.weight(1f)) { session.open(Screen.Nights) }
+            MenuTile(Glyph.Calendar, "Daily", 1, session, Modifier.weight(1f)) { session.open(Screen.Daily) }
+            MenuTile(Glyph.Moth, "Moths", 2, session, Modifier.weight(1f)) { session.open(Screen.Moths) }
+            MenuTile(Glyph.Trophy, "Badges", 3, session, Modifier.weight(1f)) { session.open(Screen.Badges) }
         }
     }
 }
 
 /** A walnut tile with a brass rule: an icon over its name. */
 @Composable
-private fun MenuTile(glyph: Glyph, label: String, modifier: Modifier, onClick: () -> Unit) {
-    Column(
+private fun MenuTile(glyph: Glyph, label: String, index: Int, session: Session, modifier: Modifier, onClick: () -> Unit) {
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val sink by animateFloatAsState(if (pressed) 1f else 0f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "sink")
+    val clock = session.clock
+    val calm = session.calm
+    // A raised walnut block: its dark side shows below the face, and the face sinks onto it when
+    // pressed. The mark sits on a small brass coin that bobs gently, each tile in its own time,
+    // and a glint crosses each tile now and then.
+    Box(
         modifier
-            .height(70.dp)
-            .plank(Wood.Walnut, corner = 12.dp, elevation = 5.dp, seed = label.length + 3)
-            .border(1.5.dp, BrassRule, RoundedCornerShape(12.dp))
-            .clickable(role = Role.Button, onClick = onClick)
+            .height(80.dp)
+            .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = label },
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
     ) {
-        GlyphArt(glyph, Craft.brassLight, Modifier.size(26.dp))
-        Spacer(Modifier.height(4.dp))
-        Text(label.uppercase(), style = Label, color = Dusk.ink, maxLines = 1)
+        Box(
+            Modifier
+                .matchParentSize()
+                .padding(top = 8.dp)
+                .shadow(6.dp, RoundedCornerShape(12.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xFF3A2414), Color(0xFF140B05)))),
+        )
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .height(72.dp)
+                .graphicsLayer { translationY = sink * 6.dp.toPx() }
+                .plank(Wood.Walnut, corner = 12.dp, elevation = 0.dp, seed = label.length + 3)
+                .border(1.5.dp, BrassRule, RoundedCornerShape(12.dp))
+                .drawWithContent {
+                    drawContent()
+                    if (!calm) {
+                        val cycle = (clock.seconds + index * 1.3f) % 5f
+                        if (cycle < 0.8f) {
+                            val x = -size.width * 0.4f + size.width * 1.8f * (cycle / 0.8f)
+                            clipRect {
+                                rotate(25f, Offset(x, size.height / 2f)) {
+                                    drawRect(
+                                        Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.22f), Color.Transparent), x - 14.dp.toPx(), x + 14.dp.toPx()),
+                                        Offset(x - 14.dp.toPx(), -size.height),
+                                        androidx.compose.ui.geometry.Size(28.dp.toPx(), size.height * 3f),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                Modifier
+                    .size(38.dp)
+                    .graphicsLayer {
+                        if (!calm) translationY = 2.dp.toPx() * kotlin.math.sin(clock.seconds * 2.2f + index * 1.4f)
+                    }
+                    .drawBehind {
+                        val (c, rr) = coinFace(size)
+                        coin(c, rr, press = sink)
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.offset(y = (-2).dp)) {
+                    GlyphArt(glyph, Color.White.copy(alpha = 0.45f), Modifier.size(18.dp).offset(y = 1.dp))
+                    GlyphArt(glyph, Color(0xFF3E2810), Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            Text(label.uppercase(), style = Label, color = Dusk.ink, maxLines = 1)
+        }
     }
 }
 
@@ -346,19 +403,30 @@ private fun Stage(session: Session, modifier: Modifier) {
     }
 }
 
-/** One fact about tonight on a small dark plate with a brass edge: a mark and a word. */
+/**
+ * Tonight, quietly, under the title: the night, its pairs and time, and the best score, each with
+ * a small mark. Plain faint lettering: it informs without competing with the play sign.
+ */
+@Composable
+private fun Tonight(session: Session) {
+    val progress = session.store.progress
+    val night = NIGHTS[progress.night - 1]
+    Row(
+        Modifier.padding(top = 2.dp).semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Fact(Glyph.Map, "NIGHT ${night.number}")
+        Fact(Glyph.Moth, "${night.pairs} PAIRS")
+        Fact(Glyph.Clock, "${night.roundMs / 1000} S")
+        if (progress.best > 0) Fact(Glyph.Trophy, progress.best.grouped())
+    }
+}
+
 @Composable
 private fun Fact(glyph: Glyph, text: String) {
-    Row(
-        Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color.Black.copy(alpha = 0.32f))
-            .border(1.dp, Craft.brassDark, RoundedCornerShape(8.dp))
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-    ) {
-        GlyphArt(glyph, Craft.brassLight, Modifier.size(14.dp))
-        Text(text, style = Label, color = Dusk.ink, maxLines = 1)
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        GlyphArt(glyph, Dusk.inkSoft.copy(alpha = 0.75f), Modifier.size(12.dp))
+        Text(text, style = Label, color = Dusk.inkSoft.copy(alpha = 0.85f), maxLines = 1)
     }
 }
