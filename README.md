@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/banner.svg" alt="Six moth cards gathered around a lit porch bulb" width="100%">
+<img src="docs/banner.png" alt="Porchlight: a lit mason jar on a night porch with moths gathered round it, beside the title, the tagline, and three scenes from play: the peek, Overdrive and the scorecard" width="100%">
 
 # Porchlight
 
@@ -31,7 +31,7 @@ You get a two-second look at the cards. Then they fold shut, and the porch bulb 
 3. **Chain.** Pairs in a row multiply: ×2, ×3, then ×4 *Overdrive*. One wrong pair breaks the chain.
 4. **Beat the bulb.** Finish early and every second left is worth 20 more points.
 
-There is no timer bar. **The bulb is the timer.** It burns warm white with time to spare, turns amber as it runs down, and goes deep orange near the end. In the last five seconds it flickers and buzzes. At zero it pops, the moths scatter, and the porch goes dark. A thin arc around the bulb and a small number under it are there if you want the exact time.
+There is no timer bar. **The bulb is the timer.** It burns warm white with time to spare, turns amber as it runs down, and goes deep orange near the end. In the last five seconds it turns red, flickers and buzzes. At zero it pops, the moths scatter, and the porch goes dark. A bold gold band around the bulb drains as the time runs out, and the seconds sit under it if you want the exact time.
 
 Pick a lead moth before each round. Each one bends the rules its own way.
 
@@ -40,31 +40,31 @@ Pick a lead moth before each round. Each one bends the rules its own way.
 <table>
   <tr>
     <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: the level emblem with its XP ring, a lit mason jar with moths resting around it, a big oak sign reading Play, and four menu tiles" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up with a warm rim, REMEMBER and a big 2 under the bulb" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: the bulb glows gold in its brass works, found moths circle it, and MATCH pops rise off the pairs" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, the time band around it nearly empty, and the remaining cards are washed red" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up with a warm rim, and REMEMBER with a big 2 under the bulb in its brass works" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: found moths circle the bulb, the score reads 1,400 and the streak plate says OVERDRIVE ×4" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, 0.2 seconds left in red under it, and the last cards washed red" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="The scorecard after a lost round: the headline cooled to ember, 0 of 6 pairs, and the level emblem at its new level 10 with wings and a lit bulb" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>The lobby</b><br>A jar, the moths, one sign</sub></td>
+    <td align="center"><sub><b>The lobby</b><br>Tap the jar for the light</sub></td>
     <td align="center"><sub><b>The peek</b><br>Remember, 2, 1</sub></td>
     <td align="center"><sub><b>Overdrive</b><br>The light turns gold</sub></td>
     <td align="center"><sub><b>Last seconds</b><br>Red, smoke, flicker</sub></td>
-    <td align="center"><sub><b>Scorecard</b><br>Stars and bonuses</sub></td>
+    <td align="center"><sub><b>Scorecard</b><br>Built line by line</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screens/6-nights.png" alt="Six nights: a parchment map with a copper pipe running between six brass night markers" width="100%"></td>
-    <td align="center"><img src="docs/screens/9-daily.png" alt="Daily porch: a calendar leaf with today's date, the week's studs, and your own best days" width="100%"></td>
-    <td align="center"><img src="docs/screens/7-moths.png" alt="Lead moths: each moth in a glass jar on velvet, with its strengths as brass pips" width="100%"></td>
+    <td align="center"><img src="docs/screens/6-nights.png" alt="Six nights: an inked map with the porch, a river, pines, a moon and a compass, and six thick brass coins with gold stars along a copper route" width="100%"></td>
+    <td align="center"><img src="docs/screens/9-daily.png" alt="Daily porch: a calendar leaf, the week as 3D coins with their stars, your streak and best, your best days, and a big PLAY TODAY sign" width="100%"></td>
+    <td align="center"><img src="docs/screens/7-moths.png" alt="Lead moths: each moth beating its wings in a glass jar on velvet, with its strengths as pips" width="100%"></td>
     <td align="center"><img src="docs/screens/8-badges.png" alt="Badges: twelve medals, each with its own mark, in bronze, silver and gold with tier ribbons; the ones not yet earned are dark outlines" width="100%"></td>
-    <td align="center"><img src="docs/screens/10-settings.png" alt="Settings: a walnut switchboard with four brass lever switches" width="100%"></td>
+    <td align="center"><img src="docs/screens/10-settings.png" alt="Settings: a walnut switchboard with four lever switches and Replay the tutorial" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Six nights</b><br>A map on parchment</sub></td>
+    <td align="center"><sub><b>Six nights</b><br>Tap a coin to play</sub></td>
     <td align="center"><sub><b>Daily porch</b><br>One scored try a day</sub></td>
-    <td align="center"><sub><b>Lead moths</b><br>Specimens on velvet</sub></td>
+    <td align="center"><sub><b>Lead moths</b><br>Wings beating in jars</sub></td>
     <td align="center"><sub><b>Badges</b><br>Twelve medals</sub></td>
-    <td align="center"><sub><b>Settings</b><br>Brass levers</sub></td>
+    <td align="center"><sub><b>Settings</b><br>Four switches</sub></td>
   </tr>
 </table>
 
@@ -179,7 +179,7 @@ Levels need 200, 500, 900, 1,400 and 2,000 XP in total.
 - Every tap answers at once: the card dips under your finger, turns in 3D, lifts off the board, and the moth wakes up and flaps.
 - A wrong pair flashes red, shakes, and both moths snap their wings shut.
 - Streaks build. ×1 throws a few sparks. ×2 throws more. ×3 adds a bass note, a bulb flare and a warm glow at the screen edge. ×4 *Overdrive* freezes the frame for an instant, shakes the porch, sends a gold shockwave out from the pair and slides OVERDRIVE across.
-- When a streak breaks, the counter cracks and drops back to ×1 with a low thunk.
+- When a streak breaks, the counter cracks and drops back to a dash with a low thunk. (It shows a dash, not ×1, until there is a streak.)
 - The score counts up instead of jumping.
 - All particles come from one pool of 200 that is allocated once.
 - **Reduce motion**, from the settings or the system's animation setting, turns off the shake, freeze and sparks but keeps the colour changes.
@@ -192,10 +192,13 @@ The bulb is the clock. Its glow shrinks and its colour runs from warm white with
 
 A round opens like the porch light warming up. The cards drop onto the board face down one by one while the bulb is dark, then it flickers twice and comes on (tap to skip this). The cards turn up in a wave from the bulb down, the band says REMEMBER, and one big number counts the whole seconds left to look: 2, 1 for a 2-second peek, and 4, 3, 2, 1 for Iris's 3.4 seconds. The cards' warm rims brighten in the last half second. Then the cards fold shut from the bottom row up, GO! punches in, the bulb flares and the round's clock starts. Pausing during the peek holds the countdown exactly where it was. A recording is in [`docs/visuals/peek.mp4`](docs/visuals/peek.mp4). When time runs out the bulb pops bright for an instant and goes dark, its glass still hanging there. Found pairs glow teal, and Overdrive turns the wall's light gold.
 
-- **Lobby:** a mason jar with a filament inside, hung by a wire.
+- **Lobby:** a mason jar with a filament inside, hung from an iron bracket. Tap it to switch the porch light off and on: the wall and the moths fall dark, then it flickers back with a hum and every moth starts up. Tonight's night, pairs, time and best sit quietly under the title, the lead moth on a small tag above a big **PLAY** sign that breathes a warm glow, and the four menu tiles are raised walnut blocks with 3D brass coins that bob and sink when pressed.
+- **Level emblem:** the level is a brass emblem that grows with the player in four looks (a moth on brass; rivets and a laurel of wings; a silver rim, wider wings and a lit bulb; gold with rays and a shine), with XP as a gold ring and "152 XP to level 12" beside it. A level-up spins it once in 3D and flips the number like a departure board.
+- **Night map:** an inked country (the porch, a river, hills, pines, a moon, a compass rose) with the nights as thick brass coins along a copper route. A coin rises under your finger, and tapping it opens a card that springs up with the night's stars, pairs, time and twist, and PLAY / Not now.
 - **Round:** an Edison bulb in brass works, with two gears that turn while it burns and a pressure gauge whose needle falls with the time left. A bold gold band follows the glass's outline, open at the neck, and drains clockwise as the time runs out. The seconds sit under it in the bulb's colour, with tenths under ten seconds. The ✕ leaves the round (it asks first), and the pause sign offers Keep playing, Start over and Leave round.
 - **Cards:** ebony tiles in embossed brass frames. Faces are parchment; a found pair leaves an empty, recessed socket.
-- **Signs:** the main action is always an oak sign with carved lettering. Quieter actions are walnut with gilt lettering.
+- **Signs and buttons:** the main action is always an oak sign with carved lettering. Quieter actions are walnut with painted lettering. Round buttons (back, pause, ✕, settings) are thick 3D brass coins with a milled edge that sink when pressed.
+- **Type:** Alfa Slab One only for the big words (titles, the score, the level number), Fredoka for everything else, on one fixed scale, with one treatment per surface: carved on wood, glowing where the bulb lights it, engraved in metal, plain on paper. See [`DESIGN.md`](DESIGN.md).
 
 
 Modern effects without a game engine or a WebView: Compose `graphicsLayer` for the 3D, and [AGSL](https://developer.android.com/develop/ui/views/graphics/agsl) shaders in [`Shaders.kt`](app/src/main/java/app/porchlight/game/Shaders.kt) for the GPU work.
@@ -239,6 +242,7 @@ adb shell am start -n app.porchlight.game/.MainActivity --ei pretendApi 32      
 adb shell am start -n app.porchlight.game/.MainActivity --ei pretendApi 30           # act like Android 11: no shaders, no blur
 adb shell am start -n app.porchlight.game/.MainActivity --ef tiltX 1 --ef tiltY -0.5 # a fixed tilt instead of the sensor
 adb shell am start -n app.porchlight.game/.MainActivity --ei quality 2               # half-size bloom and fewer particles
+adb shell am start -n app.porchlight.game/.MainActivity --ei setXp 23500             # set the XP (here level 21) to see the level emblem
 ```
 
 </details>
