@@ -1,6 +1,5 @@
 package app.porchlight.game
 
-import android.content.Intent
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -366,10 +365,11 @@ internal fun DailyScreen(session: Session) {
         PrimaryButton(if (played) "Practise today's porch" else "Play today's porch", Modifier.fillMaxWidth()) { session.start(daily = true) }
         if (played) {
             Spacer(Modifier.height(8.dp))
-            SecondaryButton("Share today's result", Modifier.fillMaxWidth()) {
-                val send = Intent(Intent.ACTION_SEND).setType("text/plain")
-                    .putExtra(Intent.EXTRA_TEXT, dailyShare(today, progress.dailyStars, progress.dailyScore))
-                context.startActivity(Intent.createChooser(send, null))
+            SecondaryButton("Share today's porch", Modifier.fillMaxWidth()) {
+                // The card needs today's round; a day played before cards existed shares the text line.
+                val card = progress.dailyCard?.takeIf { it.day == today }
+                if (card != null) session.sharing = card
+                else shareText(context, dailyShare(today, progress.dailyStars, progress.dailyScore))
             }
         }
         Spacer(Modifier.height(8.dp))

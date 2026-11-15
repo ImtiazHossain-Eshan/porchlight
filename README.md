@@ -110,11 +110,17 @@ Beat a night with two stars or more to open the next. Each night gives about fiv
 
 Each new night and twist is introduced once, in one line with a small animation, the first time you play it.
 
-**Daily porch.** The deal comes from today's date, so everyone gets the same porch. You get one scored try a day. Play on consecutive days to build a streak, and share your result:
+**Daily porch.** The deal comes from today's date, so everyone gets the same porch. You get one scored try a day. Play on consecutive days to build a streak, and share your result as a card.
+
+The share window previews the card, switches between a feed post (1080 × 1350) and a story (1080 × 1920), and offers **Share image** or **Copy text**. The card shows the date, your lead moth under the lamp, your stars and score, and a flight log: one tile per turned pair, in order, with the moth you matched or an empty tile for a miss. The higher your streak, the brighter the tile's ring. The log never shows where the cards lay, so it doesn't spoil the deal for anyone else. A lost round gets a card too, with the lamp dark.
+
+The text line goes along with the image (and is what **Copy text** copies):
 
 ```
 Porchlight daily 20261114 ★★☆ 2,340
 ```
+
+The image is drawn from the game's own wall, lamp and moths at full size, without shaders, so it looks the same on every phone. If it can't be made, the game shares the text line alone.
 
 ## Progression
 
@@ -279,6 +285,7 @@ flowchart LR
 | [`Cards.kt`](app/src/main/java/app/porchlight/game/Cards.kt), [`Particles.kt`](app/src/main/java/app/porchlight/game/Particles.kt), [`Hud.kt`](app/src/main/java/app/porchlight/game/Hud.kt) | The board, sparks and shockwaves, score pops, and the small pieces of UI. |
 | [`Onboarding.kt`](app/src/main/java/app/porchlight/game/Onboarding.kt) | The first-launch tutorial (a 3 × 2 board) and the one-time night introductions. |
 | [`Menus.kt`](app/src/main/java/app/porchlight/game/Menus.kt) | The screens off the lobby: the night map, the daily porch, lead moths, badges and settings. |
+| [`ShareCard.kt`](app/src/main/java/app/porchlight/game/ShareCard.kt) | The daily share card, its preview window, and rendering it to a PNG to share. |
 | [`Materials.kt`](app/src/main/java/app/porchlight/game/Materials.kt), [`Icons.kt`](app/src/main/java/app/porchlight/game/Icons.kt) | Wood, metal, parchment, velvet, gilded panels, gears, rivets and pipes; and the drawn icon set. |
 | [`Moths.kt`](app/src/main/java/app/porchlight/game/Moths.kt) | Ten moths and a dead leaf, drawn as vector paths on a Compose `Canvas`. |
 | [`Sfx.kt`](app/src/main/java/app/porchlight/game/Sfx.kt) | The synthesizer and the mixer. |
@@ -327,7 +334,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 
 ## Tests
 
-88 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
+103 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -337,6 +344,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 | --- | --- |
 | [`GameTest`](app/src/test/java/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, nights, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
 | [`ProgressTest`](app/src/test/java/app/porchlight/game/ProgressTest.kt) | XP curve, levels, unlocks, stars, opening nights, mastery, the daily porch and its streak, the share line, badges |
+| [`FlightLogTest`](app/src/test/java/app/porchlight/game/FlightLogTest.kt) | The round's flight log: order, multipliers, misses, saving and restoring, and that no card position leaks into it; the daily share card's data and the unchanged share line |
 | [`BalanceTest`](app/src/test/java/app/porchlight/game/BalanceTest.kt) | Simulated perfect and typical players with every lead: none may beat the rest by more than 15% on both score and time |
 
 CI runs them on every push. A failing test stops the build and uploads the HTML report.

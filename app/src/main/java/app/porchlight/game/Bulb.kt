@@ -71,6 +71,8 @@ internal fun Bulb(
     hue: () -> Color? = { null },
     smoke: () -> Boolean = { false },
     still: Boolean = false,
+    /** Draw the lamp's own halo. On by default where the scene's glow shader can't; the share card always wants it. */
+    ownHalo: Boolean = !Gpu.shaders,
 ) {
     val halo = remember {
         Brush.radialGradient(
@@ -98,7 +100,7 @@ internal fun Bulb(
                 if (lamp == Lamp.Works) works(time, t, on)
 
                 // Without the scene's glow shader, the lamp carries its own halo.
-                if (raw > 0.02f && !Gpu.shaders) {
+                if (raw > 0.02f && ownHalo) {
                     val radius = (0.6f + t) * 112f * (0.55f + 0.45f * raw)
                     translate(GLASS_CENTRE.x, GLASS_CENTRE.y) {
                         scale(radius / 100f, radius / 100f, pivot = Offset.Zero) {

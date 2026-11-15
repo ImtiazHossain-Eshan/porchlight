@@ -104,13 +104,15 @@ internal fun NightScene(
     danger: () -> Float = { 0f },
     tighten: () -> Float = { 0f },
     modifier: Modifier = Modifier,
+    /** False draws the plain gradient glow on every phone: the share card must look the same everywhere. */
+    shaders: Boolean = true,
 ) {
     // Each mote: angle, speed, distance from the bulb, phase, depth.
     val motes = remember {
         val random = Random(11)
         FloatArray(MOTES * 5) { random.nextFloat() }
     }
-    val glowShader = remember { GlowShader.create() }
+    val glowShader = remember(shaders) { if (shaders) GlowShader.create() else null }
     Box(
         modifier
             .fillMaxSize()

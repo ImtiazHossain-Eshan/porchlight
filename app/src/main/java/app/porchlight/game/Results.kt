@@ -1,6 +1,5 @@
 package app.porchlight.game
 
-import android.content.Intent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -310,9 +309,9 @@ internal fun Results(session: Session, report: Report) {
             if (round.daily && !report.practice) {
                 Spacer(Modifier.height(8.dp))
                 SecondaryButton("Share", Modifier.fillMaxWidth()) {
-                    val text = dailyShare(todaySeed(), report.stars, round.score)
-                    val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-                    context.startActivity(Intent.createChooser(send, null))
+                    val card = session.store.progress.dailyCard
+                    if (card != null) session.sharing = card
+                    else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
                 }
             }
         }

@@ -81,6 +81,8 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     var fx by mutableStateOf<Fx?>(null)
     var notice by mutableStateOf<String?>(null)
     var leaving by mutableStateOf(false)
+    /** The daily card being previewed in the share window, if it is open. */
+    var sharing by mutableStateOf<DailyCard?>(null)
 
     /** Centre of the bulb's glass and its width on screen, in pixels: the light and the moths aim for it. */
     var bulbAt by mutableStateOf(Offset.Zero)
@@ -595,6 +597,9 @@ fun GameScreen(store: Store, sfx: Sfx) {
         if (session.screen == Screen.Results && report != null) Results(session, report)
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = session.pop.value }.background(Color.White))
         if (session.leaving) LeaveNotice(session)
+        session.sharing?.let { card ->
+            ShareSheet(card, gold = card.lead in session.store.progress.mastered) { session.sharing = null }
+        }
     }
 }
 

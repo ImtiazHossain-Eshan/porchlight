@@ -110,6 +110,36 @@ fun dailySeed(year: Int, month: Int, day: Int): Long = year * 10_000L + month * 
 
 fun multiplierAt(streak: Int, rules: Rules) = min(MAX_MULTIPLIER, rules.streakStart + streak)
 
+/**
+ * One turned pair, in the order it happened: a match (which moth, at what multiplier) or a miss.
+ * It never says where the cards lay, so a daily porch can be shared without spoiling the deal.
+ */
+sealed interface LogEntry {
+    data class Match(val moth: MothId, val multiplier: Int) : LogEntry
+    data object Miss : LogEntry
+}
+
+/** "Luna*2,-,Atlas*3": a log as one string, for saved state and storage. */
+fun encodeLog(log: List<LogEntry>): String = log.joinToString(",") {
+    when (it) {
+        is LogEntry.Match -> "${it.moth.name}*${it.multiplier}"
+        LogEntry.Miss -> "-"
+    }
+}
+
+/** Reads [encodeLog]'s string back. Anything it can't read is dropped, never thrown. */
+fun decodeLog(text: String?): List<LogEntry> =
+    text.orEmpty().split(",").mapNotNull { part ->
+        if (part == "-") return@mapNotNull LogEntry.Miss
+        val bits = part.split("*")
+        val moth = MothId.entries.find { it.name == bits.getOrNull(0) } ?: return@mapNotNull null
+        val multiplier = bits.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+        LogEntry.Match(moth, multiplier)
+    }
+
+/** The round's story for the share card: matches and misses in order, and nothing about positions. */
+fun flightLog(round: Round): List<LogEntry> = round.history.toList()
+
 data class Round(
     val phase: Phase = Phase.Idle,
     val night: Night = NIGHTS[0],
@@ -137,6 +167,8 @@ data class Round(
     val swaps: Int = 0,
     val seed: Long = 0,
     val daily: Boolean = false,
+    /** Every turned pair so far, in order. */
+    val history: List<LogEntry> = emptyList(),
     val say: String = "Pick a lead moth, then light the porch.",
 ) {
     val running get() = phase == Phase.Peek || phase == Phase.Play
@@ -188,6 +220,7 @@ data class Round(
                 streak = if (free) streak else 0,
                 forgiven = if (free) forgiven + 1 else forgiven,
                 misses = misses + 1,
+                history = history + LogEntry.Miss,
                 say = if (free) "$name. No match, but the streak holds." else "$name. No match.",
             )
         }
@@ -200,10 +233,11 @@ data class Round(
         val nowScore = score + PAIR_POINTS * multiplier
         val nowBest = max(bestMultiplier, multiplier)
         val nowRun = max(bestRun, streak + 1)
+        val nowHistory = history + LogEntry.Match(deck[first], multiplier)
         if (nowPairs < pairCount) {
             return copy(
                 open = emptyList(), matched = nowMatched, pairs = nowPairs, endsAt = nowEnds, left = nowLeft,
-                score = nowScore, streak = streak + 1, bestMultiplier = nowBest, bestRun = nowRun,
+                score = nowScore, streak = streak + 1, bestMultiplier = nowBest, bestRun = nowRun, history = nowHistory,
                 say = "A pair of ${plural(name)}, times $multiplier.",
             )
         }
@@ -211,7 +245,7 @@ data class Round(
         return copy(
             phase = Phase.Won, open = emptyList(), matched = nowMatched, pairs = nowPairs, endsAt = nowEnds,
             left = nowLeft, score = nowScore + seconds * SECOND_POINTS, streak = streak + 1, bestMultiplier = nowBest,
-            bestRun = nowRun, say = "Every pair with $seconds seconds left.",
+            bestRun = nowRun, history = nowHistory, say = "Every pair with $seconds seconds left.",
         )
     }
 
@@ -316,6 +350,7 @@ fun Round.saved(lead: MothId): Map<String, Any> = mapOf(
     "swaps" to swaps,
     "seed" to seed,
     "daily" to daily,
+    "history" to encodeLog(history),
 )
 
 /**
@@ -356,6 +391,7 @@ fun restoreRound(values: Map<String, Any?>): Pair<Round, MothId>? = runCatching 
         swaps = values["swaps"] as Int,
         seed = values["seed"] as Long,
         daily = values["daily"] as Boolean,
+        history = decodeLog(values["history"] as? String),
         say = if (wasPlaying) "Paused." else "Look closely. The cards are about to fold shut.",
     ) to lead
 }.getOrNull()

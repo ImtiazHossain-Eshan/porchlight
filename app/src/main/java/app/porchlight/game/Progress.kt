@@ -29,6 +29,62 @@ enum class Badge(val title: String, val detail: String, val metal: Metal, val mo
 /** One day's daily porch: the date seed, and how it went. */
 data class DailyEntry(val day: Long, val stars: Int, val score: Int)
 
+/**
+ * Everything the daily share card shows, kept after the round so it can be shared later from the
+ * daily porch. Holds the order of matches and misses, never where the cards lay.
+ */
+data class DailyCard(
+    val day: Long,
+    val lead: MothId,
+    val won: Boolean,
+    val stars: Int,
+    val score: Int,
+    val pairs: Int,
+    val pairCount: Int,
+    val leftMs: Long,
+    val misses: Int,
+    val bestMultiplier: Int,
+    val streak: Int,
+    val log: List<LogEntry>,
+) {
+    val overdrive get() = bestMultiplier >= MAX_MULTIPLIER
+
+    /** "8/8 pairs · 12.4 s left · 1 miss" */
+    val line: String get() {
+        if (!won) return "The bulb burned out · $pairs/$pairCount pairs"
+        val left = if (won) " · ${String.format(java.util.Locale.US, "%.1f", leftMs / 1000f)} s left" else ""
+        val missText = when (misses) {
+            0 -> "no misses"
+            1 -> "1 miss"
+            else -> "$misses misses"
+        }
+        return "$pairs/$pairCount pairs$left · $missText"
+    }
+
+    fun encode(): String = listOf(
+        day, lead.name, won, stars, score, pairs, pairCount, leftMs, misses, bestMultiplier, streak, encodeLog(log),
+    ).joinToString("|")
+
+    companion object {
+        fun of(round: Round, lead: MothId, day: Long, stars: Int, streak: Int) = DailyCard(
+            day = day, lead = lead, won = round.phase == Phase.Won, stars = stars, score = round.score,
+            pairs = round.pairs, pairCount = round.pairCount, leftMs = round.left, misses = round.misses,
+            bestMultiplier = round.bestMultiplier, streak = streak, log = flightLog(round),
+        )
+
+        /** Reads [encode]'s string back, or null if it isn't one. */
+        fun decode(text: String?): DailyCard? = runCatching {
+            val p = text!!.split("|")
+            require(p.size == 12)
+            DailyCard(
+                day = p[0].toLong(), lead = MothId.valueOf(p[1]), won = p[2].toBooleanStrict(), stars = p[3].toInt(),
+                score = p[4].toInt(), pairs = p[5].toInt(), pairCount = p[6].toInt(), leftMs = p[7].toLong(),
+                misses = p[8].toInt(), bestMultiplier = p[9].toInt(), streak = p[10].toInt(), log = decodeLog(p[11]),
+            )
+        }.getOrNull()
+    }
+}
+
 /** Total XP needed to reach [level]: 200, 500, 900, 1400, 2000, ... */
 fun xpFor(level: Int) = 50 * (level - 1) * (level + 2)
 
@@ -63,6 +119,8 @@ data class Progress(
     val dailyStreak: Int = 0,
     val dailyScore: Int = 0,
     val dailyStars: Int = 0,
+    /** The last scored daily porch, for the share card. */
+    val dailyCard: DailyCard? = null,
     val tutorialDone: Boolean = false,
     /** One-line tips already shown: twists and new moths are introduced once. */
     val tips: Set<String> = emptySet(),
@@ -177,6 +235,7 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         dailyStreak = dailyStreak,
         dailyScore = if (round.daily) round.score else before.dailyScore,
         dailyStars = if (round.daily) stars else before.dailyStars,
+        dailyCard = if (round.daily) DailyCard.of(round, lead, today, stars, dailyStreak) else before.dailyCard,
     )
     val report = Report(
         stars = stars,
@@ -242,6 +301,7 @@ class Store(private val prefs: SharedPreferences) {
         dailyStreak = prefs.getInt("dailyStreak", 0),
         dailyScore = prefs.getInt("dailyScore", 0),
         dailyStars = prefs.getInt("dailyStars", 0),
+        dailyCard = DailyCard.decode(prefs.getString("dailyCard", null)),
         // Anyone who played before the tutorial existed doesn't need it.
         tutorialDone = prefs.getBoolean("tutorialDone", prefs.getInt("rounds", 0) > 0),
         tips = prefs.getStringSet("tips", emptySet()).orEmpty().toSet(),
@@ -270,6 +330,7 @@ class Store(private val prefs: SharedPreferences) {
             .putInt("dailyStreak", next.dailyStreak)
             .putInt("dailyScore", next.dailyScore)
             .putInt("dailyStars", next.dailyStars)
+            .putString("dailyCard", next.dailyCard?.encode())
             .putBoolean("tutorialDone", next.tutorialDone)
             .putStringSet("tips", next.tips)
             .putBoolean("muted", next.muted)

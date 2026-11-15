@@ -326,8 +326,8 @@ internal fun BadgeMedal(badge: Badge, earned: Boolean, modifier: Modifier = Modi
 
 /** The main action: an oak sign with carved lettering, held on by two brass rivets. */
 @Composable
-internal fun PrimaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    SignButton(text, Wood.Oak, Dusk.paperInk, Carved, modifier, onClick)
+internal fun PrimaryButton(text: String, modifier: Modifier = Modifier, busy: Boolean = false, onClick: () -> Unit) {
+    SignButton(text, Wood.Oak, Dusk.paperInk, Carved, modifier, onClick, busy)
 }
 
 /** A quieter action: a walnut sign with gilt lettering. */
@@ -337,7 +337,7 @@ internal fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClic
 }
 
 @Composable
-private fun SignButton(text: String, wood: Wood, ink: Color, style: TextStyle, modifier: Modifier, onClick: () -> Unit) {
+private fun SignButton(text: String, wood: Wood, ink: Color, style: TextStyle, modifier: Modifier, onClick: () -> Unit, busy: Boolean = false) {
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     // A sign gives under the finger with a spring, and sinks a little toward the wall.
@@ -360,7 +360,17 @@ private fun SignButton(text: String, wood: Wood, ink: Color, style: TextStyle, m
             .padding(horizontal = 26.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text.uppercase(), style = style, fontSize = 17.sp, color = ink, textAlign = TextAlign.Center, maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // Work in hand (the share image being made): a small spinner before the words.
+            if (busy) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    color = ink,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.padding(end = 10.dp).size(16.dp),
+                )
+            }
+            Text(text.uppercase(), style = style, fontSize = 17.sp, color = ink, textAlign = TextAlign.Center, maxLines = 1)
+        }
     }
 }
 
