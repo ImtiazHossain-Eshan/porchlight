@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -148,7 +149,8 @@ private fun Controls(session: Session) {
     val progress = session.store.progress
     val lead = session.lead
     val night = NIGHTS[progress.night - 1]
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    // On a tablet the sign and tiles keep to a comfortable width instead of spanning the screen.
+    Column(Modifier.widthIn(max = 560.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         // One line: who leads and what they do. Tapping a locked moth explains how to meet it here.
         Row(
             Modifier
@@ -263,7 +265,12 @@ private fun Stage(session: Session, modifier: Modifier) {
             val x by animateDpAsState(w * spot.x, fly, label = "x")
             val y by animateDpAsState(h * spot.y, fly, label = "y")
             // Moths shrink on short screens so they never crowd each other or the jar.
-            val size by animateDpAsState(if (chosen) min(92.dp, h * 0.28f) else min(60.dp, h * 0.18f), fly, label = "size")
+            // ...and grow on tablets, where the wall has room for them.
+            val size by animateDpAsState(
+                if (chosen) min(min(150.dp, h * 0.28f), w * 0.3f) else min(min(96.dp, h * 0.18f), w * 0.2f),
+                fly,
+                label = "size",
+            )
             Box(
                 Modifier
                     .offset(x - size / 2, y - size / 2)

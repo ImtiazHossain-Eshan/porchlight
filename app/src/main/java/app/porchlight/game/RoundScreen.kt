@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -123,15 +124,25 @@ private fun Header(session: Session, modifier: Modifier) {
             } else null
         },
     ) {
-        val bulbH = min(maxHeight * 0.66f, maxWidth * 0.42f / 0.7f)
-        ScoreReadout(round.score, Modifier.align(Alignment.BottomStart).padding(bottom = 44.dp))
+        // Beside the board (landscape, tablets) the header is a tall column: the lamp grows to fill
+        // it and the plates and the band gather under it, instead of sitting at the far bottom.
+        val tall = maxHeight > maxWidth
+        val bulbH = if (tall) min(maxHeight * 0.46f, maxWidth * 0.62f / 0.7f) else min(maxHeight * 0.66f, maxWidth * 0.42f / 0.7f)
+        val plateRow = if (tall) 0.62f else 1f
+        ScoreReadout(
+            round.score,
+            Modifier.align(BiasAlignment(-1f, plateRow)).padding(bottom = if (tall) 0.dp else 44.dp),
+        )
         StreakReadout(
             multiplierAt(if (round.running) round.streak else 0, round.rules),
             session.calm,
-            Modifier.align(Alignment.BottomEnd).padding(bottom = 44.dp),
+            Modifier.align(BiasAlignment(1f, plateRow)).padding(bottom = if (tall) 0.dp else 44.dp),
         )
 
-        Column(Modifier.align(Alignment.TopCenter), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            Modifier.align(if (tall) BiasAlignment(0f, -0.55f) else Alignment.TopCenter),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
             Bulb(
                 clock = session.clock,
                 timeLeft = { session.timeLeft },
@@ -170,7 +181,7 @@ private fun Header(session: Session, modifier: Modifier) {
         }
 
         // One thing at a time in the band between the bulb and the board: never over the cards.
-        Band(session, Modifier.align(Alignment.BottomCenter))
+        Band(session, Modifier.align(if (tall) BiasAlignment(0f, 0.86f) else Alignment.BottomCenter))
 
         if (round.rules.pairBonusMs > 0) {
             TopUp(session.topUps, round.rules.pairBonusMs, Modifier.align(Alignment.TopCenter).padding(top = bulbH * 0.2f))

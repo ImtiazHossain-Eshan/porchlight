@@ -105,7 +105,10 @@ Menu screens share `MenuFrame`: a brass back button and the title on an oak plaq
 
 - Edge to edge; content keeps to the safe area.
 - Portrait: lamp above the board. Landscape and wide screens: lamp beside the board; lobby stage beside its controls.
-- Menu content is capped at 560 dp wide. Verified at 360 × 640 dp and on a tall phone, both orientations.
+- Menu content and the lobby's sign and tiles are capped at 560 dp wide.
+- Beside the board, the round's header is a tall column: the lamp grows to fill it and the plates and band sit under it.
+- Lobby moths scale with the stage, up to 150 dp for the lead on a tablet.
+- Verified at 360 × 640 dp, on a tall phone, and at 800 × 1280 dp (tablet), each in both orientations.
 - Touch targets are 48 dp or larger.
 
 ## Fallbacks (`Shaders.kt`, `Gpu`)
