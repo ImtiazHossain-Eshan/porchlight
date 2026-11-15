@@ -29,8 +29,8 @@ enum class MothId(
     val perk: String = "",
     val isLead: Boolean = true,
 ) {
-    Wick("Wick", "The night owl", "Long-life bulb", "The round starts with 5 extra seconds."),
-    Ember("Ember", "The sprinter", "Hot streak", "Streaks start at ×2, but the bulb is 3 seconds shorter."),
+    Luna("Luna", "The night owl", "Long-life bulb", "The round starts with 5 extra seconds."),
+    Wick("Wick", "The sprinter", "Hot streak", "Streaks start at ×2, but the bulb is 3 seconds shorter."),
     Atlas("Atlas", "The mapmaker", "Second look", "Once a round, flash every card open for a moment."),
     Dot("Dot", "The counter", "Quick hands", "Tap straight past a wrong pair, and your first miss keeps the streak."),
     Iris("Iris", "The watcher", "Long look", "The opening peek lasts 3.4 seconds instead of 2."),
@@ -45,7 +45,7 @@ enum class MothId(
 /** The six moths that can lead a round. */
 val LEADS: List<MothId> = MothId.entries.filter { it.isLead }
 
-private val INK = Color(0xFF15181A)
+private val INK = Color(0xFF2A1A10)
 private val EYE_WHITE = Color(0xFFFFF7DC)
 private const val ANTENNA = "M62.6 32.4 C66 24 71 18 77.5 14.5"
 private const val ABDOMEN = "M53.5 56 Q60 52 66.5 56 Q67.5 78 60 94 Q52.5 78 53.5 56 Z"
@@ -79,7 +79,7 @@ private class Spec(
 }
 
 private val SPECS: Map<MothId, Spec> = mapOf(
-    MothId.Wick to Spec(
+    MothId.Luna to Spec(
         fore = "M64 46 C74 26 98 14 114 20 C113 38 100 54 82 60 C73 62 66 58 64 54 Z",
         hind = "M64 54 C78 56 94 62 95 76 C95 86 88 92 85 102 C84 108 86 113 84 117 C79 112 78 103 74 95 C68 85 64 70 64 54 Z",
         foreFill = Color(0xFFC8EEC2), hindFill = Color(0xFFC8EEC2),
@@ -90,7 +90,7 @@ private val SPECS: Map<MothId, Spec> = mapOf(
         ),
         body = Color(0xFFF8F3E6), antenna = Color(0xFFC9862A), feathery = true,
     ),
-    MothId.Ember to Spec(
+    MothId.Wick to Spec(
         fore = "M64 47 C78 36 102 28 118 30 C110 44 92 55 76 59 C69 61 65 57 64 53 Z",
         hind = "M64 53 C72 54 88 58 92 67 C87 77 75 78 69 72 C65 67 64 60 64 53 Z",
         foreFill = Color(0xFFE8452A), hindFill = Color(0xFF2B1814),

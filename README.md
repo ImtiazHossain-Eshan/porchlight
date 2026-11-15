@@ -10,7 +10,7 @@ Moths gather at a porch bulb, and the bulb is the clock. Find every pair before 
 <a href="https://github.com/ImtiazHossain-Eshan/porchlight/actions/workflows/android.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/ImtiazHossain-Eshan/porchlight/android.yml?branch=main&style=flat-square&label=build&labelColor=15181a&color=2c6f6c"></a>
 <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-f4c20d?style=flat-square&logo=android&logoColor=white&labelColor=15181a">
 <img alt="Kotlin with Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-f4c20d?style=flat-square&logo=kotlin&logoColor=white&labelColor=15181a">
-<img alt="81 tests passing" src="https://img.shields.io/badge/tests-81%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
+<img alt="88 tests passing" src="https://img.shields.io/badge/tests-88%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
 <img alt="Sound synthesized in app" src="https://img.shields.io/badge/sound-synthesized-f4c20d?style=flat-square&labelColor=15181a">
 <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-f4c20d?style=flat-square&labelColor=15181a"></a>
 
@@ -39,18 +39,32 @@ Pick a lead moth before each round. Each one bends the rules its own way.
 
 <table>
   <tr>
-    <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The porch: the bulb off, Wick leading, the locked moths as silhouettes, and the night picker" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up under the lit bulb" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: matched moths circle the bulb and a shockwave ring spreads from the pair" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb has turned deep orange and the board is nearly empty" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="Results: three stars, a level up, night 2 opened, Wick turned gold and four new badges" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: a lit mason jar with moths resting around it, an oak sign reading Light the porch, and four menu tiles" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up under a teal bulb, with READY 3 2 1 counting down" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: the bulb glows gold in its brass works, found moths circle it, and MATCH pops rise off the pairs" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, the readout says 05s, and the remaining cards are washed red" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="The scorecard: a gilded navy panel with stars, the score, a bonus table and the level gauge" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>The porch</b><br>Pick a lead and a night</sub></td>
-    <td align="center"><sub><b>The peek</b><br>Two seconds to remember</sub></td>
-    <td align="center"><sub><b>Overdrive</b><br>Found moths circle the light</sub></td>
-    <td align="center"><sub><b>Last seconds</b><br>The bulb runs hot</sub></td>
-    <td align="center"><sub><b>Results</b><br>Stars, XP, unlocks</sub></td>
+    <td align="center"><sub><b>The lobby</b><br>A jar, the moths, one sign</sub></td>
+    <td align="center"><sub><b>The peek</b><br>Ready, 3, 2, 1</sub></td>
+    <td align="center"><sub><b>Overdrive</b><br>The light turns gold</sub></td>
+    <td align="center"><sub><b>Last seconds</b><br>Red, smoke, 05s</sub></td>
+    <td align="center"><sub><b>Scorecard</b><br>Stars and bonuses</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screens/6-nights.png" alt="Six nights: a parchment map with a copper pipe running between six brass night markers" width="100%"></td>
+    <td align="center"><img src="docs/screens/9-daily.png" alt="Daily porch: a calendar leaf with today's date, the week's studs, and your own best days" width="100%"></td>
+    <td align="center"><img src="docs/screens/7-moths.png" alt="Lead moths: each moth in a glass jar on velvet, with its strengths as brass pips" width="100%"></td>
+    <td align="center"><img src="docs/screens/8-badges.png" alt="Badges: twelve cast medals in bronze, silver and gold on a walnut board" width="100%"></td>
+    <td align="center"><img src="docs/screens/10-settings.png" alt="Settings: a walnut switchboard with four brass lever switches" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Six nights</b><br>A map on parchment</sub></td>
+    <td align="center"><sub><b>Daily porch</b><br>One scored try a day</sub></td>
+    <td align="center"><sub><b>Lead moths</b><br>Specimens on velvet</sub></td>
+    <td align="center"><sub><b>Badges</b><br>Twelve castings</sub></td>
+    <td align="center"><sub><b>Settings</b><br>Brass levers</sub></td>
   </tr>
 </table>
 
@@ -60,12 +74,12 @@ A 15-second gameplay clip is in [`docs/store/gameplay.mp4`](docs/store/gameplay.
 
 ### Six leads
 
-You start with Wick. Each level up brings the next lead to the porch.
+You start with Luna. Each level up brings the next lead to the porch.
 
 | | Moth | Role | Perk | Unlocks |
 | :---: | --- | --- | --- | :---: |
-| <img src="docs/moths/wick.svg" width="56" alt=""> | **Wick** | The night owl | **Long-life bulb.** The round starts with 5 extra seconds. | Level 1 |
-| <img src="docs/moths/ember.svg" width="56" alt=""> | **Ember** | The sprinter | **Hot streak.** Streaks start at ×2, but the bulb is 3 seconds shorter. | Level 2 |
+| <img src="docs/moths/luna.svg" width="56" alt=""> | **Luna** | The night owl | **Long-life bulb.** The round starts with 5 extra seconds. | Level 1 |
+| <img src="docs/moths/wick.svg" width="56" alt=""> | **Wick** | The sprinter | **Hot streak.** Streaks start at ×2, but the bulb is 3 seconds shorter. | Level 2 |
 | <img src="docs/moths/atlas.svg" width="56" alt=""> | **Atlas** | The mapmaker | **Second look.** Once a round, flash every card open for a moment. | Level 3 |
 | <img src="docs/moths/dot.svg" width="56" alt=""> | **Dot** | The counter | **Quick hands.** Tap straight past a wrong pair, and your first miss keeps the streak. | Level 4 |
 | <img src="docs/moths/iris.svg" width="56" alt=""> | **Iris** | The watcher | **Long look.** The opening peek lasts 3.4 seconds instead of 2. | Level 5 |
@@ -87,7 +101,7 @@ Beat a night with two stars or more to open the next. Each night gives about fiv
 
 | Night | Board | Bulb | Twist |
 | :---: | --- | :---: | --- |
-| 1 | 6 pairs, 3 × 4 | 30 s | None |
+| 1 | 6 pairs, 3 × 4 | 30 s, then 24 s once you have won it | None |
 | 2 | 8 pairs, 4 × 4 | 40 s | Sulphur and Rose join |
 | 3 | 10 pairs, 4 × 5 | 50 s | Midnight and Moss join |
 | 4 | 10 pairs | 50 s | **Wanderer:** after a wrong pair, two face-down cards swap places |
@@ -126,7 +140,9 @@ Levels need 200, 500, 900, 1,400 and 2,000 XP in total.
 | ★ | A third of the bulb or more left |
 | ★ | Not a single wrong pair |
 
-**Mastery.** Win three stars with a lead and that moth turns gold on every card.
+**Mastery.** Win three stars with a lead on night 3 or later and that moth turns gold on every card.
+
+**Pacing.** A round hands over at most two unlocks. A new night and a new lead always arrive at once; a gold moth and badges that don't fit wait and arrive in later rounds.
 
 </td>
 <td valign="top" width="50%">
@@ -137,17 +153,15 @@ Levels need 200, 500, 900, 1,400 and 2,000 XP in total.
 | --- | --- |
 | First light | Finish a round. |
 | Clean sweep | Win without a single wrong pair. |
-| Quick wings | Win with 15 seconds or more left. |
+| Quick wings | Win a board of 8 pairs or more with 15 seconds left. |
 | Overdrive | Reach a ×4 streak. |
-| Melody | Find six pairs in a row. |
-| Photo finish | Win with under 2 seconds left. |
+| Melody | Find six pairs in a row on a board of 8 pairs or more. |
 | Night shift | Play 10 rounds. |
 | Full roster | Win once with every lead. |
-| Second night | Beat night 2. |
 | Wanderers | Beat night 4. |
 | Last light | Beat night 6. |
 | Regular | Play the daily porch three days running. |
-| Golden wing | Master a moth. |
+| Golden wing | Master a moth: three stars with it leading, on night 3 or later. |
 | Gilded porch | Master all six leads. |
 
 </td>
@@ -163,6 +177,62 @@ Levels need 200, 500, 900, 1,400 and 2,000 XP in total.
 - The score counts up instead of jumping.
 - All particles come from one pool of 200 that is allocated once.
 - **Reduce motion**, from the settings or the system's animation setting, turns off the shake, freeze and sparks but keeps the colour changes.
+
+### Look
+
+The porch is built by hand, and every surface is a made thing drawn in code: night-stained planks, walnut and oak panels with grain and bevels, brass and copper plates with rivets, gears and pipes, parchment, plum velvet and glass. No image files ship.
+
+The light's colour is the round's state: amber while it burns, teal while the cards are shown and on every found pair, gold in Overdrive, and red in the last five seconds.
+
+- **Lobby:** a mason jar with a filament inside, hung by a wire.
+- **Round:** an Edison bulb in brass works. Two gears turn while it burns, and a pressure gauge's needle falls with the time left.
+- **Cards:** ebony tiles in embossed brass frames. Faces are parchment; a found pair leaves an empty, recessed socket.
+- **Signs:** the main action is always an oak sign with carved lettering. Quieter actions are walnut with gilt lettering.
+
+
+Modern effects without a game engine or a WebView: Compose `graphicsLayer` for the 3D, and [AGSL](https://developer.android.com/develop/ui/views/graphics/agsl) shaders in [`Shaders.kt`](app/src/main/java/app/porchlight/game/Shaders.kt) for the GPU work.
+
+- **Cards are thick tiles.**
+  - They tilt up to 12° toward your finger, sway slowly when idle, and flip on an overshooting spring.
+  - Mid-flip they rise from 2 to 18 dp of shadow, then land with a small squash.
+  - A specular highlight slides opposite the tilt, and cards near the bulb catch warm light on their top edge.
+- **Foil.** Card backs have a faint holographic foil that shifts with the tilt. Mastered moths get the same foil in gold, only on the moth.
+- **The bulb's light.**
+  - A shader draws a soft volumetric glow with slow god rays and film grain, and cools from warm white to deep orange as time runs out.
+  - In the last five seconds the air above the bulb shimmers with heat.
+- **Bloom.** The bulb's core, the sparks and the gold rims are drawn again, blurred, and added on top. The OVERDRIVE word has its own bloom.
+- **Depth.**
+  - Tilting the phone tilts the board up to 4°. The wall (0.3×), the light (0.6×), the board (1×) and the flying moths (1.4×) slide at different depths.
+  - Fifty dust motes drift at different depths and glow when they cross the cone of light under the bulb.
+  - The tilt sensor runs only while the game is on screen.
+- **Sparks** add their light where they overlap and leave short trails. Overdrive sends a 150 ms colour-split pulse through the area above the board.
+- **Scorecard.** The results spring up as a gilded panel over a board that blurs behind it.
+
+**Fallbacks.** Shaders need Android 13; blur needs Android 12.
+- **Android 12 (no shaders):** a gradient glow replaces the god rays, and a sliding sheen replaces the foil.
+- **Below Android 12 (no blur):** there is no bloom, and the board does not blur behind the scorecard.
+
+**Performance.** If frames start running long, the game halves the bloom's resolution, then thins the particles.
+
+**Reduce motion** turns off the sway, the press tilt, the device tilt, the moving foil, the shimmer and the colour pulse.
+
+A before-and-after of every screen is in [`docs/visuals/before-after.png`](docs/visuals/before-after.png), with a 10-second clip of a round in [`docs/visuals/round-10s.mp4`](docs/visuals/round-10s.mp4).
+
+<details>
+<summary><b>Debug launch switches</b> (debug builds only)</summary>
+
+<br>
+
+To check the fallbacks and the parallax on any device:
+
+```bash
+adb shell am start -n app.porchlight.game/.MainActivity --ei pretendApi 32           # act like Android 12L: no shaders
+adb shell am start -n app.porchlight.game/.MainActivity --ei pretendApi 30           # act like Android 11: no shaders, no blur
+adb shell am start -n app.porchlight.game/.MainActivity --ef tiltX 1 --ef tiltY -0.5 # a fixed tilt instead of the sensor
+adb shell am start -n app.porchlight.game/.MainActivity --ei quality 2               # half-size bloom and fewer particles
+```
+
+</details>
 
 ### Sound
 
@@ -183,7 +253,7 @@ Sound effects, night sounds, vibration and reduce motion each have their own swi
 
 ## Architecture
 
-A single-activity Compose app with three screens (Porch, Round, Results) and no navigation library. The game rules are plain Kotlin with no Android dependencies, which is what makes them testable.
+A single-activity Compose app: a lobby with five screens off it, the round, and its scorecard. No navigation library. The game rules are plain Kotlin with no Android dependencies, which is what makes them testable.
 
 ```mermaid
 flowchart LR
@@ -202,10 +272,13 @@ flowchart LR
 | [`Game.kt`](app/src/main/java/app/porchlight/game/Game.kt) | Round rules: nights, twists, dealing, peek, matching, streaks, timer, pause, scoring, and saving a round. Every move returns a new immutable `Round`. |
 | [`Progress.kt`](app/src/main/java/app/porchlight/game/Progress.kt) | XP, levels, unlocks, stars, mastery, badges, the daily streak, and saving progress. |
 | [`GameScreen.kt`](app/src/main/java/app/porchlight/game/GameScreen.kt) | The session: which screen is up, the player's taps, feedback, pausing and saved state. |
-| [`Porch.kt`](app/src/main/java/app/porchlight/game/Porch.kt), [`RoundScreen.kt`](app/src/main/java/app/porchlight/game/RoundScreen.kt), [`Results.kt`](app/src/main/java/app/porchlight/game/Results.kt) | The three screens. |
+| [`Porch.kt`](app/src/main/java/app/porchlight/game/Porch.kt), [`RoundScreen.kt`](app/src/main/java/app/porchlight/game/RoundScreen.kt), [`Results.kt`](app/src/main/java/app/porchlight/game/Results.kt) | The lobby, the round and the scorecard. |
 | [`Bulb.kt`](app/src/main/java/app/porchlight/game/Bulb.kt), [`Flock.kt`](app/src/main/java/app/porchlight/game/Flock.kt), [`Scene.kt`](app/src/main/java/app/porchlight/game/Scene.kt) | The bulb that is the timer, the moths that orbit it, and the night wall it lights. |
+| [`Shaders.kt`](app/src/main/java/app/porchlight/game/Shaders.kt), [`Bloom.kt`](app/src/main/java/app/porchlight/game/Bloom.kt), [`Depth.kt`](app/src/main/java/app/porchlight/game/Depth.kt) | The AGSL shaders and what the phone can draw, the bloom layer, and the tilt sensor and frame watch. |
 | [`Cards.kt`](app/src/main/java/app/porchlight/game/Cards.kt), [`Particles.kt`](app/src/main/java/app/porchlight/game/Particles.kt), [`Hud.kt`](app/src/main/java/app/porchlight/game/Hud.kt) | The board, sparks and shockwaves, score pops, and the small pieces of UI. |
-| [`Onboarding.kt`](app/src/main/java/app/porchlight/game/Onboarding.kt) | The first-launch tutorial and the one-time night introductions. |
+| [`Onboarding.kt`](app/src/main/java/app/porchlight/game/Onboarding.kt) | The first-launch tutorial (a 3 × 2 board) and the one-time night introductions. |
+| [`Menus.kt`](app/src/main/java/app/porchlight/game/Menus.kt) | The screens off the lobby: the night map, the daily porch, lead moths, badges and settings. |
+| [`Materials.kt`](app/src/main/java/app/porchlight/game/Materials.kt), [`Icons.kt`](app/src/main/java/app/porchlight/game/Icons.kt) | Wood, metal, parchment, velvet, gilded panels, gears, rivets and pipes; and the drawn icon set. |
 | [`Moths.kt`](app/src/main/java/app/porchlight/game/Moths.kt) | Ten moths and a dead leaf, drawn as vector paths on a Compose `Canvas`. |
 | [`Sfx.kt`](app/src/main/java/app/porchlight/game/Sfx.kt) | The synthesizer and the mixer. |
 | [`Theme.kt`](app/src/main/java/app/porchlight/game/Theme.kt) | The night palette and the type. |
@@ -221,7 +294,7 @@ flowchart LR
 - Phones and tablets work in both orientations; on wide screens the board sits beside the bulb.
 - A baseline profile compiles the game ahead of time.
 
-**Type:** [Fredoka](https://github.com/hafontia/Fredoka-One) for numbers and titles, under the SIL Open Font License ([`licenses/Fredoka-OFL.txt`](licenses/Fredoka-OFL.txt)).
+**Type:** [Alfa Slab One](https://fonts.google.com/specimen/Alfa+Slab+One), a wood-type slab, for signs, titles and numbers, under the SIL Open Font License ([`licenses/AlfaSlabOne-OFL.txt`](licenses/AlfaSlabOne-OFL.txt)).
 
 ## Get started
 
@@ -253,7 +326,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 
 ## Tests
 
-81 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
+88 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -330,7 +403,7 @@ Tagged releases are then signed with your key. `.gitignore` keeps `*.jks` files 
 
 ## License
 
-[MIT](LICENSE) © 2026 Imtiaz Hossain. The moths, artwork and sounds are original to this project. Fredoka is © The Fredoka Project Authors, under the SIL Open Font License.
+[MIT](LICENSE) © 2026 Imtiaz Hossain. The moths, artwork and sounds are original to this project. Alfa Slab One is © The Alfa Slab One Project Authors, under the SIL Open Font License.
 
 <div align="center">
 <br>

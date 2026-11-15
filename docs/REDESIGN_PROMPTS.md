@@ -280,3 +280,184 @@ Fix Android-level issues in Porchlight:
    down, not the peek), a 15 s gameplay video, a feature graphic, and a store description that
    leads with the bulb-as-timer hook.
 ```
+
+---
+
+# Round 2 (after the night-porch redesign)
+
+The redesign landed: screens, night palette, bulb timer, nights, twists, daily porch, pause, saved
+state, adaptive icon. These prompts fix what the second review found.
+
+## 10. Card hierarchy is upside down
+
+```
+In Porchlight's Round screen, matched slots are near-black with a gold outline, and face-down
+cards are a translucent, washed-out slate. The empty slots look more important than the cards the
+player still has to tap. Invert it (Cards.kt):
+
+- Face-down (playable): the brightest, most solid thing on the board. Opaque card back with
+  a richer pattern (deep navy #1B2F45, a gold-foil folded moth emblem, a 1dp lighter top edge,
+  a real drop shadow). The side closer to the bulb gets a warm highlight.
+- Matched (empty): recede. No gold border. A shallow inset slot, 6% lighter than the wall,
+  no shadow. Optionally a tiny scorch mark or dust where the moth sat.
+- When only 2-4 cards remain, nudge them: a slow 2% breathing scale so the eye lands there.
+Check with a greyscale screenshot: playable cards must be clearly the lightest blocks.
+```
+
+## 11. Keep the effects off the board
+
+```
+In Porchlight's Overdrive screenshot, moths fly across face-down cards, "+300"/"+400" ghost
+text sits over the board, a huge shockwave ring crosses every card, and orbiting moths cover the
+SCORE label. In a memory game, nothing may cover the cards the player still needs or the HUD.
+
+- Flight path: matched moths rise straight up out of their card, then curve to the bulb ABOVE
+  the board's top edge. Never cross an unmatched card. Flight time 450-550 ms.
+- Score popups: spawn at the matched pair, rise 24dp, fully gone in 600 ms. Never stack ghosts:
+  if a new popup spawns, kill the old one.
+- Shockwave ring: clip it to the area above the board, or make it 1 frame of 10% alpha over
+  the board at most.
+- Orbit: keep orbiting moths inside a band around the bulb that doesn't touch the score/streak
+  columns. Orbit radius = min(bulbRadius * 1.6, distance to the HUD text - 12dp). Draw them
+  behind the bulb glass on the far half of the orbit and in front on the near half, so they read
+  as circling the bulb, not sitting inside it.
+- OVERDRIVE word: show it in the empty band between bulb and board, never over cards.
+```
+
+## 12. Fix the dead space and the tiny timer
+
+```
+On Porchlight's Round screen there is a ~120dp empty band between the bulb and the board, the
+board stops well above the bottom, and the seconds readout under the bulb ("35", "7.9") is tiny
+and low-contrast grey.
+
+- Grow the board to fill the height: compute the card size from the space left after the bulb
+  block, capped at a 3:4 card ratio. Bottom margin 24dp + nav inset.
+- Move the bulb block down slightly and use the freed band for the peek countdown, the twist
+  tip, and the OVERDRIVE word (one at a time).
+- Seconds readout: display font, 20sp, colour follows the bulb (warm white -> amber -> ember
+  red under 5 s). Bold enough to read in one glance at arm's length.
+- The time arc: start at 12 o'clock and drain clockwise. Remaining = gold, spent = 15% white.
+  Today it starts at about 7 o'clock and the spent part is a blue-grey that reads as "more time".
+- Peek phase: show "Memorize" + a 3-2-1 ring in the band. Right now nothing says the cards are
+  about to close.
+```
+
+## 13. Make the Porch screen feel alive
+
+```
+Porchlight's home screen is mostly empty: an unlit grey bulb, one moth in the middle, five tiny
+"LV n" silhouettes, horizontal lines for a wall, and the title squeezed near the bottom.
+
+- First frame: the bulb flickers on (2 quick flickers, then steady warm glow) and the wall lights
+  up around it. The home screen should be the prettiest screen in the game, not the darkest.
+- Build a porch: a door frame edge or window on one side, a wooden railing silhouette along the
+  bottom, the bulb in a simple wall fixture. Keep it flat illustration, same line weight as moths.
+- Unlocked moths rest on the wall around the bulb and flutter occasionally (one every 2-4 s).
+  Locked moths are dim silhouettes with a small lock, not a "LV 3" pill; tap one to see
+  "Reach level 3 to meet Atlas".
+- Selected lead: hovers near the bulb with a soft halo; tapping another swaps them with a short
+  flight.
+- Title: move PORCHLIGHT up under the bulb, larger. Drop the tagline after the first launch.
+- Perk line: one line only, "Wick · +5 s bulb". The full sentence goes in a long-press tooltip.
+- Night picker: hide the left chevron on Night 1; replace the lone padlock with "Night 2 locked:
+  2 stars on Night 1".
+```
+
+## 14. Results: fewer rewards at once, slower drip
+
+```
+Porchlight's first win dumps everything: 3 stars, new best, +352 XP, level up, Night 2 open,
+Wick turned gold, Ember joined, and four badges, in one long stacked list. The "LEVEL UP" banner
+is a full-width yellow pill that looks exactly like the "Again" button.
+
+1. Pace the rewards across sessions (Progress.kt, BalanceTest):
+   - Golden moth: three stars with that lead on Night 3 or higher (not Night 1).
+   - Quick wings: 15 s left on Night 2+. Melody: on 8+ pairs.
+   - Aim for at most 2 unlocks per round in the first 10 rounds. Add a test that simulates a
+     strong new player for 10 rounds and asserts no round gives more than 2 unlocks and at least
+     one round in rounds 4-10 still gives something.
+2. Results layout: stars -> score -> XP bar. Then a horizontally paged "rewards" strip, one card
+   per unlock, each revealed with its own sound. No vertical list of badges.
+3. Level up is an event, not a button: big number flip "1 -> 2" over the XP bar with a burst,
+   no pill shape. Only Again and Porch look like buttons.
+4. Daily porch result: show the share button with the emoji line from dailyShare().
+```
+
+## 15. Remaining checks
+
+```
+- Verify on a 5" 360x640dp phone and on a tablet: the board, bulb and buttons fit without
+  scrolling, and landscape (Porch.kt has a landscape branch; RoundScreen should too) works.
+- Night 1 is too easy if a 3-star win with 31 s left is possible: shorten the Night 1 peek
+  for players at level 3+, or start the bulb at 4 s per pair after the first win.
+- Record a real gameplay video (docs/store/gameplay.mp4) from a device, not an emulator, and
+  check frame pacing during Overdrive with the GPU profiler.
+```
+
+---
+
+# Round 3: modern, "three.js-style" visuals
+
+## 16. Shaders, 3D tilt, foil cards and bloom (no game engine)
+
+```
+Porchlight (Kotlin + Jetpack Compose, minSdk 24, targetSdk 36) looks flat and dated. Give it a
+modern, premium, three.js-style look WITHOUT a game engine or WebView. Use Compose graphicsLayer
+for 3D and AGSL RuntimeShader (API 33+) for GPU effects, with a clean fallback below API 33.
+Keep 60fps on a mid-range phone. Put shaders in a new Shaders.kt; keep Game.kt untouched.
+
+1. 3D CARDS (all API levels)
+   - Cards are thick physical tiles: on press, tilt toward the finger (rotationX/rotationY up to
+     ±12°, from the touch position), scale 0.97, cameraDistance = 12 * density.
+   - Idle cards float: each has a slow 3D sway (±2°, 4-6 s, random phase).
+   - Gyro parallax: read TYPE_GAME_ROTATION_VECTOR, low-pass it, and tilt the whole board ±4°.
+     The wall, bulb glow and board move at different depths (wall 0.3x, board 1x, flying
+     moths 1.4x). Pause the sensor when the app is paused. Off when reduce-motion is on.
+   - The flip is a real 3D flip: card lifts (translationZ / shadowElevation 2dp -> 18dp),
+     rotates 180° with an overshoot spring, lands with a tiny squash (scaleY 0.97 for 60 ms).
+   - Specular highlight: a soft white radial gradient on each card that moves opposite to the
+     tilt, so light seems to slide across the surface.
+
+2. HOLOGRAPHIC FOIL (AGSL, API 33+)
+   - Card backs get an iridescent foil: a RuntimeShader applied with
+     graphicsLayer { renderEffect = RenderEffect.createRuntimeShaderEffect(shader, "content")
+     .asComposeRenderEffect() }. Uniforms: size, tilt (from step 1), time. Rainbow bands shift
+     with tilt; a bright sheen line follows the light. Subtle: 20-30% mix, not a disco ball.
+   - Golden (mastered) moths use the same shader with a gold ramp instead of a rainbow.
+   - Fallback < API 33: a linear-gradient sheen that slides with tilt.
+
+3. LIGHT AND BLOOM
+   - Bulb: an AGSL shader for volumetric glow (soft falloff + faint god-rays rotating slowly +
+     film grain), driven by the time-left uniform. Under 5 s add a heat-shimmer distortion.
+   - Bloom: draw bright things (bulb, sparks, OVERDRIVE text, gold rims) into a layer, blur it
+     (RenderEffect.createBlurEffect, 16-24dp) and add it on top with BlendMode.Plus.
+   - Cards facing the bulb get a warm rim light on their top edge, intensity by distance.
+
+4. GLASS UI
+   - HUD pills, pause button, results sheet: frosted glass (blur of the scene behind on API 31+,
+     translucent fill + 1dp white 12% border + inner highlight); solid dark fallback below 31.
+   - Results sheet springs up (dampingRatio 0.75) and the board behind it blurs 0 -> 20dp.
+
+5. PARTICLES AND DEPTH
+   - Dust motes in the bulb's light: 40-60 soft particles with depth (size and blur by depth),
+     drifting slowly, brighter when they cross the light cone.
+   - Match burst: sparks with additive blending + short trails; Overdrive adds a radial
+     chromatic-aberration pulse (AGSL, 150 ms) clipped to the area above the board.
+
+6. MOTION RULES
+   - Springs, not tweens, for everything the player touches. Durations 180-450 ms.
+   - Every effect off or reduced under reduce-motion / animator scale 0.
+   - Measure with the GPU profiler during Overdrive on a 2021 mid-range phone; if a frame goes
+     over 16 ms, drop bloom resolution to half first, then particles.
+
+Deliver: before/after screenshots and a 10 s screen recording of a round.
+```
+
+### Optional upgrades (only if you want more than Compose can give)
+- **Rive** (`app.rive:rive-android`): hand-animated moths (wing flaps, landing, flinch) with a
+  state machine driven from the game. Best bang for the buck after shaders.
+- **Lottie**: one-off celebration animations (level up, new moth) from LottieFiles.
+- **Filament / SceneView**: true 3D models and PBR lighting. Overkill for a card game:
+  bigger APK, longer start-up, much more work. Not recommended.
+- **three.js in a WebView**: don't. Slow start, jank, battery drain, bad touch latency.

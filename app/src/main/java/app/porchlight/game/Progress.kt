@@ -5,22 +5,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
-enum class Badge(val title: String, val detail: String, val glyph: String) {
-    FirstLight("First light", "Finish a round.", "1"),
-    CleanSweep("Clean sweep", "Win without a single wrong pair.", "✓"),
-    QuickWings("Quick wings", "Win with 15 seconds or more left.", "»"),
-    Overdrive("Overdrive", "Reach a ×4 streak.", "×4"),
-    Melody("Melody", "Find six pairs in a row.", "♪"),
-    PhotoFinish("Photo finish", "Win with under 2 seconds left.", "!"),
-    NightShift("Night shift", "Play 10 rounds.", "10"),
-    FullRoster("Full roster", "Win once with every lead moth.", "6"),
-    SecondNight("Second night", "Beat night 2.", "II"),
-    Wanderers("Wanderers", "Beat night 4, where the cards move.", "IV"),
-    LastLight("Last light", "Beat night 6.", "VI"),
-    Regular("Regular", "Play the daily porch three days running.", "3d"),
-    GoldenWing("Golden wing", "Master a moth: three stars with it leading.", "★"),
-    GildedPorch("Gilded porch", "Master all six lead moths.", "★★"),
+/** What a badge is cast in, and the shape pressed into it. */
+enum class Metal { Bronze, Silver, Gold }
+
+enum class Mold { Moth, Beetle, Trophy, Star, Flame, Moon, Calendar, Clock, Check }
+
+/** Twelve badges. Each is its own pairing of metal and mold. */
+enum class Badge(val title: String, val detail: String, val metal: Metal, val mold: Mold) {
+    FirstLight("First light", "Finish a round.", Metal.Bronze, Mold.Flame),
+    CleanSweep("Clean sweep", "Win without a single wrong pair.", Metal.Silver, Mold.Check),
+    QuickWings("Quick wings", "Win a board of 8 pairs or more with 15 seconds left.", Metal.Silver, Mold.Clock),
+    Overdrive("Overdrive", "Reach a ×4 streak.", Metal.Gold, Mold.Flame),
+    Melody("Melody", "Find six pairs in a row on a board of 8 pairs or more.", Metal.Silver, Mold.Beetle),
+    NightShift("Night shift", "Play 10 rounds.", Metal.Bronze, Mold.Moon),
+    FullRoster("Full roster", "Win once with every lead moth.", Metal.Silver, Mold.Moth),
+    Wanderers("Wanderers", "Beat night 4, where the cards move.", Metal.Bronze, Mold.Beetle),
+    LastLight("Last light", "Beat night 6.", Metal.Gold, Mold.Trophy),
+    Regular("Regular", "Play the daily porch three days running.", Metal.Bronze, Mold.Calendar),
+    GoldenWing("Golden wing", "Master a moth: three stars with it leading, on night 3 or later.", Metal.Gold, Mold.Moth),
+    GildedPorch("Gilded porch", "Master all six lead moths.", Metal.Gold, Mold.Star),
 }
+
+/** One day's daily porch: the date seed, and how it went. */
+data class DailyEntry(val day: Long, val stars: Int, val score: Int)
 
 /** Total XP needed to reach [level]: 200, 500, 900, 1400, 2000, ... */
 fun xpFor(level: Int) = 50 * (level - 1) * (level + 2)
@@ -42,9 +49,16 @@ data class Progress(
     val winners: Set<MothId> = emptySet(),
     /** Lead moths won with three stars: their cards turn gold. */
     val mastered: Set<MothId> = emptySet(),
+    /** Earned but not yet handed over: they arrive in later rounds, at most [MAX_UNLOCKS] a round. */
+    val owedBadges: Set<Badge> = emptySet(),
+    val owedMastery: Set<MothId> = emptySet(),
     /** The highest night unlocked, and the one picked on the porch. */
     val nights: Int = 1,
     val night: Int = 1,
+    /** The best stars earned on each night, night 1 first. */
+    val nightStars: List<Int> = List(NIGHTS.size) { 0 },
+    /** The player's own daily porches, newest last; the last 14 are kept. */
+    val dailyLog: List<DailyEntry> = emptyList(),
     val dailyDay: Long = 0,
     val dailyStreak: Int = 0,
     val dailyScore: Int = 0,
@@ -78,6 +92,9 @@ data class Report(
     val dailyStreak: Int = 0,
 )
 
+/** The most things one round may unlock, so rewards arrive a few at a time. */
+const val MAX_UNLOCKS = 2
+
 /** One star for winning, one for a third of the bulb left, one for no wrong pairs. */
 fun starsFor(round: Round): Int =
     if (round.phase != Phase.Won) 0
@@ -101,7 +118,6 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
 
     val xp = round.score / 10 + (if (won) 50 else 10) + stars * 20
     val winners = if (won) before.winners + lead else before.winners
-    val mastered = if (stars == 3 && lead.isLead) before.mastered + lead else before.mastered
     val rounds = before.rounds + 1
     val night = round.night.number
     val unlocks = !round.daily && stars >= 2 && night == before.nights && night < NIGHTS.size
@@ -112,31 +128,51 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         else -> 1
     }
 
-    val earned = buildSet {
+    // Rewards are paced: a round hands over at most MAX_UNLOCKS things. A new night and a new lead
+    // always arrive at once; a gold moth and badges wait their turn in later rounds if there is no room.
+    val newMoths = LEADS.filter { !before.unlocked(it) && levelFor(before.xp + xp) >= it.unlockLevel }
+    var room = (MAX_UNLOCKS - (if (unlocks) 1 else 0) - newMoths.size).coerceAtLeast(0)
+
+    // Mastery is three stars with that lead on night 3 or later: night 1 is too easy to count.
+    val earnsMastery = stars == 3 && lead.isLead && !round.daily && night >= 3 && lead !in before.mastered
+    val masteryDue = (before.owedMastery + if (earnsMastery) setOf(lead) else emptySet()).sortedBy { it.ordinal }
+    val newMastery = masteryDue.take(room.coerceAtMost(1))
+    room -= newMastery.size
+    val mastered = before.mastered + newMastery
+
+    val big = round.pairCount >= 8
+    val met = buildSet {
         add(Badge.FirstLight)
         if (won && round.misses == 0) add(Badge.CleanSweep)
-        if (won && round.left >= 15_000) add(Badge.QuickWings)
-        if (won && round.left < 2_000) add(Badge.PhotoFinish)
+        if (won && big && round.left >= 15_000) add(Badge.QuickWings)
         if (round.bestMultiplier >= MAX_MULTIPLIER) add(Badge.Overdrive)
-        if (round.bestRun >= 6) add(Badge.Melody)
+        if (big && round.bestRun >= 6) add(Badge.Melody)
         if (rounds >= 10) add(Badge.NightShift)
         if (LEADS.all { it in winners }) add(Badge.FullRoster)
-        if (won && !round.daily && night >= 2) add(Badge.SecondNight)
         if (won && !round.daily && night >= 4) add(Badge.Wanderers)
         if (won && !round.daily && night >= 6) add(Badge.LastLight)
         if (dailyStreak >= 3) add(Badge.Regular)
         if (mastered.isNotEmpty()) add(Badge.GoldenWing)
         if (LEADS.all { it in mastered }) add(Badge.GildedPorch)
     }
+    val badgesDue = Badge.entries.filter { (it in met || it in before.owedBadges) && it !in before.badges }
+    val newBadges = badgesDue.take(room)
+
     val after = before.copy(
         xp = before.xp + xp,
         rounds = rounds,
         best = maxOf(before.best, round.score),
-        badges = before.badges + earned,
+        badges = before.badges + newBadges,
+        owedBadges = (badgesDue - newBadges.toSet()).toSet(),
         winners = winners,
         mastered = mastered,
+        owedMastery = (masteryDue - newMastery.toSet()).toSet(),
         nights = nights,
         night = if (unlocks) nights else before.night,
+        nightStars = if (!round.daily && night in 1..NIGHTS.size) {
+            before.nightStars.mapIndexed { i, best -> if (i == night - 1) maxOf(best, stars) else best }
+        } else before.nightStars,
+        dailyLog = if (round.daily) (before.dailyLog + DailyEntry(today, stars, round.score)).takeLast(14) else before.dailyLog,
         dailyDay = if (round.daily) today else before.dailyDay,
         dailyStreak = dailyStreak,
         dailyScore = if (round.daily) round.score else before.dailyScore,
@@ -147,11 +183,11 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         xp = xp,
         levelBefore = before.level,
         levelAfter = after.level,
-        newBadges = Badge.entries.filter { it in earned && it !in before.badges },
-        newMoths = LEADS.filter { !before.unlocked(it) && after.unlocked(it) },
+        newBadges = newBadges,
+        newMoths = newMoths,
         newBest = round.score > before.best,
         newNight = if (unlocks) nights else null,
-        newMastery = if (lead !in before.mastered && lead in mastered) lead else null,
+        newMastery = newMastery.firstOrNull(),
         dailyStreak = dailyStreak,
     )
     return after to report
@@ -165,15 +201,43 @@ class Store(private val prefs: SharedPreferences) {
         prefs.getStringSet(key, emptySet()).orEmpty()
             .mapNotNull { name -> enumValues<T>().find { it.name == name } }.toSet()
 
-    private fun load() = Progress(
+    /**
+     * Version 2 renamed two leads: the green moth Wick became Luna, and the red moth Ember became
+     * Wick. Saved names from before are carried across once.
+     */
+    private fun migrateNames() {
+        if (prefs.getInt("names", 1) >= 2) return
+        val renamed = mapOf("Wick" to "Luna", "Ember" to "Wick")
+        val edit = prefs.edit()
+        for (key in listOf("winners", "mastered")) {
+            val old = prefs.getStringSet(key, null) ?: continue
+            edit.putStringSet(key, old.map { renamed[it] ?: it }.toSet())
+        }
+        edit.putInt("names", 2).apply()
+    }
+
+    private fun load(): Progress {
+        migrateNames()
+        return read()
+    }
+
+    private fun read() = Progress(
         xp = prefs.getInt("xp", 0),
         rounds = prefs.getInt("rounds", 0),
         best = prefs.getInt("best", 0),
         badges = names("badges"),
         winners = names("winners"),
         mastered = names("mastered"),
+        owedBadges = names("owedBadges"),
+        owedMastery = names("owedMastery"),
         nights = prefs.getInt("nights", 1),
         night = prefs.getInt("night", 1),
+        nightStars = prefs.getString("nightStars", null)?.split(",")?.mapNotNull { it.toIntOrNull() }
+            ?.takeIf { it.size == NIGHTS.size } ?: List(NIGHTS.size) { 0 },
+        dailyLog = prefs.getString("dailyLog", null).orEmpty().split(";").mapNotNull { entry ->
+            val parts = entry.split(":").mapNotNull { it.toLongOrNull() }
+            if (parts.size == 3) DailyEntry(parts[0], parts[1].toInt(), parts[2].toInt()) else null
+        },
         dailyDay = prefs.getLong("dailyDay", 0),
         dailyStreak = prefs.getInt("dailyStreak", 0),
         dailyScore = prefs.getInt("dailyScore", 0),
@@ -196,8 +260,12 @@ class Store(private val prefs: SharedPreferences) {
             .putStringSet("badges", next.badges.map { it.name }.toSet())
             .putStringSet("winners", next.winners.map { it.name }.toSet())
             .putStringSet("mastered", next.mastered.map { it.name }.toSet())
+            .putStringSet("owedBadges", next.owedBadges.map { it.name }.toSet())
+            .putStringSet("owedMastery", next.owedMastery.map { it.name }.toSet())
             .putInt("nights", next.nights)
             .putInt("night", next.night)
+            .putString("nightStars", next.nightStars.joinToString(","))
+            .putString("dailyLog", next.dailyLog.joinToString(";") { "${it.day}:${it.stars}:${it.score}" })
             .putLong("dailyDay", next.dailyDay)
             .putInt("dailyStreak", next.dailyStreak)
             .putInt("dailyScore", next.dailyScore)

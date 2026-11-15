@@ -22,7 +22,7 @@ You get a two-second look at the cards. Then they fold shut, and you find the pa
 - Every tap has a sound, an animation and a buzz. Streaks build into a tune.
 
 **Six lead moths, six ways to play**
-Pick a lead before each round. Wick buys you time. Ember starts hot. Atlas lets you look twice. Dot shrugs off a mistake. Iris looks longer. Sorbet feeds the bulb. Level up to bring each one to the porch.
+Pick a lead before each round. Luna buys you time. Wick starts hot. Atlas lets you look twice. Dot shrugs off a mistake. Iris looks longer. Sorbet feeds the bulb. Level up to bring each one to the porch.
 
 **Six nights, getting darker**
 Beat a night with two stars to open the next. More cards, new moths, and twists: cards that wander, dead leaves that cost you time, and a moth that hides in shadow.
@@ -31,7 +31,7 @@ Beat a night with two stars to open the next. More cards, new moths, and twists:
 The daily porch deals the same cards to everyone. One scored try a day. Keep your streak going and share your stars.
 
 **Something to chase**
-Three stars with a lead turns that moth gold. Fourteen badges to collect.
+Three stars with a lead turns that moth gold. Twelve badges to collect.
 
 **Made to be kind**
 No ads. No purchases. No account. No network. No data leaves your phone. Pause any time; the bulb waits for you. Reduce motion, sound and vibration each have their own switch.

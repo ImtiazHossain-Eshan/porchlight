@@ -1,5 +1,17 @@
 package app.porchlight.game
 
+import kotlin.math.cos
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
+import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -26,10 +38,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -62,9 +74,19 @@ private val SILHOUETTE = Color(0xFF3A3328)
 internal fun Board(session: Session, modifier: Modifier) {
     val round = session.round
     val count = round.deck.size
-    val columns = if (count <= 4) 2 else BOARD_COLUMNS
+    val columns = if (count <= 6) 3 else BOARD_COLUMNS
     val rows = (count + columns - 1) / columns
-    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+    BoxWithConstraints(
+        modifier.onGloballyPositioned { session.boardTop = it.boundsInRoot().top }.graphicsLayer {
+            val tilt = session.tilt
+            cameraDistance = 16f * density
+            rotationY = tilt.x * 4f
+            rotationX = -tilt.y * 4f
+            translationX = tilt.x * parallaxPx(density) * DEPTH_BOARD
+            translationY = tilt.y * parallaxPx(density) * DEPTH_BOARD
+        },
+        contentAlignment = Alignment.Center,
+    ) {
         val byWidth = (maxWidth - GAP * (columns - 1)) / columns
         val byHeight = (maxHeight - GAP * (rows - 1)) / rows * 0.75f
         val cardW = min(byWidth, byHeight)
@@ -83,9 +105,9 @@ internal fun Board(session: Session, modifier: Modifier) {
 }
 
 /**
- * One card. Its three states differ in colour, brightness and motion:
- * face down is a dark slate back; face up is warm paper, lifted off the board, its moth flapping;
- * matched is an empty dim slot with a gold rim, because the moth has flown to the bulb.
+ * One card, drawn as a thick physical tile. Its three states differ in colour, brightness and
+ * motion: face down is a slate back with a foil sheen; face up is warm paper, lifted off the board,
+ * its moth flapping; matched is an empty dim slot, because the moth has flown to the bulb.
  */
 @Composable
 private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
@@ -97,11 +119,23 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
     val wrong = round.miss && index in round.open
     val lifted = index in round.open
     val playable = round.phase == Phase.Play && !matched && index !in round.spent
-    var pressed by remember { mutableStateOf(false) }
+    val calm = session.calm
+    val gold = id in session.store.progress.mastered
     var centre by remember { mutableStateOf(Offset.Zero) }
+    val scope = rememberCoroutineScope()
+    // Each card sways on its own slow cycle, so the board never moves in lockstep.
+    val sway = remember { floatArrayOf(Random.nextFloat() * 6.283f, 4f + Random.nextFloat() * 2f) }
     val flapPhase = remember { Random.nextFloat() * 6.283f }
+    val foil = remember { FoilShader.create() }
+    val goldFoil = remember(gold) { if (gold) FoilShader.create() else null }
+    val goldBrush = remember(goldFoil) { goldFoil?.let { ShaderBrush(it.shader) } }
 
-    val turn by animateFloatAsState(if (up) 180f else 0f, tween(300), label = "turn")
+    // The flip: a spring that overshoots a little, so the card swings past and settles.
+    val turn by animateFloatAsState(
+        if (up) 180f else 0f,
+        if (calm) spring(dampingRatio = 1f, stiffness = 500f) else spring(dampingRatio = 0.62f, stiffness = 380f),
+        label = "turn",
+    )
     // The moth wakes up just after the card faces you; on a wrong pair it flinches shut.
     val wings by animateFloatAsState(
         when {
@@ -117,7 +151,20 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
         spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "lift",
     )
-    val press by animateFloatAsState(if (pressed) 0.96f else 1f, tween(60), label = "press")
+    // Pressing tilts the card towards the finger and squeezes it.
+    val tiltX = remember { Animatable(0f) }
+    val tiltY = remember { Animatable(0f) }
+    val press = remember { Animatable(1f) }
+    // A tiny squash as the card lands after a flip.
+    val squash = remember { Animatable(1f) }
+    var flips by remember { mutableIntStateOf(0) }
+    LaunchedEffect(up) {
+        if (flips++ == 0) return@LaunchedEffect
+        delay(230)
+        squash.snapTo(0.97f)
+        delay(60)
+        squash.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium))
+    }
     val emptied by animateFloatAsState(if (matched) 1f else 0f, tween(240), label = "emptied")
     val shake = remember { Animatable(0f) }
     val red = remember { Animatable(0f) }
@@ -127,7 +174,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
     LaunchedEffect(round.swaps) {
         if (swapWith != null) {
             wander.snapTo(1f)
-            wander.animateTo(0f, tween(if (session.calm) 0 else 520))
+            wander.animateTo(0f, tween(if (calm) 0 else 520))
         }
     }
     val leaf = id == MothId.Leaf
@@ -146,7 +193,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
                 delay(150)
                 red.animateTo(0f, tween(140))
             }
-            if (!session.calm) for (x in SHAKE) shake.animateTo(x, tween(45))
+            if (!calm) for (x in SHAKE) shake.animateTo(x, tween(45))
         }
     }
 
@@ -159,10 +206,12 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
                 session.cardWidth = it.size.width.toFloat()
             }
             .graphicsLayer {
-                rotationY = turn
-                cameraDistance = 16f * density
-                // Mid-turn the card lifts off the board, so the flip doesn't look flat.
-                val mid = sin(turn / 180f * Math.PI.toFloat())
+                cameraDistance = 12f * density
+                val idle = if (calm || matched) 0f else session.clock.seconds * 6.283f / sway[1] + sway[0]
+                rotationY = turn + tiltY.value + 2f * cos(idle)
+                rotationX = tiltX.value + 2f * sin(idle)
+                // Mid-flip the card rises off the board: its shadow grows from 2dp to 18dp and back.
+                val mid = sin(turn / 180f * Math.PI.toFloat()).coerceAtLeast(0f)
                 translationY = -6.dp.toPx() * mid - 3.dp.toPx() * lift
                 translationX = shake.value * density
                 if (swapWith != null && wander.value > 0f) {
@@ -171,60 +220,157 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
                     translationX += from.x * wander.value
                     translationY += from.y * wander.value - 10.dp.toPx() * sin(wander.value * Math.PI.toFloat())
                 }
-                val s = press * (1f + 0.06f * lift)
+                // With only one or two pairs left, the last cards breathe a little so the eye lands on them.
+                val few = round.phase == Phase.Play && !matched && !calm && round.pairCount - round.pairs in 1..2
+                val breathe = if (few) 1f + 0.02f * sin(session.clock.seconds * 2.6f) else 1f
+                val s = press.value * (1f + 0.06f * lift) * breathe
                 scaleX = s
-                scaleY = s
-                shadowElevation = (1f - emptied) * (5f + 11f * lift) * density
+                scaleY = s * squash.value
+                shadowElevation = (1f - emptied) * (2f + 16f * mid + 6f * lift) * density
                 ambientShadowColor = Dusk.shadow
                 spotShadowColor = Dusk.shadow
                 shape = CARD_SHAPE
                 clip = true
             }
-            .drawWithContent {
-                val faceUp = turn > 90f
+            .drawWithCache {
                 val corner = CornerRadius(16.dp.toPx())
-                val fill = when {
-                    !faceUp -> Dusk.cardBack
-                    lost -> lerp(Dusk.paper, Dusk.cardBack, 0.62f)
-                    leaf -> lerp(LEAF_PAPER, WRONG, red.value)
-                    else -> lerp(lerp(Dusk.paper, WRONG, red.value), Dusk.slot, emptied)
+                val frame = Stroke(2.5.dp.toPx())
+                val inset = 5.dp.toPx()
+                val innerCorner = CornerRadius(11.dp.toPx())
+                val innerSize = Size(size.width - inset * 2, size.height - inset * 2)
+                // The tile is ebony: a soft shade down it and a few lines of grain, the same each time.
+                val timber = Brush.verticalGradient(listOf(Wood.Ebony.light, Wood.Ebony.base, Wood.Ebony.dark))
+                val grainRandom = Random(index * 31 + 5)
+                val grain = Path()
+                var gy = size.height * 0.06f
+                while (gy < size.height) {
+                    val bend = size.height * (0.01f + grainRandom.nextFloat() * 0.03f)
+                    grain.moveTo(0f, gy)
+                    grain.quadraticTo(size.width * 0.5f, gy + if (grainRandom.nextBoolean()) bend else -bend, size.width, gy)
+                    gy += size.height * (0.07f + grainRandom.nextFloat() * 0.1f)
                 }
-                drawRect(fill)
-                drawContent()
+                val grainLine = Stroke(1.dp.toPx())
+                // The face is a sheet of parchment set into the frame, brighter in the middle.
+                val paper = Brush.radialGradient(
+                    0f to Color(0xFFF6E9C8),
+                    1f to Craft.parchment,
+                    center = Offset(size.width / 2f, size.height * 0.45f),
+                    radius = size.height * 0.7f,
+                )
+                // An empty socket is dark, and darker still under its top lip.
+                val hollow = Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.75f), 0.35f to Color.Transparent)
+                // A soft white spot of reflected light; it slides opposite to the tilt.
+                val spot = Brush.radialGradient(
+                    0f to Color.White.copy(alpha = 0.5f),
+                    1f to Color.Transparent,
+                    center = Offset.Zero,
+                    radius = 100f,
+                )
+                // Warm light catching the top edge from the bulb above.
+                val rim = Brush.verticalGradient(0f to Dusk.glow, 1f to Color.Transparent, startY = 0f, endY = size.height * 0.2f)
+                // The fallback foil: a pale band that slides across with the tilt.
+                val band = Brush.horizontalGradient(
+                    0f to Color.Transparent,
+                    0.5f to Color.White.copy(alpha = 0.16f),
+                    1f to Color.Transparent,
+                    startX = 0f,
+                    endX = size.width * 0.7f,
+                )
+                val foilBrush = foil?.let { ShaderBrush(it.shader) }
+                val half = frame.width / 2f
+                val frameSize = Size(size.width - frame.width, size.height - frame.width)
+                val hair = Stroke(1.dp.toPx())
+                val stud = 2.2.dp.toPx()
 
-                // Cards near the bulb catch more of its light; empty slots stay dark.
-                val reach = session.bulbWidth * 4.2f
-                val far = if (reach > 0f) ((centre - session.bulbAt).getDistance() / reach).coerceIn(0f, 1f) else 1f
-                val glow = session.power().coerceIn(0f, 1.3f) * (0.4f + 0.6f * session.timeLeft)
-                drawRect(Dusk.glowDeep, alpha = (0.24f * (1f - far) * glow * (1f - 0.8f * emptied)).coerceIn(0f, 1f))
+                onDrawWithContent {
+                    val faceUp = turn > 90f
+                    val full = 1f - emptied
+                    drawRect(timber)
+                    drawPath(grain, Wood.Ebony.dark, alpha = 0.7f, style = grainLine)
+                    if (faceUp && full > 0f) {
+                        val wash = if (leaf) LEAF_PAPER else if (lost) lerp(Craft.parchment, Dusk.cardBack, 0.62f) else null
+                        if (wash != null) {
+                            drawRoundRect(wash, Offset(inset, inset), innerSize, innerCorner, alpha = full)
+                        } else {
+                            drawRoundRect(paper, Offset(inset, inset), innerSize, innerCorner, alpha = full)
+                        }
+                        if (red.value > 0f) drawRoundRect(WRONG, Offset(inset, inset), innerSize, innerCorner, alpha = red.value * full)
+                    }
+                    if (emptied > 0f) {
+                        drawRect(Dusk.slot, alpha = emptied)
+                        drawRect(hollow, alpha = emptied)
+                    }
+                    drawContent()
 
-                val edge = when {
-                    !faceUp -> Dusk.cardEdge
-                    lost -> Dusk.cardEdge
-                    else -> lerp(PAPER_EDGE, Dusk.amber.copy(alpha = 0.55f), emptied)
-                }
-                val line = 1.5.dp.toPx()
-                drawRoundRect(edge, Offset(line / 2, line / 2), size.copy(size.width - line, size.height - line), corner, style = Stroke(line))
-                if (emptied < 1f) {
-                    // A thin highlight along the top edge, like the lip of a real card.
-                    val inset = 16.dp.toPx()
-                    drawLine(
-                        Color.White.copy(alpha = 0.18f * (1f - emptied)),
-                        Offset(inset, 1.dp.toPx()),
-                        Offset(size.width - inset, 1.dp.toPx()),
-                        1.dp.toPx(),
-                    )
+                    // How the card faces the light: its own tilt plus the whole board's.
+                    val nx = ((tiltY.value / 12f) + session.tilt.x * 0.5f).coerceIn(-1f, 1f)
+                    val ny = ((tiltX.value / 12f) + session.tilt.y * 0.5f).coerceIn(-1f, 1f)
+                    val time = if (calm) 0f else session.clock.seconds
+
+                    if (!faceUp) {
+                        if (foilBrush != null && Build.VERSION.SDK_INT >= 33) {
+                            foil.update(size.width, size.height, nx, ny, time, gold = true, strength = 0.16f)
+                            drawRect(foilBrush)
+                        } else {
+                            translate(size.width * (0.15f - nx * 0.45f), 0f) { drawRect(band, size = size.copy(width = size.width * 0.7f)) }
+                        }
+                    }
+
+                    // Cards near the bulb catch more of its light; empty sockets stay dark.
+                    val reach = session.bulbWidth * 4.2f
+                    val far = if (reach > 0f) ((centre - session.bulbAt).getDistance() / reach).coerceIn(0f, 1f) else 1f
+                    val glow = session.power().coerceIn(0f, 1.3f) * (0.4f + 0.6f * session.timeLeft)
+                    val near = (1f - far) * glow * full
+                    val lightHue = session.hue ?: Dusk.glowDeep
+                    drawRect(lightHue, alpha = (0.16f * near).coerceIn(0f, 1f))
+                    drawRect(rim, size = size.copy(height = size.height * 0.2f), alpha = (0.5f * near).coerceIn(0f, 1f))
+                    // The last seconds wash the whole board red.
+                    if (session.hue == Craft.danger && full > 0f) drawRect(Craft.danger, alpha = 0.14f * full)
+
+                    if (full > 0f) {
+                        val r = size.width * 0.95f
+                        translate(size.width * (0.5f - nx * 0.45f), size.height * (0.35f + ny * 0.45f)) {
+                            scale(r / 100f, r / 100f, pivot = Offset.Zero) {
+                                drawCircle(spot, 100f, Offset.Zero, alpha = (if (faceUp) 0.2f else 0.26f) * full)
+                            }
+                        }
+                    }
+
+                    // The embossed brass frame. An empty socket keeps only a dull trace of it.
+                    drawRoundRect(BrassRule, Offset(half, half), frameSize, corner, alpha = 0.25f + 0.75f * full, style = frame)
+                    if (!faceUp) {
+                        drawRoundRect(Craft.brassDark, Offset(inset, inset), innerSize, innerCorner, style = hair)
+                        drawRoundRect(Craft.brassLight, Offset(inset + hair.width, inset + hair.width), Size(innerSize.width - hair.width * 2, innerSize.height - hair.width * 2), innerCorner, alpha = 0.35f, style = hair)
+                        val at = inset + stud * 2.2f
+                        rivet(Offset(at, at), stud)
+                        rivet(Offset(size.width - at, at), stud)
+                        rivet(Offset(at, size.height - at), stud)
+                        rivet(Offset(size.width - at, size.height - at), stud)
+                    } else if (full > 0f && round.phase == Phase.Peek) {
+                        // While the cards are shown, each face is rimmed in the lamp's teal.
+                        drawRoundRect(Craft.bio, Offset(inset, inset), innerSize, innerCorner, alpha = 0.85f, style = Stroke(2.dp.toPx()))
+                    }
                 }
             }
-            .pointerInput(playable) {
+            .pointerInput(playable, calm) {
                 if (!playable) return@pointerInput
-                // The card answers on press, not on release.
+                // The card answers on press, not on release, and tips towards the finger.
                 awaitEachGesture {
-                    awaitFirstDown()
-                    pressed = true
+                    val down = awaitFirstDown()
+                    val fx = (down.position.x / size.width - 0.5f) * 2f
+                    val fy = (down.position.y / size.height - 0.5f) * 2f
+                    val give = spring<Float>(dampingRatio = 0.6f, stiffness = Spring.StiffnessMedium)
+                    scope.launch { press.animateTo(0.97f, give) }
+                    if (!calm) {
+                        scope.launch { tiltX.animateTo(-fy * 12f, give) }
+                        scope.launch { tiltY.animateTo(fx * 12f, give) }
+                    }
                     session.flip(index)
                     waitForUpOrCancellation()
-                    pressed = false
+                    val back = spring<Float>(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow)
+                    scope.launch { press.animateTo(1f, back) }
+                    scope.launch { tiltX.animateTo(0f, back) }
+                    scope.launch { tiltY.animateTo(0f, back) }
                 }
             }
             .semantics {
@@ -239,19 +385,24 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
         contentAlignment = Alignment.Center,
     ) {
         if (turn <= 90f) {
-            MothAtRest(Dusk.cardEmblem, Dusk.cardBack, Modifier.fillMaxSize().padding(10.dp))
+            MothAtRest(Dusk.cardEmblem, Craft.brassDark, Modifier.fillMaxSize().padding(14.dp))
         } else if (!matched) {
+            val sheen = remember(gold) {
+                Brush.linearGradient(listOf(Color.Transparent, Color(0xFFFFE9A8), Color.Transparent))
+            }
             Canvas(
                 Modifier
                     .fillMaxSize()
-                    .padding(4.dp)
+                    .padding(9.dp)
                     .graphicsLayer {
                         rotationY = 180f
                         alpha = if (lost) 0.5f else 1f
+                        // A gold moth gets its foil painted only where the moth is.
+                        if (gold) compositingStrategy = CompositingStrategy.Offscreen
                     },
             ) {
                 // An idle moth flaps gently, each card out of step with the others.
-                val flap = if (lost || leaf || session.calm) 1f else 0.95f + 0.05f * sin(session.clock.seconds * 5.236f + flapPhase)
+                val flap = if (lost || leaf || calm) 1f else 0.95f + 0.05f * sin(session.clock.seconds * 5.236f + flapPhase)
                 // On a Shadow night one moth is only a silhouette during the peek.
                 val silhouette = if (round.phase == Phase.Peek && id == round.shadow) SILHOUETTE else null
                 moth(
@@ -260,8 +411,20 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp) {
                     size.minDimension,
                     if (leaf) 1f else wings * flap,
                     flat = silhouette,
-                    gold = id in session.store.progress.mastered,
+                    gold = gold,
                 )
+                if (gold && silhouette == null) {
+                    val nx = (tiltY.value / 12f + session.tilt.x * 0.5f).coerceIn(-1f, 1f)
+                    val ny = (tiltX.value / 12f + session.tilt.y * 0.5f).coerceIn(-1f, 1f)
+                    if (goldFoil != null && Build.VERSION.SDK_INT >= 33) {
+                        goldFoil.update(size.width, size.height, -nx, ny, if (calm) 0f else session.clock.seconds, gold = true, strength = 0.42f)
+                        drawRect(goldBrush!!, blendMode = BlendMode.SrcAtop)
+                    } else {
+                        translate(size.width * (-0.5f + nx * 0.5f), 0f) {
+                            drawRect(sheen, size = size.copy(width = size.width * 2f), alpha = 0.5f, blendMode = BlendMode.SrcAtop)
+                        }
+                    }
+                }
             }
         }
     }

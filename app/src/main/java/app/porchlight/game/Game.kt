@@ -44,11 +44,20 @@ val NIGHTS = listOf(
     Night(6, pairs = 10, twist = Twist.Shadow),
 )
 
+/**
+ * The night to play. Night 1 is generous for a first win; once the player has won it, its bulb
+ * shortens to four seconds a pair so it stays worth playing.
+ */
+fun nightFor(number: Int, seasoned: Boolean): Night {
+    val night = NIGHTS[(number - 1).coerceIn(0, NIGHTS.size - 1)]
+    return if (night.number == 1 && seasoned) night.copy(roundMs = night.pairs * 4_000L) else night
+}
+
 /** The daily porch: the same deal for everyone today. */
 val DAILY = Night(0, pairs = 8)
 
-/** The first-launch tutorial: two pairs and a long bulb. */
-val TUTORIAL = Night(-1, pairs = 2, roundMs = 15_000)
+/** The first-launch tutorial: three pairs in a 3 × 2 grid, and a long bulb. */
+val TUTORIAL = Night(-1, pairs = 3, roundMs = 20_000)
 
 /** What a night brings that the player hasn't met: new moths, or a twist. */
 fun newOn(night: Night): List<MothId> {
@@ -74,8 +83,8 @@ fun rulesFor(lead: MothId, night: Night = NIGHTS[0]): Rules {
     val base = Rules(roundMs = night.roundMs)
     if (night == TUTORIAL) return base.copy(peekMs = 3_000)
     return when (lead) {
-        MothId.Wick -> base.copy(roundMs = base.roundMs + 5_000)
-        MothId.Ember -> base.copy(streakStart = 2, roundMs = base.roundMs - 3_000)
+        MothId.Luna -> base.copy(roundMs = base.roundMs + 5_000)
+        MothId.Wick -> base.copy(streakStart = 2, roundMs = base.roundMs - 3_000)
         MothId.Atlas -> base.copy(flashes = 1)
         MothId.Dot -> base.copy(tapThrough = true, freeMisses = 1)
         MothId.Iris -> base.copy(peekMs = 3_400)
@@ -288,6 +297,7 @@ fun nightNumbered(number: Int): Night = when (number) {
 fun Round.saved(lead: MothId): Map<String, Any> = mapOf(
     "phase" to phase.name,
     "night" to night.number,
+    "nightMs" to night.roundMs,
     "lead" to lead.name,
     "deck" to deck.joinToString(",") { it.name },
     "open" to open.toIntArray(),
@@ -314,7 +324,10 @@ fun Round.saved(lead: MothId): Map<String, Any> = mapOf(
  */
 fun restoreRound(values: Map<String, Any?>): Pair<Round, MothId>? = runCatching {
     val lead = MothId.valueOf(values["lead"] as String)
-    val night = nightNumbered(values["night"] as Int)
+    val night = nightNumbered(values["night"] as Int).let { base ->
+        val ms = values["nightMs"] as? Long
+        if (ms != null && ms != base.roundMs) base.copy(roundMs = ms) else base
+    }
     val deck = (values["deck"] as String).split(",").map { MothId.valueOf(it) }
     val phase = Phase.valueOf(values["phase"] as String)
     val rules = rulesFor(lead, night)
@@ -346,3 +359,24 @@ fun restoreRound(values: Map<String, Any?>): Pair<Round, MothId>? = runCatching 
         say = if (wasPlaying) "Paused." else "Look closely. The cards are about to fold shut.",
     ) to lead
 }.getOrNull()
+
+/** A lead's strengths as one to three pips each, for its showcase card. */
+data class LeadStats(val time: Int, val look: Int, val streak: Int)
+
+fun leadStats(lead: MothId): LeadStats {
+    val base = Rules()
+    val rules = rulesFor(lead)
+    val time = when {
+        rules.roundMs > base.roundMs || rules.pairBonusMs > 0 -> 3
+        rules.tapThrough -> 2
+        rules.roundMs < base.roundMs -> 1
+        else -> 2
+    }
+    val look = if (rules.peekMs > base.peekMs || rules.flashes > 0) 3 else 1
+    val streak = when {
+        rules.streakStart > base.streakStart -> 3
+        rules.freeMisses > 0 -> 2
+        else -> 1
+    }
+    return LeadStats(time, look, streak)
+}

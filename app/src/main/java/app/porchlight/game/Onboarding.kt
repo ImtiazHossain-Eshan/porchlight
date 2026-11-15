@@ -35,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -53,17 +54,18 @@ import androidx.compose.ui.unit.sp
 internal fun TutorialHints(session: Session) {
     val round = session.round
     Box(Modifier.fillMaxSize().safeDrawingPadding()) {
-        Text(
-            "Skip",
-            style = Label,
-            fontSize = 13.sp,
-            color = Dusk.inkSoft,
-            modifier = Modifier
+        Box(
+            Modifier
                 .align(Alignment.TopEnd)
-                .clip(RoundedCornerShape(14.dp))
+                .padding(12.dp)
+                .height(48.dp)
+                .plate()
                 .clickable(role = Role.Button) { session.endTutorial() }
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-        )
+                .padding(horizontal = 18.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("SKIP", style = Label, fontSize = 12.sp, color = Dusk.amber)
+        }
     }
 
     val (target, words) = when {
@@ -100,17 +102,38 @@ internal fun TutorialHints(session: Session) {
                     },
             ) { drawHand() }
         }
+        // The advice, on a paper tag.
         Text(
             words,
             style = Display,
-            fontSize = 18.sp,
-            color = Dusk.paperInk,
+            fontSize = 16.sp,
+            color = Craft.parchmentInk,
             textAlign = TextAlign.Center,
             modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(Dusk.amber)
-                .padding(horizontal = 14.dp, vertical = 6.dp),
+                .shadow(6.dp, RoundedCornerShape(6.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                .parchment(6.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
         )
+    }
+
+    // A chalked outline round the card to tap, drawn by hand: dashed and a little uneven.
+    if (target != null && session.cardWidth > 0f) {
+        Canvas(Modifier.fillMaxSize()) {
+            val w = session.cardWidth + 10.dp.toPx()
+            val h = session.cardWidth / 0.75f + 10.dp.toPx()
+            drawRoundRect(
+                Color(0xFFFFF6DC),
+                Offset(at.x - w / 2f, at.y - h / 2f),
+                androidx.compose.ui.geometry.Size(w, h),
+                androidx.compose.ui.geometry.CornerRadius(20.dp.toPx()),
+                alpha = 0.55f + 0.35f * press,
+                style = Stroke(
+                    3.dp.toPx(),
+                    cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                    pathEffect = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(22f, 14f, 9f, 14f), press * 59f),
+                ),
+            )
+        }
     }
 }
 
@@ -156,18 +179,17 @@ internal fun NightIntro(night: Night, session: Session) {
                     translationY = (1f - rise.value) * 120.dp.toPx()
                     alpha = rise.value.coerceIn(0f, 1f)
                 }
-                .clip(RoundedCornerShape(24.dp))
-                .background(Dusk.panel)
+                .shadow(14.dp, RoundedCornerShape(10.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                .parchment(10.dp)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text("NIGHT ${night.number}", style = Label, color = Dusk.amber)
-            Spacer(Modifier.height(4.dp))
             Text(
-                if (night.twist != Twist.None) night.twist.title else "New moths",
+                if (night.twist != Twist.None) "Night ${night.number}: ${night.twist.title}" else "Night ${night.number}: new moths",
                 style = Display,
-                fontSize = 26.sp,
-                color = Dusk.ink,
+                fontSize = 22.sp,
+                color = Craft.parchmentInk,
+                textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(14.dp))
             IntroArt(night, moths)
@@ -175,7 +197,7 @@ internal fun NightIntro(night: Night, session: Session) {
             Text(
                 if (night.twist != Twist.None) night.twist.tip
                 else "${moths.joinToString(" and ") { it.label }} join the porch. ${night.pairs} pairs tonight.",
-                color = Dusk.inkSoft,
+                color = Craft.parchmentInk,
                 fontSize = 15.sp,
                 lineHeight = 21.sp,
                 textAlign = TextAlign.Center,
@@ -208,7 +230,7 @@ private fun IntroArt(night: Night, moths: List<MothId>) {
             }
         }
         Twist.Leaves -> MothArt(MothId.Leaf, Modifier.size(84.dp).graphicsLayer { rotationZ = -12f + 24f * t })
-        Twist.Shadow -> MothArt(MothId.Iris, Modifier.size(84.dp), flat = Dusk.locked)
+        Twist.Shadow -> MothArt(MothId.Iris, Modifier.size(84.dp), flat = Craft.parchmentInk)
         Twist.None -> Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             moths.forEachIndexed { i, moth ->
                 MothArt(moth, Modifier.size(76.dp), open = 0.8f + 0.2f * if (i % 2 == 0) t else 1f - t)

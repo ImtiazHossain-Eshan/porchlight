@@ -12,7 +12,7 @@ class GameTest {
     /** A known deck: pairs sit side by side at (0,1), (2,3), ... (10,11). */
     private val sorted = LEADS.flatMap { listOf(it, it) }
 
-    private fun playing(lead: MothId = MothId.Wick, now: Long = 0): Round =
+    private fun playing(lead: MothId = MothId.Luna, now: Long = 0): Round =
         Round.start(lead).copy(deck = sorted).go(now)
 
     private fun Round.pair(first: Int, now: Long = 0) = flip(first, now).flip(first + 1, now)
@@ -32,11 +32,11 @@ class GameTest {
 
     // Lead moth perks
 
-    @Test fun `wick adds five seconds`() = assertEquals(35_000L, rulesFor(MothId.Wick).roundMs)
+    @Test fun `luna adds five seconds`() = assertEquals(35_000L, rulesFor(MothId.Luna).roundMs)
 
-    @Test fun `ember starts the streak at two on a shorter bulb`() {
-        assertEquals(2, rulesFor(MothId.Ember).streakStart)
-        assertEquals(27_000L, rulesFor(MothId.Ember).roundMs)
+    @Test fun `wick starts the streak at two on a shorter bulb`() {
+        assertEquals(2, rulesFor(MothId.Wick).streakStart)
+        assertEquals(27_000L, rulesFor(MothId.Wick).roundMs)
     }
 
     @Test fun `atlas gets one second look`() = assertEquals(1, rulesFor(MothId.Atlas).flashes)
@@ -55,13 +55,13 @@ class GameTest {
     }
 
     @Test fun `leads add to the night's own time`() {
-        assertEquals(NIGHTS[2].roundMs + 5_000, rulesFor(MothId.Wick, NIGHTS[2]).roundMs)
+        assertEquals(NIGHTS[2].roundMs + 5_000, rulesFor(MothId.Luna, NIGHTS[2]).roundMs)
     }
 
     // Round flow
 
     @Test fun `a ready round is idle with a full bulb`() {
-        val round = Round.ready(MothId.Wick)
+        val round = Round.ready(MothId.Luna)
         assertEquals(Phase.Idle, round.phase)
         assertEquals(35_000L, round.left)
         assertFalse(round.running)
@@ -130,8 +130,8 @@ class GameTest {
         assertEquals(MAX_MULTIPLIER, round.bestMultiplier)
     }
 
-    @Test fun `ember's first pair is already doubled`() {
-        assertEquals(200, playing(MothId.Ember).pair(0).score)
+    @Test fun `wick's first pair is already doubled`() {
+        assertEquals(200, playing(MothId.Wick).pair(0).score)
     }
 
     @Test fun `a wrong pair resets the streak and counts a miss`() {
@@ -164,7 +164,7 @@ class GameTest {
     @Test fun `finding all six pairs wins with a time bonus`() {
         var round = playing(now = 0)
         for (first in listOf(0, 2, 4, 6, 8)) round = round.pair(first, now = 1_000)
-        round = round.pair(10, now = 10_000) // 25 s left of Wick's 35
+        round = round.pair(10, now = 10_000) // 25 s left of Luna's 35
         assertEquals(Phase.Won, round.phase)
         val pairs = 100 + 200 + 300 + 400 + 400 + 400
         assertEquals(pairs + 25 * SECOND_POINTS, round.score)
@@ -189,7 +189,7 @@ class GameTest {
     }
 
     @Test fun `ticks outside play change nothing`() {
-        val idle = Round.ready(MothId.Wick)
+        val idle = Round.ready(MothId.Luna)
         assertSame(idle, idle.tick(99_000))
     }
 
@@ -211,7 +211,7 @@ class GameTest {
     }
 
     @Test fun `other leads have no second look`() {
-        val round = playing(MothId.Wick)
+        val round = playing(MothId.Luna)
         assertSame(round, round.flash())
     }
 
@@ -224,7 +224,7 @@ class GameTest {
     }
 
     @Test fun `messages name the moth`() {
-        assertEquals("A pair of Embers, times 1.", playing().pair(2).say)
+        assertEquals("A pair of Wicks, times 1.", playing().pair(2).say)
         assertNotEquals(playing().say, playing().flip(0, 0).say)
     }
 
@@ -250,7 +250,7 @@ class GameTest {
     }
 
     @Test fun `the daily porch is the same for everyone today`() {
-        val a = Round.daily(MothId.Wick, 20261114)
+        val a = Round.daily(MothId.Luna, 20261114)
         val b = Round.daily(MothId.Iris, 20261114)
         assertEquals(a.deck, b.deck)
         assertTrue(a.daily)
@@ -259,7 +259,7 @@ class GameTest {
 
     @Test fun `a bigger night needs every pair to win`() {
         val deck = BOARD_MOTHS.take(8).flatMap { listOf(it, it) }
-        var round = Round.start(MothId.Wick, NIGHTS[1]).copy(deck = deck).go(0)
+        var round = Round.start(MothId.Luna, NIGHTS[1]).copy(deck = deck).go(0)
         for (first in 0 until 12 step 2) round = round.pair(first)
         assertEquals(Phase.Play, round.phase)
         round = round.pair(12).pair(14)
@@ -270,7 +270,7 @@ class GameTest {
 
     @Test fun `a dead leaf costs two seconds and stays turned`() {
         val deck = listOf(MothId.Leaf) + sorted
-        var round = Round.start(MothId.Wick, NIGHTS[4]).copy(deck = deck, matched = List(deck.size) { false }).go(0)
+        var round = Round.start(MothId.Luna, NIGHTS[4]).copy(deck = deck, matched = List(deck.size) { false }).go(0)
         val before = round.endsAt
         round = round.flip(0, 1_000)
         assertEquals(before - DUD_MS, round.endsAt)
@@ -284,7 +284,7 @@ class GameTest {
     }
 
     @Test fun `the wanderer swaps two face-down cards after a miss`() {
-        val start = Round.start(MothId.Wick, NIGHTS[3]).copy(deck = sorted, seed = 9).go(0).pair(0)
+        val start = Round.start(MothId.Luna, NIGHTS[3]).copy(deck = sorted, seed = 9).go(0).pair(0)
         val settled = start.flip(2, 0).flip(4, 0).settle()
         val (a, b) = settled.swap!!
         assertEquals(1, settled.swaps)
@@ -299,11 +299,11 @@ class GameTest {
     }
 
     @Test fun `a shadow night hides one moth in the peek`() {
-        assertEquals(null, Round.start(MothId.Wick).shadow)
-        val shadow = Round.start(MothId.Wick, NIGHTS[5])
+        assertEquals(null, Round.start(MothId.Luna).shadow)
+        val shadow = Round.start(MothId.Luna, NIGHTS[5])
         assertTrue(shadow.shadow in shadow.deck)
         // The hidden moth follows the seed, not the first card.
-        val hidden = (0L until 40L).map { Round.start(MothId.Wick, NIGHTS[5], Random(1), seed = it).shadow }.toSet()
+        val hidden = (0L until 40L).map { Round.start(MothId.Luna, NIGHTS[5], Random(1), seed = it).shadow }.toSet()
         assertTrue("the shadow should vary between rounds", hidden.size > 5)
     }
 
@@ -317,7 +317,7 @@ class GameTest {
     }
 
     @Test fun `others wait for a wrong pair to fold`() {
-        val miss = playing(MothId.Wick).flip(2, 0).flip(4, 0)
+        val miss = playing(MothId.Luna).flip(2, 0).flip(4, 0)
         assertSame(miss, miss.flip(6, 0))
     }
 
@@ -347,7 +347,7 @@ class GameTest {
     }
 
     @Test fun `only a live round pauses`() {
-        val idle = Round.ready(MothId.Wick)
+        val idle = Round.ready(MothId.Luna)
         assertSame(idle, idle.pause(0))
         assertSame(idle, idle.resume(0))
     }
@@ -359,9 +359,9 @@ class GameTest {
 
     // Onboarding
 
-    @Test fun `the tutorial is two pairs with a long look`() {
-        val round = Round.start(MothId.Wick, TUTORIAL)
-        assertEquals(4, round.deck.size)
+    @Test fun `the tutorial is three pairs with a long look`() {
+        val round = Round.start(MothId.Luna, TUTORIAL)
+        assertEquals(6, round.deck.size)
         assertTrue(round.tutorial)
         assertEquals(3_000L, round.rules.peekMs)
     }
@@ -391,14 +391,14 @@ class GameTest {
 
     @Test fun `a wrong pair that was showing comes back folded`() {
         val miss = playing().flip(2, 0).flip(4, 0)
-        val (back, _) = restoreRound(miss.saved(MothId.Wick))!!
+        val (back, _) = restoreRound(miss.saved(MothId.Luna))!!
         assertFalse(back.miss)
         assertTrue(back.open.isEmpty())
         assertEquals(1, back.misses)
     }
 
     @Test fun `the daily porch and the tutorial restore as themselves`() {
-        assertEquals(DAILY, restoreRound(Round.daily(MothId.Wick, 1).saved(MothId.Wick))!!.first.night)
+        assertEquals(DAILY, restoreRound(Round.daily(MothId.Luna, 1).saved(MothId.Luna))!!.first.night)
         assertEquals(TUTORIAL, nightNumbered(-1))
     }
 

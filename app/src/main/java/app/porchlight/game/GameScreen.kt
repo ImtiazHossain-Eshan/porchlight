@@ -9,15 +9,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,7 +46,12 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 import kotlin.random.Random
 
-internal enum class Screen { Porch, Round, Results }
+internal enum class Screen {
+    Porch, Nights, Daily, Moths, Badges, Settings, Round, Results;
+
+    /** The lobby and the screens that hang off it. */
+    val isMenu get() = this != Round && this != Results
+}
 
 private val OVERDRIVE_SHAKE = floatArrayOf(4f, -4f, 3f, -3f, 2f, -1f, 0f)
 
@@ -69,8 +75,8 @@ internal sealed interface Fx {
 /** Everything the three screens share: which screen is up, the round in play, and the player's taps. */
 internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     var screen by mutableStateOf(Screen.Porch)
-    var lead by mutableStateOf(MothId.Wick)
-    var round by mutableStateOf(Round.ready(MothId.Wick))
+    var lead by mutableStateOf(MothId.Luna)
+    var round by mutableStateOf(Round.ready(MothId.Luna))
     var report by mutableStateOf<Report?>(null)
     var fx by mutableStateOf<Fx?>(null)
     var notice by mutableStateOf<String?>(null)
@@ -79,6 +85,9 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     /** Centre of the bulb's glass and its width on screen, in pixels: the light and the moths aim for it. */
     var bulbAt by mutableStateOf(Offset.Zero)
     var bulbWidth by mutableFloatStateOf(0f)
+
+    /** The top edge of the board, in pixels: effects stay above it. */
+    var boardTop by mutableFloatStateOf(0f)
 
     /** Where each card sits on screen, so effects can start from it. */
     val cardAt = Array(32) { Offset.Zero }
@@ -104,6 +113,23 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
     /** Reduce motion: no shake, hit-stop or particles; colour changes stay. */
     var calm by mutableStateOf(false)
+
+    /** The colour the light takes for the round's state, or null for its own warm colour. */
+    var hue by mutableStateOf<Color?>(null)
+
+    /** The phone's tilt, for the parallax and the card highlights. Zero when motion is reduced. */
+    var tilt = Tilt()
+
+    /** Shader effects applied to whole layers: heat shimmer, the Overdrive aberration pulse. */
+    val effects = LayerEffects.create()
+
+    /** A Wanderer swap's swirl, 0..1, between the two cards that traded places. */
+    val swirl = Animatable(1f)
+    var swirlFrom = Offset.Zero
+    var swirlTo = Offset.Zero
+
+    /** The chromatic-aberration pulse on Overdrive, 0..1, over 150 ms. */
+    val aberration = Animatable(0f)
 
     val flock = Flock()
     val particles = Particles()
@@ -134,13 +160,15 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     /** A pair landed. The feedback grows with the streak: x1 sparks, x2 more, x3 the bulb flares, x4 Overdrive. */
     private fun celebrate(a: Offset, b: Offset, multiplier: Int) {
         val upper = if (a.y <= b.y) a else b
-        pops += Pop(count, "+${PAIR_POINTS * multiplier}", Offset(upper.x, upper.y - cardWidth * 0.85f), big = multiplier >= 3)
+        pops.clear() // never stack ghosts: a new pop replaces the last
+        pops += Pop(count, "+${PAIR_POINTS * multiplier}", Offset(upper.x, upper.y - cardWidth * 0.85f), big = multiplier >= MAX_MULTIPLIER)
         if (!calm) {
-            val sparks = 6 + multiplier * 4
+            val sparks = (6 + multiplier * 4) / (if (Gpu.quality >= 2) 2 else 1)
             val speed = cardWidth * (2.2f + 0.7f * multiplier)
             val size = cardWidth * (0.028f + 0.008f * multiplier)
-            particles.burst(a, sparks, speed, size)
-            particles.burst(b, sparks, speed, size)
+            val bio = multiplier < MAX_MULTIPLIER
+            particles.burst(a, sparks, speed, size, bio = bio)
+            particles.burst(b, sparks, speed, size, bio = bio)
         }
         if (multiplier >= 3) {
             flareUp(if (multiplier >= MAX_MULTIPLIER) 0.7f else 0.4f, 450)
@@ -154,7 +182,12 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
             buzz(HapticFeedbackType.LongPress)
             if (!calm) {
                 clock.freeze(0.08f) // hit-stop
-                particles.ring(Offset((a.x + b.x) / 2f, (a.y + b.y) / 2f), cardWidth * 3.2f)
+                particles.ring(bulbAt, bulbWidth * 2.6f)
+                scope?.launch {
+                    aberration.snapTo(0f)
+                    aberration.animateTo(1f, tween(40))
+                    aberration.animateTo(0f, tween(110))
+                }
                 scope?.launch {
                     for (x in OVERDRIVE_SHAKE) shake.animateTo(x, tween(38))
                 }
@@ -182,12 +215,12 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     }
 
     /** Starts a round on the night picked on the porch, or today's daily porch. */
-    fun start(daily: Boolean = round.daily && screen != Screen.Porch) {
+    fun start(daily: Boolean = round.daily && !screen.isMenu) {
         report = null
         notice = null
         noticeMoth = null
         reset()
-        val night = NIGHTS[store.progress.night - 1]
+        val night = nightFor(store.progress.night, seasoned = store.progress.nightStars[0] > 0)
         val fresh = !daily && (night.twist != Twist.None || newOn(night).isNotEmpty()) &&
             "night${night.number}" !in store.progress.tips
         round = if (daily) Round.daily(lead, todaySeed()) else Round.start(lead, night)
@@ -266,7 +299,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         report = null
         notice = null
         reset()
-        round = Round.start(MothId.Wick, TUTORIAL)
+        round = Round.start(MothId.Luna, TUTORIAL)
         screen = Screen.Round
         sfx.play(Sound.Start)
     }
@@ -333,6 +366,15 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         flicker = 1f
     }
 
+    /** Opens one of the lobby's screens. */
+    fun open(target: Screen) {
+        notice = null
+        noticeMoth = null
+        screen = target
+        sfx.play(Sound.Flip, vary = 0.06f)
+        buzz(HapticFeedbackType.SegmentTick)
+    }
+
     fun toPorch() {
         leaving = false
         report = null
@@ -382,7 +424,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
     session.calm = store.progress.reduceMotion || systemCalm
     val round = session.round
     val low = round.phase == Phase.Play && !round.paused && round.left <= LOW_MS
-    sfx.ambient = session.screen == Screen.Porch || round.running
+    sfx.ambient = session.screen.isMenu || round.running
 
     // The peek, the clock, and the bookkeeping when a round ends.
     LaunchedEffect(round.phase) {
@@ -472,8 +514,10 @@ fun GameScreen(store: Store, sfx: Sfx) {
     }
 
     // Back from a round asks first; back from the results goes to the porch; back from the porch exits.
-    BackHandler(session.screen != Screen.Porch) {
+    BackHandler(session.screen != Screen.Porch || session.leaving) {
         when {
+            session.leaving -> session.leaving = false
+            session.screen.isMenu -> session.toPorch()
             round.tutorial -> session.endTutorial()
             session.screen == Screen.Round && round.running -> session.leaving = true
             else -> session.toPorch()
@@ -483,7 +527,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
     val burning = round.running || round.phase == Phase.Won
     val on by animateFloatAsState(
         when {
-            session.screen == Screen.Porch -> 0.42f
+            session.screen == Screen.Porch -> 0.9f
             burning -> 1f
             else -> 0f
         },
@@ -493,37 +537,64 @@ fun GameScreen(store: Store, sfx: Sfx) {
     )
     val tighten by animateFloatAsState(if (low) 1f else 0f, tween(400), label = "tighten")
     session.power = { on * session.flicker + session.flare.value }
+    session.tilt = rememberTilt(enabled = !session.calm)
+    // The board blurs behind the results sheet, so the sheet reads as frosted glass.
+    val behindSheet by animateFloatAsState(
+        if (session.screen == Screen.Results) 20f else 0f,
+        spring(dampingRatio = 1f, stiffness = Spring.StiffnessLow),
+        label = "behindSheet",
+    )
+
+    // The light's colour is the round's state: teal while the cards are shown, gold in Overdrive,
+    // red in the last seconds, and its own warm colour otherwise.
+    val overdrive = round.phase == Phase.Play && multiplierAt(round.streak, round.rules) >= MAX_MULTIPLIER
+    val hue: Color? = when {
+        session.screen.isMenu -> null
+        low -> Craft.danger
+        round.phase == Phase.Peek -> Craft.bio
+        overdrive -> Craft.gold
+        else -> null
+    }
+    session.hue = hue
 
     Box(Modifier.fillMaxSize().background(Dusk.wallTop)) {
         NightScene(
             clock = clock,
+            tilt = session.tilt,
+            calm = session.calm,
             bulb = { session.bulbAt },
             light = { on * session.flicker * (0.4f + 0.6f * session.timeLeft) + session.flare.value },
             reach = { session.bulbWidth * (1.7f + 2.9f * session.timeLeft) * (0.6f + 0.4f * on) },
+            warmth = { session.timeLeft },
+            hue = { session.hue },
+            danger = { tighten },
             tighten = { tighten },
         )
-        when (session.screen) {
-            Screen.Porch -> Porch(session)
-            Screen.Round, Screen.Results -> {
-                RoundScreen(session)
-                val report = session.report
-                if (session.screen == Screen.Results && report != null) Results(session, report)
+        // Screens change with a short fade through the wall. A round and its results are one place.
+        Crossfade(
+            targetState = if (session.screen == Screen.Results) Screen.Round else session.screen,
+            animationSpec = tween(if (session.calm) 0 else 220),
+            label = "screen",
+        ) { screen ->
+            when (screen) {
+                Screen.Porch -> Porch(session)
+                Screen.Nights -> NightsScreen(session)
+                Screen.Daily -> DailyScreen(session)
+                Screen.Moths -> MothsScreen(session)
+                Screen.Badges -> BadgesScreen(session)
+                Screen.Settings -> SettingsScreen(session)
+                Screen.Round, Screen.Results -> {
+                    Box(Modifier.fillMaxSize().graphicsLayer { renderEffect = blurOf(behindSheet * density) }) {
+                        RoundScreen(session)
+                    }
+                }
             }
         }
+        Bloom(session)
+        val report = session.report
+        if (session.screen == Screen.Results && report != null) Results(session, report)
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = session.pop.value }.background(Color.White))
-    }
-
-    if (session.leaving) {
-        AlertDialog(
-            onDismissRequest = { session.leaving = false },
-            containerColor = Dusk.panel,
-            titleContentColor = Dusk.ink,
-            textContentColor = Dusk.inkSoft,
-            title = { Text("Leave this round?") },
-            text = { Text("The bulb goes out and this round won't count.") },
-            confirmButton = { TextButton(onClick = { session.toPorch() }) { Text("Leave", color = Dusk.ember) } },
-            dismissButton = { TextButton(onClick = { session.leaving = false }) { Text("Keep playing", color = Dusk.amber) } },
-        )
+        if (session.leaving) LeaveNotice(session)
     }
 }
 
