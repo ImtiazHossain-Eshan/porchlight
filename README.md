@@ -10,7 +10,7 @@ Moths gather at a porch bulb, and the bulb is the clock. Find every pair before 
 <a href="https://github.com/ImtiazHossain-Eshan/porchlight/actions/workflows/android.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/ImtiazHossain-Eshan/porchlight/android.yml?branch=main&style=flat-square&label=build&labelColor=15181a&color=2c6f6c"></a>
 <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-f4c20d?style=flat-square&logo=android&logoColor=white&labelColor=15181a">
 <img alt="Kotlin with Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-f4c20d?style=flat-square&logo=kotlin&logoColor=white&labelColor=15181a">
-<img alt="109 tests passing" src="https://img.shields.io/badge/tests-109%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
+<img alt="118 tests passing" src="https://img.shields.io/badge/tests-118%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
 <img alt="Sound synthesized in app" src="https://img.shields.io/badge/sound-synthesized-f4c20d?style=flat-square&labelColor=15181a">
 <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-f4c20d?style=flat-square&labelColor=15181a"></a>
 
@@ -214,7 +214,7 @@ Modern effects without a game engine or a WebView: Compose `graphicsLayer` for t
   - Fifty dust motes drift at different depths and glow when they cross the cone of light under the bulb.
   - The tilt sensor runs only while the game is on screen.
 - **Sparks** add their light where they overlap and leave short trails. Overdrive sends a 150 ms colour-split pulse through the area above the board.
-- **Scorecard.** The results spring up as a gilded panel over a board that blurs behind it.
+- **Scorecard.** The results spring up as a gilded panel over a board that blurs behind it, and play out as a short moment of about three seconds (tap to skip). A win's headline lights letter by letter; a loss flickers and cools to an ember, with "So close. 1 pair to go." or a tip. The stars fly in from the bulb with rising chimes, and an empty socket shakes and shows what would have earned it. The tally builds the score line by line, with each line's points flying up into a rolling odometer that lands with a punch and sparks. A new best stamps a ribbon across the corner; otherwise it shows how far short of your best you were. XP orbs fly into the level emblem, a level-up spins it, and unlocks arrive one at a time before the buttons rise in. A round with no pairs shows "0 / 6 pairs" by a dark bulb instead of a giant zero. See [`docs/visuals/results-moments.png`](docs/visuals/results-moments.png).
 
 **Fallbacks.** Shaders need Android 13; blur needs Android 12.
 - **Android 12 (no shaders):** a gradient glow replaces the god rays, and a sliding sheen replaces the foil.
@@ -336,7 +336,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 
 ## Tests
 
-109 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
+118 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -347,6 +347,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 | [`GameTest`](app/src/test/java/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, nights, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
 | [`ProgressTest`](app/src/test/java/app/porchlight/game/ProgressTest.kt) | XP curve, levels, unlocks, stars, opening nights, mastery, the daily porch and its streak, the share line, badges |
 | [`FlightLogTest`](app/src/test/java/app/porchlight/game/FlightLogTest.kt) | The round's flight log: order, multipliers, misses, saving and restoring, and that no card position leaks into it; the daily share card's data and the unchanged share line |
+| [`TallyTest`](app/src/test/java/app/porchlight/game/TallyTest.kt) | The Results tally: its points add up to the score, lines that say nothing are left out, close-loss notes, tips and star hints |
 | [`PeekTest`](app/src/test/java/app/porchlight/game/PeekTest.kt) | The peek countdown shows the whole seconds left, rounded up: 2, 1 for 2 s and 4, 3, 2, 1 for 3.4 s |
 | [`BalanceTest`](app/src/test/java/app/porchlight/game/BalanceTest.kt) | Simulated perfect and typical players with every lead: none may beat the rest by more than 15% on both score and time |
 
