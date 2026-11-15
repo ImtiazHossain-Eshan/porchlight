@@ -112,6 +112,35 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     /** Counts Sorbet top-ups, so the "+1.5s" can float off the bulb each time. */
     var topUps by mutableIntStateOf(0)
 
+    /** The porch lamp switched off by a tap on the jar (the lobby only). */
+    var porchDark by mutableStateOf(false)
+
+    /** When the jar was last tapped, in clock seconds: the moths start up at it. */
+    var stirAt by mutableFloatStateOf(-10f)
+
+    /** Tapping the jar: off with a click, on again with a couple of flickers and the bulb's hum. */
+    fun toggleLamp() {
+        stirAt = clock.seconds
+        if (!porchDark) {
+            porchDark = true
+            sfx.play(Sound.Pop, volume = 0.45f, pitch = 1.3f)
+            buzz(HapticFeedbackType.SegmentTick)
+            return
+        }
+        porchDark = false
+        buzz(HapticFeedbackType.Confirm)
+        scope?.launch {
+            if (!calm) {
+                for ((dip, ms) in listOf(0.15f to 60L, 1f to 80L, 0.35f to 50L, 1f to 0L)) {
+                    flicker = dip
+                    if (ms > 0) delay(ms)
+                }
+            }
+            flicker = 1f
+            sfx.play(Sound.Buzz, volume = 0.7f)
+        }
+    }
+
     /** Badges already looked at on the Badges screen; any others are new. Kept for this run of the app. */
     var seenBadges: Set<Badge> = store.progress.badges
 
@@ -412,6 +441,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
     fun toPorch() {
         leaving = false
+        porchDark = false
         report = null
         reset()
         round = Round.ready(lead, NIGHTS[store.progress.night - 1])
@@ -576,7 +606,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
     val burning = round.running || round.phase == Phase.Won
     val on by animateFloatAsState(
         when {
-            session.screen == Screen.Porch -> 0.9f
+            session.screen == Screen.Porch -> if (session.porchDark) 0.04f else 0.9f
             // Dark while the cards are dealt; it comes on with the warm-up.
             round.phase == Phase.Peek && session.peekStage == PeekStage.Deal -> 0f
             burning -> 1f

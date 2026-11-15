@@ -1,5 +1,10 @@
 package app.porchlight.game
 
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.delay
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -148,6 +153,7 @@ private fun Logo(calm: Boolean) {
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Controls(session: Session) {
     val progress = session.store.progress
@@ -155,38 +161,44 @@ private fun Controls(session: Session) {
     val night = NIGHTS[progress.night - 1]
     // On a tablet the sign and tiles keep to a comfortable width instead of spanning the screen.
     Column(Modifier.widthIn(max = 560.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        // One line: who leads and what they do. Tapping a locked moth explains how to meet it here.
+        // Who leads, on a small brass-edged tag: the moth, its name, what it does. Tap for the full
+        // sentence; tapping a locked moth explains here how to meet it.
+        val notice = session.notice
         Row(
             Modifier
-                .clip(RoundedCornerShape(8.dp))
+                .shadow(4.dp, RoundedCornerShape(20.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xFF2A1C12), Color(0xFF17100A))))
+                .border(1.dp, BrassRule, RoundedCornerShape(20.dp))
                 .clickable(role = Role.Button) {
                     session.noticeMoth = null
                     session.notice = if (session.notice == null) "${lead.perkName}: ${lead.perk}" else null
                 }
-                .padding(horizontal = 8.dp, vertical = 6.dp),
+                .padding(start = 6.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            session.noticeMoth?.let { MothArt(it, Modifier.size(30.dp), flat = Dusk.locked) }
-            Text(
-                session.notice ?: "${lead.label} · ${brief(lead)}",
-                color = if (session.notice != null) Dusk.amber else Dusk.ink,
-                fontSize = TypeScale.Body,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            MothArt(session.noticeMoth ?: lead, Modifier.size(28.dp), flat = if (session.noticeMoth != null) Dusk.locked else null)
+            if (notice != null) {
+                Text(notice, style = BodyText, color = Dusk.amber, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            } else {
+                Text(lead.label.uppercase(), style = Label, color = Dusk.amber, maxLines = 1)
+                Text(brief(lead), style = BodyText, color = Dusk.ink, maxLines = 1)
+            }
         }
         Spacer(Modifier.height(4.dp))
         PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
         Spacer(Modifier.height(8.dp))
-        Text(
-            "NIGHT ${night.number} · ${nightLine(night).uppercase()}" + if (progress.best > 0) "   BEST ${progress.best.grouped()}" else "",
-            style = Label,
-            color = Dusk.inkSoft,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        // Tonight at a glance: four small engraved plates, each with its mark.
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Fact(Glyph.Map, "NIGHT ${night.number}")
+            Fact(Glyph.Moth, "${night.pairs} PAIRS")
+            Fact(Glyph.Clock, "${night.roundMs / 1000} S")
+            if (progress.best > 0) Fact(Glyph.Trophy, progress.best.grouped())
+        }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MenuTile(Glyph.Map, "Nights", Modifier.weight(1f)) { session.open(Screen.Nights) }
@@ -258,7 +270,16 @@ private fun Stage(session: Session, modifier: Modifier) {
                 .padding(top = 14.dp)
                 .size(jarH * 0.7f, jarH)
                 .tracksBulb(session)
-                .semantics { contentDescription = "The porch light, in its jar" },
+                // The jar is the porch light's switch: tap it off and on.
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    role = Role.Switch,
+                ) { session.toggleLamp() }
+                .semantics {
+                    contentDescription = "The porch light"
+                    stateDescription = if (session.porchDark) "Off" else "On"
+                },
         )
 
         val fly = spring<Dp>(dampingRatio = 0.62f, stiffness = Spring.StiffnessLow)
@@ -299,12 +320,21 @@ private fun Stage(session: Session, modifier: Modifier) {
                         val t = session.clock.seconds
                         val turn = (t / 2.6f).toInt() % LEADS.size == i
                         val beat = t % 2.6f
-                        val flutter = if (turn && beat < 0.55f && !session.calm) kotlin.math.abs(kotlin.math.sin(beat * 17f)) else 0f
+                        val own = if (turn && beat < 0.55f && !session.calm) kotlin.math.abs(kotlin.math.sin(beat * 17f)) else 0f
+                        // When the light is switched, every moth starts up at once, then settles.
+                        val since = t - session.stirAt
+                        val stir = if (since in 0f..1.1f && !session.calm) kotlin.math.abs(kotlin.math.sin(since * 21f + i)) * (1f - since / 1.1f) else 0f
+                        val flutter = maxOf(own, stir)
                         // The lead keeps a slow wingbeat of its own as it hovers.
                         val hover = if (chosen && !session.calm) 0.08f * (0.5f + 0.5f * kotlin.math.sin(t * 3.2f)) else 0f
                         // `size` here is the canvas, not the moth's dp size above.
                         val canvas = this.size
-                        moth(id, Offset(canvas.width / 2f, canvas.height / 2f), canvas.minDimension * (if (chosen) 0.86f else 1f), 1f - 0.6f * flutter - hover, gold = gold)
+                        // In the dark the moths are only shapes; with the light back they glow again.
+                        val lift = if (stir > 0f) -canvas.height * 0.06f * stir else 0f
+                        val shown = if (session.porchDark) 0.35f else 1f
+                        drawContext.canvas.saveLayer(androidx.compose.ui.geometry.Rect(Offset.Zero, canvas), androidx.compose.ui.graphics.Paint().apply { alpha = shown })
+                        moth(id, Offset(canvas.width / 2f, canvas.height / 2f + lift), canvas.minDimension * (if (chosen) 0.86f else 1f), 1f - 0.6f * flutter - hover, gold = gold)
+                        drawContext.canvas.restore()
                     }
                 } else {
                     // Not met yet: a dim shape and a small padlock.
@@ -313,5 +343,22 @@ private fun Stage(session: Session, modifier: Modifier) {
                 }
             }
         }
+    }
+}
+
+/** One fact about tonight on a small dark plate with a brass edge: a mark and a word. */
+@Composable
+private fun Fact(glyph: Glyph, text: String) {
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.32f))
+            .border(1.dp, Craft.brassDark, RoundedCornerShape(8.dp))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        GlyphArt(glyph, Craft.brassLight, Modifier.size(14.dp))
+        Text(text, style = Label, color = Dusk.ink, maxLines = 1)
     }
 }

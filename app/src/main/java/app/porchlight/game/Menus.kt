@@ -320,18 +320,19 @@ internal fun DailyScreen(session: Session) {
                 val entry = progress.dailyLog.lastOrNull { it.day == seed }
                 val isToday = ago == 0
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    // A played day is a brass coin with its stars cut in; a missed day is an iron
+                    // coin pressed into the plank; today is ringed in light (gold once played).
                     Box(
                         Modifier
-                            .size(34.dp)
-                            .then(if (isToday) Modifier.drawBehind { todayGlow() } else Modifier)
-                            .then(
-                                when {
-                                    entry != null -> Modifier.metal(corner = 17.dp)
-                                    isToday -> Modifier.background(Color.Black.copy(alpha = 0.35f), CircleShape)
-                                    else -> Modifier.border(1.5.dp, Dusk.inkSoft.copy(alpha = 0.55f), CircleShape)
-                                },
-                            )
-                            .then(if (isToday) Modifier.border(2.5.dp, Craft.gold, CircleShape) else Modifier)
+                            .size(42.dp)
+                            .drawBehind {
+                                if (isToday) todayGlow()
+                                val (c, rr) = coinFace(size)
+                                coin(c, rr, press = if (entry == null && !isToday) 0.8f else 0f, dull = entry == null, gold = isToday && entry != null)
+                                if (isToday && entry == null) {
+                                    drawCircle(Craft.gold, rr * 1.02f, Offset(c.x, c.y), style = Stroke(2.5.dp.toPx()))
+                                }
+                            }
                             .semantics {
                                 contentDescription = dayLabel(seed) + when {
                                     entry != null -> ", ${entry.stars} stars"
@@ -341,7 +342,9 @@ internal fun DailyScreen(session: Session) {
                             },
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (entry != null) Text("${entry.stars}", style = TextEngraved, fontSize = TypeScale.Body, color = Dusk.paperInk)
+                        if (entry != null) {
+                            Text("${entry.stars}", style = TextEngraved, fontSize = TypeScale.Heading, color = Color(0xFF3E2810), modifier = Modifier.offset(y = (-2).dp))
+                        }
                     }
                     Spacer(Modifier.height(4.dp))
                     Text("${seed % 100}", style = Label, color = if (isToday) Dusk.amber else Dusk.inkSoft)
@@ -391,7 +394,7 @@ internal fun DailyScreen(session: Session) {
         }
         Spacer(Modifier.height(14.dp))
 
-        PrimaryButton(if (played) "Practise today's porch" else "Play today's porch", Modifier.fillMaxWidth()) { session.start(daily = true) }
+        PlayButton(if (played) "Practise" else "Play today", session.calm, Modifier.fillMaxWidth()) { session.start(daily = true) }
         if (played) {
             Spacer(Modifier.height(8.dp))
             SecondaryButton("Share today's porch", Modifier.fillMaxWidth()) {
