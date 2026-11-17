@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import androidx.compose.ui.graphics.TransformOrigin
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -154,14 +155,17 @@ private fun Header(session: Session, modifier: Modifier) {
         val tall = maxHeight > maxWidth
         val bulbH = if (tall) min(maxHeight * 0.46f, maxWidth * 0.62f / 0.7f) else min(maxHeight * 0.66f, maxWidth * 0.42f / 0.7f)
         val plateRow = if (tall) 0.62f else 1f
+        // Each plate keeps to its own side of the bulb and its brass works: with a big font or a
+        // narrow phone it shrinks to fit rather than running into the gauge or the gears.
+        val plateRoom = if (tall) maxWidth * 0.48f else ((maxWidth - bulbH * 0.7f * 1.6f) / 2).coerceAtLeast(72.dp)
         ScoreReadout(
             round.score,
-            Modifier.align(BiasAlignment(-1f, plateRow)).padding(bottom = if (tall) 0.dp else 44.dp),
+            Modifier.align(BiasAlignment(-1f, plateRow)).padding(bottom = if (tall) 0.dp else 44.dp).shrinkToFit(plateRoom, TransformOrigin(0f, 0.5f)),
         )
         StreakReadout(
             multiplierAt(if (round.running) round.streak else 0, round.rules),
             session.calm,
-            Modifier.align(BiasAlignment(1f, plateRow)).padding(bottom = if (tall) 0.dp else 44.dp),
+            Modifier.align(BiasAlignment(1f, plateRow)).padding(bottom = if (tall) 0.dp else 44.dp).shrinkToFit(plateRoom, TransformOrigin(1f, 0.5f)),
         )
 
         Column(
@@ -468,4 +472,24 @@ private fun Modifier.overhang(sideways: Dp, upDown: Dp) = layout { measurable, c
     val y = upDown.roundToPx()
     val placeable = measurable.measure(constraints.offset(2 * x, 2 * y))
     layout(placeable.width - 2 * x, placeable.height - 2 * y) { placeable.place(-x, -y) }
+}
+
+/**
+ * Lets the content take its natural size, and if that is wider than [max], scales it down
+ * (around [origin]) so it fits, reporting the smaller size to the layout. Text never wraps or
+ * clips; the whole plate simply gets a little smaller.
+ */
+internal fun Modifier.shrinkToFit(max: Dp, origin: TransformOrigin = TransformOrigin.Center) = layout { measurable, constraints ->
+    val placeable = measurable.measure(constraints.copy(minWidth = 0, maxWidth = androidx.compose.ui.unit.Constraints.Infinity))
+    val limit = max.roundToPx()
+    val k = if (placeable.width > limit) limit.toFloat() / placeable.width else 1f
+    val w = (placeable.width * k).toInt()
+    val h = (placeable.height * k).toInt()
+    layout(w, h) {
+        placeable.placeWithLayer(((w - placeable.width) * origin.pivotFractionX).toInt(), ((h - placeable.height) / 2f).toInt()) {
+            scaleX = k
+            scaleY = k
+            transformOrigin = origin
+        }
+    }
 }

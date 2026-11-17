@@ -1,5 +1,10 @@
 package app.porchlight.game
 
+import androidx.compose.foundation.layout.fillMaxHeight
+
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.hoverable
@@ -85,7 +90,7 @@ internal fun dayLabel(seed: Long): String = "${seed % 100} ${MONTHS[((seed / 100
  * oak plaque, and the content below, kept to a readable width on tablets.
  */
 @Composable
-internal fun MenuFrame(title: String, session: Session, scroll: Boolean = true, content: @Composable ColumnScope.() -> Unit) {
+internal fun MenuFrame(title: String, session: Session, scroll: Boolean = true, maxContentWidth: Dp = 560.dp, content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
@@ -111,7 +116,7 @@ internal fun MenuFrame(title: String, session: Session, scroll: Boolean = true, 
         Spacer(Modifier.height(12.dp))
         Column(
             Modifier
-                .widthIn(max = 560.dp)
+                .widthIn(max = maxContentWidth)
                 .fillMaxSize()
                 .then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -122,10 +127,8 @@ internal fun MenuFrame(title: String, session: Session, scroll: Boolean = true, 
 // ---------------------------------------------------------------------------------------------
 // Six nights: a parchment map laid over brass works, with a copper pipe running night to night.
 
-private val STOPS = listOf(
-    Offset(0.27f, 0.10f), Offset(0.74f, 0.24f), Offset(0.30f, 0.41f),
-    Offset(0.73f, 0.57f), Offset(0.28f, 0.74f), Offset(0.70f, 0.90f),
-)
+/** Where each night sits across the map's inner width, zigzagging left and right; the rows are evenly spaced. */
+private val STOP_X = listOf(0.16f, 0.84f, 0.2f, 0.82f, 0.16f, 0.78f)
 
 @Composable
 internal fun NightsScreen(session: Session) {
@@ -135,11 +138,14 @@ internal fun NightsScreen(session: Session) {
     // The night waiting for a yes in the confirmation card, if one is open.
     var asking by remember { mutableStateOf<Night?>(null) }
     Box(Modifier.fillMaxSize()) {
-    MenuFrame("Six nights", session, scroll = false) {
+    MenuFrame("Six nights", session, scroll = false, maxContentWidth = 980.dp) {
+      // Portrait: the map, then the night's details and PLAY below it. Wide (landscape, a short
+      // window): the map on the left, the details and PLAY beside it, so the map keeps its height.
+      BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+        val side = maxWidth > maxHeight * 1.3f
+        val map: @Composable (Modifier) -> Unit = { mapModifier ->
         BoxWithConstraints(
-            Modifier
-                .fillMaxWidth()
-                .weight(1f)
+            mapModifier
                 .drawBehind {
                     // The works the map is pinned over: gears peeking out at the corners.
                     val t = if (session.calm) 0f else session.clock.seconds * 8f
@@ -153,16 +159,51 @@ internal fun NightsScreen(session: Session) {
         ) {
             val w = maxWidth
             val h = maxHeight
+            // Everything on the map is sized and placed from the map's own size, so it fits any
+            // phone, tablet or font size: the coins scale with the sheet, and the route runs inside
+            // a margin that always leaves room for a coin (even grown under a finger) and the
+            // stars beneath it. Nothing is placed by a fixed fraction of the height any more.
+            // A coin is never wider than the sheet allows, and never so tall that a coin and the
+            // stars of the coin two rows above (the same side of the zigzag) would touch.
+            // A sheet wider than it is tall (landscape, a short window) runs the route left to right,
+            // zigzagging up and down; otherwise top to bottom, zigzagging left and right.
+            val across = w > h * 1.25f
+            val coin = if (across) {
+                minOf(h * 0.36f, w * 0.11f).coerceIn(32.dp, 76.dp)
+            } else {
+                minOf(w * 0.19f, h * 0.12f, (h * 2 - 50.dp) / 10.9f).coerceIn(32.dp, 76.dp)
+            }
+            val starSize = (coin * 0.32f).coerceAtLeast(14.dp)
+            val padX = coin * 0.8f
+            val padTop = coin * 0.75f
+            val padBottom = coin * 0.7f + starSize + 10.dp
+            val last = NIGHTS.size - 1
+            val stopAt = List(NIGHTS.size) { i ->
+                if (across) {
+                    DpOffset(
+                        padX + (w - padX * 2) * i / last,
+                        padTop + (h - padTop - padBottom) * (if (i % 2 == 0) 0.1f else 0.9f),
+                    )
+                } else {
+                    DpOffset(
+                        padX + (w - padX * 2) * STOP_X[i],
+                        padTop + (h - padTop - padBottom) * i / last,
+                    )
+                }
+            }
+            val mapDensity = LocalDensity.current
+            val stopsPx = with(mapDensity) { stopAt.map { Offset(it.x.toPx(), it.y.toPx()) } }
             Canvas(Modifier.fillMaxSize()) {
                 // The country the nights cross, inked on the sheet before the route.
                 mapArt()
                 // The pipe: copper as far as the player has got, a faint inked route beyond.
-                for (i in 0 until STOPS.size - 1) {
-                    val a = Offset(STOPS[i].x * size.width, STOPS[i].y * size.height)
-                    val b = Offset(STOPS[i + 1].x * size.width, STOPS[i + 1].y * size.height)
+                for (i in 0 until stopsPx.size - 1) {
+                    val a = stopsPx[i]
+                    val b = stopsPx[i + 1]
                     val run = Path().apply {
                         moveTo(a.x, a.y)
-                        cubicTo(a.x, a.y + (b.y - a.y) * 0.7f, b.x, b.y - (b.y - a.y) * 0.7f, b.x, b.y)
+                        if (across) cubicTo(a.x + (b.x - a.x) * 0.7f, a.y, b.x - (b.x - a.x) * 0.7f, b.y, b.x, b.y)
+                        else cubicTo(a.x, a.y + (b.y - a.y) * 0.7f, b.x, b.y - (b.y - a.y) * 0.7f, b.x, b.y)
                     }
                     if (i + 2 <= progress.nights) {
                         pipe(run, 9.dp.toPx())
@@ -199,11 +240,11 @@ internal fun NightsScreen(session: Session) {
                     spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMedium),
                     label = "grow",
                 )
-                val size = 60.dp
+                val box = coin + 8.dp
                 Column(
                     Modifier
-                        .offset(w * STOPS[i].x - 45.dp, h * STOPS[i].y - size / 2)
-                        .width(90.dp)
+                        .offset(stopAt[i].x - box * 0.75f, stopAt[i].y - box / 2)
+                        .width(box * 1.5f)
                         .hoverable(touch)
                         .clickable(
                             interactionSource = touch,
@@ -232,7 +273,7 @@ internal fun NightsScreen(session: Session) {
                     // the phone; the picked one is gold and glows.
                     Box(
                         Modifier
-                            .size(size + 8.dp)
+                            .size(box)
                             .graphicsLayer {
                                 scaleX = grow
                                 scaleY = grow
@@ -252,23 +293,25 @@ internal fun NightsScreen(session: Session) {
                     ) {
                         Box(Modifier.offset(y = (-3).dp)) {
                             if (open) {
-                                Text("${night.number}", style = TextEngraved, fontSize = TypeScale.Title, color = Color(0xFF3E2810))
+                                // The number keeps to the coin's face on a small coin or a big font.
+                                FitText("${night.number}", TextEngraved, if (coin >= 56.dp) TypeScale.Title else TypeScale.Heading, Color(0xFF3E2810), Modifier.width(coin * 0.6f))
                             } else {
-                                GlyphArt(Glyph.Lock, Color(0xFF111316), Modifier.size(24.dp))
+                                GlyphArt(Glyph.Lock, Color(0xFF111316), Modifier.size(coin * 0.4f))
                             }
                         }
                     }
                     if (open) {
                         Row(Modifier.padding(top = 1.dp), horizontalArrangement = Arrangement.spacedBy((-2).dp)) {
                             repeat(3) { star ->
-                                Star(star < progress.nightStars[i], shown = true, instant = true, modifier = Modifier.size(20.dp))
+                                Star(star < progress.nightStars[i], shown = true, instant = true, modifier = Modifier.size(starSize))
                             }
                         }
                     }
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
+        }
+        val details: @Composable () -> Unit = {
         Column(
             Modifier
                 .fillMaxWidth()
@@ -288,8 +331,26 @@ internal fun NightsScreen(session: Session) {
                 Text(picked.twist.tip, color = Dusk.inkSoft, fontSize = TypeScale.Body)
             }
         }
-        Spacer(Modifier.height(10.dp))
-        PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
+        }
+        if (side) {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                map(Modifier.weight(1.5f).fillMaxHeight())
+                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+                    details()
+                    Spacer(Modifier.height(12.dp))
+                    PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
+                }
+            }
+        } else {
+            Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                map(Modifier.fillMaxWidth().weight(1f))
+                Spacer(Modifier.height(10.dp))
+                details()
+                Spacer(Modifier.height(10.dp))
+                PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
+            }
+        }
+      }
     }
     asking?.let { night -> NightConfirm(night, progress.nightStars[night.number - 1], session) { asking = null } }
     }

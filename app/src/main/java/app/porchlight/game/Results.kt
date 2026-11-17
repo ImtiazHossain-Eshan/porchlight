@@ -272,10 +272,17 @@ internal fun Results(session: Session, report: Report) {
                     Modifier
                         .shadow(18.dp, RoundedCornerShape(18.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
                         .gilded(18.dp)
-                        .padding(horizontal = 24.dp, vertical = 26.dp)
-                        .verticalScroll(rememberScrollState()),
+                        // The bottom keeps clear of the frame's corner scrolls.
+                        .padding(start = 24.dp, end = 24.dp, top = 26.dp, bottom = 40.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
+                    // Everything above the buttons scrolls when the card is taller than the screen
+                    // (a short phone, a big font, a round with unlocks); the buttons stay pinned
+                    // at the bottom of the card, always in reach.
+                    Column(
+                        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                     // Stars, flying in from the bulb.
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
                         repeat(3) { i ->
@@ -410,10 +417,12 @@ internal fun Results(session: Session, report: Report) {
                         )
                     }
 
+                    }
+
                     // The buttons rise in last, so they can't be hit by accident mid-sequence.
-                    Spacer(Modifier.height(18.dp))
+                    Spacer(Modifier.height(14.dp))
                     Box(
-                        Modifier.graphicsLayer {
+                        Modifier.padding(horizontal = 6.dp).graphicsLayer {
                             alpha = buttons.value.coerceIn(0f, 1f)
                             translationY = (1f - buttons.value) * 24.dp.toPx()
                         },
