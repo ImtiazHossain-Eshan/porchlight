@@ -335,7 +335,9 @@ internal fun Results(session: Session, report: Report) {
                         Spacer(Modifier.height(14.dp))
 
                         // The hero: the pairs found as a ring round a lit (or burnt-out) bulb.
-                        HeroDisc(
+                        HeroLamp(
+                            session = session,
+                            moths = remember(report) { round.deck.filter { it != MothId.Leaf }.distinct().take(4) },
                             won = won,
                             found = round.pairs,
                             of = round.pairCount,
@@ -346,20 +348,22 @@ internal fun Results(session: Session, report: Report) {
                             modifier = Modifier.onGloballyPositioned { if (round.score == 0) spots.score = it.boundsInRoot().center },
                         )
 
-                        // Stars flip in over the bottom of the hero.
+                        // Stars on an arc, the middle one raised and bigger, slamming in with a burst.
                         Row(
-                            Modifier.offset(y = (-18).dp),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            verticalAlignment = Alignment.Bottom,
+                            Modifier.offset(y = (-22).dp),
+                            horizontalArrangement = Arrangement.spacedBy((-4).dp),
+                            verticalAlignment = Alignment.Top,
                         ) {
                             repeat(3) { i ->
-                                FlipStar(
+                                MedalStar(
                                     filled = i < report.stars,
                                     turn = starsIn > i,
                                     instant = skipped,
                                     calm = calm,
-                                    size = if (i == 1) 50.dp else 40.dp,
-                                    glow = accent,
+                                    size = if (i == 1) 70.dp else 54.dp,
+                                    tilt = (i - 1) * 16f,
+                                    drop = if (i == 1) 0.dp else 14.dp,
+                                    t = { t },
                                     hint = if (i >= report.stars && won) starHint(i, round) else null,
                                 )
                             }
@@ -453,20 +457,19 @@ internal fun Results(session: Session, report: Report) {
                             Column(
                                 Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color.White.copy(alpha = 0.04f))
-                                    .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(16.dp))
-                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.02f))))
+                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
                             ) {
                                 lines.forEachIndexed { i, line ->
                                     SlideIn(linesIn > i, skipped || calm) {
-                                        Line(line, accent, Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
+                                        TallyRow(line, accent, last = i == lines.lastIndex, modifier = Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
                                     }
                                 }
                                 if (won && round.misses == 0) {
-                                    Reveal(linesIn >= lines.size, skipped) {
-                                        Row(Modifier.padding(top = 4.dp)) { Chip("CLEAN!", Craft.goldDeep, Color(0xFFFFF6DC)) }
-                                    }
+                                    Reveal(linesIn >= lines.size, skipped, stamp = !calm) { FlawlessBadge(Modifier.padding(top = 8.dp, bottom = 4.dp)) }
                                 }
                                 if (report.practice) Text("Practice round", style = BodyText, color = MUTED, modifier = Modifier.padding(top = 4.dp))
                             }
@@ -477,7 +480,7 @@ internal fun Results(session: Session, report: Report) {
 
                         Spacer(Modifier.height(12.dp))
                         Reveal(xpIn, skipped) {
-                            XpBar(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
+                            XpPanel(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
                         }
 
                         if (rewards.isNotEmpty()) {
@@ -530,12 +533,22 @@ internal fun Results(session: Session, report: Report) {
                     ) {
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                PillButton("Porch", Glyph.Porch, primary = false, accent, accentDeep, { t }, Modifier.weight(1f)) { session.toPorch() }
-                                PillButton(if (!round.daily && progress.current != round.level.number) "Next level" else "Again", Glyph.Play, primary = true, accent, accentDeep, { t }, Modifier.weight(1.4f)) { session.start() }
+                                GameButton("Porch", null, Glyph.Porch, primary = false, accent, accentDeep, { t }, Modifier.weight(1f)) { session.toPorch() }
+                                val next = !round.daily && progress.current != round.level.number
+                                GameButton(
+                                    if (next) "Next" else "Again",
+                                    if (round.daily) "Daily porch" else "Level ${progress.current}",
+                                    if (next) Glyph.Play else Glyph.Replay,
+                                    primary = true,
+                                    accent,
+                                    accentDeep,
+                                    { t },
+                                    Modifier.weight(1.5f),
+                                ) { session.start() }
                             }
                             // Three losses running on this level: a gentler try, offered and never pushed.
                             if (!round.daily && !won && progress.easierOffered && progress.current == round.level.number) {
-                                PillButton("Easier bulb", Glyph.Bulb, primary = false, accent, accentDeep, { t }, Modifier.fillMaxWidth()) {
+                                GameButton("Easier bulb", null, Glyph.Bulb, primary = false, accent, accentDeep, { t }, Modifier.fillMaxWidth()) {
                                     session.start(daily = false, easy = true)
                                 }
                                 Text(
@@ -547,7 +560,7 @@ internal fun Results(session: Session, report: Report) {
                                 )
                             }
                             if (round.daily && !report.practice) {
-                                PillButton("Share", Glyph.Share, primary = false, accent, accentDeep, { t }, Modifier.fillMaxWidth()) {
+                                GameButton("Share", null, Glyph.Share, primary = false, accent, accentDeep, { t }, Modifier.fillMaxWidth()) {
                                     val card = session.store.progress.dailyCard
                                     if (card != null) session.sharing = card
                                     else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
@@ -747,138 +760,7 @@ private fun DrawScope.glassCard(accent: Color, t: Float) {
     )
 }
 
-/**
- * The hero: a ring that fills with the pairs found, round a disc. A win is a lit gold bulb with rays
- * turning behind it; a loss is a burnt-out bulb, smoke curling up off it and an ember pulse round it.
- */
-@Composable
-private fun HeroDisc(won: Boolean, found: Int, of: Int, play: Boolean, instant: Boolean, calm: Boolean, t: () -> Float, modifier: Modifier = Modifier) {
-    val fill = remember { Animatable(0f) }
-    val pop = remember { Animatable(if (calm) 1f else 0f) }
-    LaunchedEffect(play, instant) {
-        val target = if (of > 0) found.toFloat() / of else 0f
-        if (instant || calm) {
-            fill.snapTo(target)
-            pop.snapTo(1f)
-            return@LaunchedEffect
-        }
-        launch { pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow)) }
-        if (play) fill.animateTo(target, tween(900, easing = FastOutSlowInEasing))
-    }
-    Canvas(
-        modifier
-            .size(132.dp)
-            .graphicsLayer {
-                val p = pop.value
-                scaleX = 0.6f + 0.4f * p
-                scaleY = 0.6f + 0.4f * p
-                alpha = p.coerceIn(0f, 1f)
-                cameraDistance = 12f * density
-                rotationY = if (calm) 0f else sin(t() * 0.8f) * 10f
-            },
-    ) {
-        val time = t()
-        val c = Offset(size.width / 2f, size.height / 2f)
-        val r = size.minDimension / 2f
-        val accent = if (won) WIN else LOSS
-        val deep = if (won) WIN_DEEP else LOSS_DEEP
-        val ring = 7.dp.toPx()
-        if (won) {
-            // Rays turning slowly behind the disc.
-            rotate(time * 18f, c) {
-                for (k in 0 until 14) {
-                    val a = k * (2 * PI.toFloat() / 14)
-                    drawLine(
-                        accent.copy(alpha = 0.22f),
-                        Offset(c.x + cos(a) * r * 0.7f, c.y + sin(a) * r * 0.7f),
-                        Offset(c.x + cos(a) * r * 1.0f, c.y + sin(a) * r * 1.0f),
-                        4.dp.toPx(),
-                        StrokeCap.Round,
-                    )
-                }
-            }
-        } else {
-            // An ember pulse.
-            val pulse = 0.5f + 0.5f * sin(time * 2.4f)
-            drawCircle(accent.copy(alpha = 0.18f * pulse), r * (0.92f + 0.06f * pulse), c, style = Stroke(2.dp.toPx()))
-        }
-        // The ring: a track, and the pairs found as a gradient arc.
-        val inset = ring / 2f + 2.dp.toPx()
-        val arcSize = Size(size.width - inset * 2, size.height - inset * 2)
-        drawArc(Color.White.copy(alpha = 0.08f), 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(ring))
-        if (fill.value > 0f) {
-            drawArc(
-                Brush.sweepGradient(listOf(deep, accent, deep), c),
-                -90f,
-                360f * fill.value,
-                false,
-                Offset(inset, inset),
-                arcSize,
-                style = Stroke(ring, cap = StrokeCap.Round),
-            )
-        }
-        // The disc.
-        val disc = r * 0.68f
-        if (won) {
-            drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = 0.55f), Color.Transparent), c, disc * 1.5f), disc * 1.5f, c)
-            drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF4D6), accent, deep), c, disc), disc, c)
-            glyph(Glyph.Bulb, c, disc * 1.05f, Color(0xFF3A2208))
-        } else {
-            drawCircle(Brush.radialGradient(listOf(Color(0xFF2E3242), Color(0xFF181A24)), c, disc), disc, c)
-            drawCircle(Color.White.copy(alpha = 0.08f), disc, c, style = Stroke(1.dp.toPx()))
-            glyph(Glyph.BulbOff, c, disc * 1.05f, Color(0xFF8D93A6))
-            // Smoke curling up off it.
-            for (k in 0 until 4) {
-                val p = (time * 0.35f + k * 0.25f) % 1f
-                val at = Offset(c.x + sin(time * 1.4f + k * 2f) * disc * 0.25f * p, c.y - disc * 0.45f - p * disc * 1.1f)
-                drawCircle(Color(0xFFB8BED0).copy(alpha = 0.22f * (1f - p)), disc * (0.12f + 0.22f * p), at)
-            }
-        }
-    }
-}
 
-/** One star, flipping over in 3D as its turn comes, with a glow behind it if it was earned. */
-@Composable
-private fun FlipStar(filled: Boolean, turn: Boolean, instant: Boolean, calm: Boolean, size: Dp, glow: Color, hint: String?) {
-    val flip = remember { Animatable(0f) }
-    LaunchedEffect(turn, instant) {
-        if (!turn) return@LaunchedEffect
-        if (instant || calm) flip.snapTo(1f) else flip.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessMediumLow))
-    }
-    Column(Modifier.width(size + 22.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(
-            Modifier
-                .size(size)
-                .graphicsLayer {
-                    val f = flip.value
-                    cameraDistance = 10f * density
-                    rotationY = (1f - f) * 180f
-                    val s = 0.4f + 0.6f * f
-                    scaleX = s
-                    scaleY = s
-                    alpha = f.coerceIn(0f, 1f)
-                }
-                .drawBehind {
-                    val c = Offset(this.size.width / 2f, this.size.height / 2f)
-                    if (filled) {
-                        drawCircle(Brush.radialGradient(listOf(glow.copy(alpha = 0.6f), Color.Transparent), c, this.size.width), this.size.width, c)
-                    } else {
-                        // An unearned star sits in a pale socket, so it reads on the dark glass.
-                        drawCircle(Color.White.copy(alpha = 0.1f), this.size.width * 0.5f, c)
-                        drawCircle(Color.White.copy(alpha = 0.18f), this.size.width * 0.5f, c, style = Stroke(1.dp.toPx()))
-                    }
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Star(filled, shown = true, instant = true, modifier = Modifier.size(size))
-        }
-        if (hint != null) {
-            Reveal(turn, instant) {
-                Text(hint.uppercase(), style = Label, color = MUTED, textAlign = TextAlign.Center, maxLines = 2)
-            }
-        }
-    }
-}
 
 /** A number on a small glass tile with its label and icon; the tiles flip up one after another. */
 @Composable
@@ -943,32 +825,268 @@ private fun ShortOfBest(score: Int, best: Int, accent: Color) {
     }
 }
 
-/** One tally line: an icon, what happened, and what it was worth (if anything). */
+/**
+ * The hero: the porch's own mason-jar lamp, lit gold with moths circling it in 3D (a win), or dark
+ * and smoking (a loss), inside a ring of one segment per pair that light up one by one.
+ */
 @Composable
-private fun Line(line: TallyLine, accent: Color, modifier: Modifier = Modifier) {
-    val icon = when (line.kind) {
-        TallyKind.Pairs -> Glyph.Moth
-        TallyKind.Streak -> Glyph.Flame
-        TallyKind.Time -> Glyph.Clock
-        TallyKind.Misses -> Glyph.Close
+private fun HeroLamp(session: Session, moths: List<MothId>, won: Boolean, found: Int, of: Int, play: Boolean, instant: Boolean, calm: Boolean, t: () -> Float, modifier: Modifier = Modifier) {
+    val lit = remember { Animatable(0f) }
+    val pop = remember { Animatable(if (calm) 1f else 0f) }
+    LaunchedEffect(play, instant) {
+        if (instant || calm) {
+            lit.snapTo(found.toFloat())
+            pop.snapTo(1f)
+            return@LaunchedEffect
+        }
+        launch { pop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMediumLow)) }
+        if (play) lit.animateTo(found.toFloat(), tween(120 * found.coerceAtLeast(1), easing = LinearEasing))
     }
-    Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        GlyphArt(icon, accent, Modifier.size(16.dp))
-        Text(line.text, style = BodyText, color = Color.White.copy(alpha = 0.88f), modifier = Modifier.weight(1f))
-        if (line.points > 0) {
-            Text("+${line.points.grouped()}", style = BodyText, fontWeight = FontWeight.Bold, color = accent, textAlign = TextAlign.End, modifier = modifier)
-        } else {
-            Spacer(modifier)
+    val accent = if (won) WIN else LOSS
+    val deep = if (won) WIN_DEEP else LOSS_DEEP
+    Box(
+        modifier
+            .size(170.dp)
+            .graphicsLayer {
+                val p = pop.value
+                scaleX = 0.6f + 0.4f * p
+                scaleY = 0.6f + 0.4f * p
+                alpha = p.coerceIn(0f, 1f)
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val time = t()
+            val c = Offset(size.width / 2f, size.height / 2f)
+            val r = size.minDimension / 2f
+            // The light behind the lamp, and slow rays on a win.
+            val breathe = 0.85f + 0.15f * sin(time * 2f)
+            drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = (if (won) 0.5f else 0.22f) * breathe), Color.Transparent), c, r), r, c)
+            if (won) {
+                rotate(time * 12f, c) {
+                    for (k in 0 until 16) {
+                        val a = k * (2 * PI.toFloat() / 16)
+                        val ray = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(c.x + cos(a - 0.06f) * r * 0.45f, c.y + sin(a - 0.06f) * r * 0.45f)
+                            lineTo(c.x + cos(a) * r * 0.98f, c.y + sin(a) * r * 0.98f)
+                            lineTo(c.x + cos(a + 0.06f) * r * 0.45f, c.y + sin(a + 0.06f) * r * 0.45f)
+                            close()
+                        }
+                        drawPath(ray, Brush.radialGradient(listOf(accent.copy(alpha = 0.35f), Color.Transparent), c, r))
+                    }
+                }
+            }
+            // The ring: one segment per pair; found ones light up with a glow.
+            val ringR = r * 0.86f
+            val stroke = 9.dp.toPx()
+            val gap = if (of > 1) 6f else 0f
+            val each = 360f / of.coerceAtLeast(1)
+            val box = Offset(c.x - ringR, c.y - ringR)
+            val ringSize = Size(ringR * 2, ringR * 2)
+            for (k in 0 until of) {
+                val start = -90f + k * each + gap / 2f
+                val sweep = each - gap
+                val on = (lit.value - k).coerceIn(0f, 1f)
+                drawArc(Color.White.copy(alpha = 0.07f), start, sweep, false, box, ringSize, style = Stroke(stroke, cap = StrokeCap.Round))
+                if (on > 0f) {
+                    drawArc(accent.copy(alpha = 0.35f * on), start, sweep, false, box, ringSize, style = Stroke(stroke * 2.2f, cap = StrokeCap.Round))
+                    drawArc(
+                        Brush.sweepGradient(listOf(deep, accent, Color(0xFFFFF4D6), accent, deep), c),
+                        start,
+                        sweep * on,
+                        false,
+                        box,
+                        ringSize,
+                        style = Stroke(stroke, cap = StrokeCap.Round),
+                    )
+                }
+            }
+        }
+        // The lamp itself.
+        Bulb(
+            clock = session.clock,
+            timeLeft = { if (won) 1f else 0f },
+            power = { if (won) 1.05f + 0.1f * sin(t() * 2f) else 0f },
+            modifier = Modifier.size(70.dp, 100.dp).offset(y = (-6).dp),
+            lamp = Lamp.Jar,
+            smoke = { !won },
+            still = calm,
+            ownHalo = true,
+        )
+        // Moths circling the light on a tilted ring: smaller and dimmer behind, bigger in front.
+        if (won) {
+            moths.forEachIndexed { k, moth ->
+                MothArt(
+                    moth,
+                    Modifier
+                        .size(34.dp)
+                        .graphicsLayer {
+                            val a = t() * 0.9f + k * (2 * PI.toFloat() / moths.size)
+                            val depth = sin(a)
+                            translationX = cos(a) * 62.dp.toPx()
+                            translationY = depth * 20.dp.toPx() - 4.dp.toPx() + sin(t() * 2.5f + k) * 4.dp.toPx()
+                            val sc = 0.7f + 0.3f * depth
+                            scaleX = sc
+                            scaleY = sc
+                            alpha = 0.55f + 0.45f * (depth + 1f) / 2f
+                            rotationZ = cos(a) * 25f
+                        },
+                    open = 0.55f + 0.45f * abs(sin(t() * 12f + k)),
+                )
+            }
         }
     }
 }
 
+/** A five-point star path, pointing up. */
+private fun starPath(c: Offset, r: Float, inner: Float = 0.48f) = androidx.compose.ui.graphics.Path().apply {
+    for (k in 0 until 10) {
+        val a = -PI.toFloat() / 2f + k * PI.toFloat() / 5f
+        val rr = if (k % 2 == 0) r else r * inner
+        val p = Offset(c.x + cos(a) * rr, c.y + sin(a) * rr)
+        if (k == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+    }
+    close()
+}
+
 /**
- * XP: the level emblem, small, and a bar that fills with what this round earned, a light running
- * along it. A level-up fills the bar, flashes LEVEL UP, spins the emblem and refills from empty.
+ * A star as a struck gold medal: a dark rim, a bevelled face lit from the top left, a highlight, and
+ * sparkles glinting round it. It slams in from big with a ring of light bursting out. An unearned
+ * star is an engraved gunmetal socket.
  */
 @Composable
-private fun XpBar(session: Session, report: Report, accent: Color, play: Boolean, instant: Boolean, t: () -> Float, onPlaced: (Offset) -> Unit) {
+private fun MedalStar(filled: Boolean, turn: Boolean, instant: Boolean, calm: Boolean, size: Dp, tilt: Float, drop: Dp, t: () -> Float, hint: String?) {
+    val land = remember { Animatable(0f) }
+    val burst = remember { Animatable(1f) }
+    LaunchedEffect(turn, instant) {
+        if (!turn) return@LaunchedEffect
+        if (instant || calm) {
+            land.snapTo(1f)
+            return@LaunchedEffect
+        }
+        if (filled) launch {
+            delay(140)
+            burst.snapTo(0f)
+            burst.animateTo(1f, tween(520, easing = FastOutSlowInEasing))
+        }
+        land.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = Spring.StiffnessMediumLow))
+    }
+    Column(Modifier.width(size + 18.dp).padding(top = drop), horizontalAlignment = Alignment.CenterHorizontally) {
+        Canvas(
+            Modifier
+                .size(size)
+                .graphicsLayer {
+                    val l = land.value
+                    rotationZ = tilt + (1f - l) * -40f
+                    val sc = if (filled) 2.2f - 1.2f * l else 0.6f + 0.4f * l
+                    scaleX = sc
+                    scaleY = sc
+                    alpha = l.coerceIn(0f, 1f)
+                },
+        ) {
+            val c = Offset(this.size.width / 2f, this.size.height / 2f)
+            val r = this.size.minDimension / 2f
+            if (filled) {
+                val b = burst.value
+                if (b < 1f) drawCircle(WIN.copy(alpha = 0.7f * (1f - b)), r * (0.8f + 1.1f * b), c, style = Stroke(3.dp.toPx() * (1f - b)))
+                drawCircle(Brush.radialGradient(listOf(WIN.copy(alpha = 0.45f), Color.Transparent), c, r * 1.25f), r * 1.25f, c)
+                drawPath(starPath(c, r), Color(0xFF8A4B00))
+                drawPath(
+                    starPath(Offset(c.x, c.y - r * 0.02f), r * 0.9f),
+                    Brush.linearGradient(listOf(Color(0xFFFFF6C2), Color(0xFFFFD04A), Color(0xFFE38A00)), Offset(c.x - r, c.y - r), Offset(c.x + r, c.y + r)),
+                )
+                drawPath(
+                    starPath(c, r * 0.55f, inner = 0.5f),
+                    Brush.linearGradient(listOf(Color(0xFFFFE07A), Color(0xFFFFB420)), Offset(c.x + r * 0.5f, c.y + r * 0.5f), Offset(c.x - r * 0.5f, c.y - r * 0.5f)),
+                )
+                drawOval(Color.White.copy(alpha = 0.55f), Offset(c.x - r * 0.42f, c.y - r * 0.55f), Size(r * 0.38f, r * 0.2f))
+                if (!calm) {
+                    val time = t()
+                    for (k in 0 until 3) {
+                        val g = sin(time * 2.6f + k * 2.1f + tilt).coerceAtLeast(0f)
+                        if (g <= 0f) continue
+                        val a = k * 2.1f + tilt * 0.1f
+                        val at = Offset(c.x + cos(a) * r, c.y + sin(a) * r * 0.95f)
+                        val s = r * 0.22f * g
+                        drawLine(Color.White.copy(alpha = g), Offset(at.x - s, at.y), Offset(at.x + s, at.y), 1.5.dp.toPx(), StrokeCap.Round)
+                        drawLine(Color.White.copy(alpha = g), Offset(at.x, at.y - s), Offset(at.x, at.y + s), 1.5.dp.toPx(), StrokeCap.Round)
+                    }
+                }
+            } else {
+                drawPath(starPath(c, r), Color(0xFF0B0D14))
+                drawPath(
+                    starPath(Offset(c.x, c.y + r * 0.03f), r * 0.88f),
+                    Brush.linearGradient(listOf(Color(0xFF3A4054), Color(0xFF1B1F2B)), Offset(c.x, c.y - r), Offset(c.x, c.y + r)),
+                )
+                drawPath(starPath(c, r * 0.88f), Color.White.copy(alpha = 0.12f), style = Stroke(1.dp.toPx()))
+            }
+        }
+        if (hint != null) {
+            Reveal(turn, instant) {
+                Text(hint.uppercase(), style = Label, color = MUTED, textAlign = TextAlign.Center, maxLines = 2)
+            }
+        }
+    }
+}
+
+/** One line of the tally: an icon on a tinted tile, what it was and a word about it, and its points. */
+@Composable
+private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, modifier: Modifier = Modifier) {
+    val (icon, tint, caption) = when (line.kind) {
+        TallyKind.Pairs -> Triple(Glyph.Moth, Color(0xFF7CC6FF), "Matched")
+        TallyKind.Streak -> Triple(Glyph.Flame, Color(0xFFFF8A5B), "Best chain")
+        TallyKind.Time -> Triple(Glyph.Clock, Color(0xFF8BE3B0), "Bulb to spare")
+        TallyKind.Misses -> Triple(Glyph.Close, Color(0xFFFF6B7A), "Wrong pairs")
+    }
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .background(Brush.linearGradient(listOf(tint.copy(alpha = 0.32f), tint.copy(alpha = 0.12f))), RoundedCornerShape(10.dp))
+                    .border(1.dp, tint.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+                contentAlignment = Alignment.Center,
+            ) { GlyphArt(icon, tint, Modifier.size(18.dp)) }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(line.text, style = BodyText, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                Text(caption, style = Label, color = MUTED, maxLines = 1)
+            }
+            if (line.points > 0) {
+                Text("+${line.points.grouped()}", style = Display, fontSize = 18.sp, color = accent, textAlign = TextAlign.End, modifier = modifier)
+            } else {
+                Spacer(modifier)
+            }
+        }
+        if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.06f)))
+    }
+}
+
+/** No wrong pairs: a teal badge with a check, stamped under the tally. */
+@Composable
+private fun FlawlessBadge(modifier: Modifier = Modifier) {
+    Row(
+        modifier
+            .background(Brush.horizontalGradient(listOf(Color(0xFF1FA88E), Color(0xFF5FD6C4))), RoundedCornerShape(50))
+            .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(50))
+            .padding(start = 6.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(18.dp).background(Color.White.copy(alpha = 0.25f), RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
+            GlyphArt(Glyph.Check, Color.White, Modifier.size(12.dp))
+        }
+        Spacer(Modifier.width(6.dp))
+        Text("FLAWLESS · NO WRONG PAIRS", style = Label, fontWeight = FontWeight.Bold, color = Color.White)
+    }
+}
+
+/**
+ * XP: the level emblem beside a thick, glossy bar in segments that fills with what this round
+ * earned, a light running along it. A level-up fills it, flashes UP!, spins the emblem and refills
+ * from empty. Nothing glows outside the bar.
+ */
+@Composable
+private fun XpPanel(session: Session, report: Report, accent: Color, play: Boolean, instant: Boolean, t: () -> Float, onPlaced: (Offset) -> Unit) {
     val progress = session.store.progress
     val xpAfter = progress.xp
     val xpBefore = xpAfter - report.xp
@@ -990,7 +1108,7 @@ private fun XpBar(session: Session, report: Report, accent: Color, play: Boolean
         }
         delay(150)
         if (!up) {
-            bar.animateTo(levelFill(xpAfter), tween(700, easing = FastOutSlowInEasing))
+            bar.animateTo(levelFill(xpAfter), tween(800, easing = FastOutSlowInEasing))
             return@LaunchedEffect
         }
         bar.animateTo(1f, tween(450))
@@ -1007,20 +1125,22 @@ private fun XpBar(session: Session, report: Report, accent: Color, play: Boolean
         bar.animateTo(levelFill(xpAfter), tween(600, easing = FastOutSlowInEasing))
     }
     val level = levelFor(xpAfter)
+    val into = xpAfter - xpFor(level)
+    val span = xpFor(level + 1) - xpFor(level)
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(18.dp))
-            .background(Color.White.copy(alpha = 0.04f))
-            .border(1.dp, Color.White.copy(alpha = 0.07f), RoundedCornerShape(18.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.02f))))
+            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+            .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Emblem(
             report.levelAfter,
             Modifier
                 .flies("emblem")
-                .size(52.dp)
+                .size(56.dp)
                 .onGloballyPositioned { onPlaced(it.boundsInRoot().center) }
                 .graphicsLayer {
                     cameraDistance = 12f * density
@@ -1035,12 +1155,13 @@ private fun XpBar(session: Session, report: Report, accent: Color, play: Boolean
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Level ${report.levelAfter}", style = BodyText, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("LEVEL ${report.levelAfter}", style = Display, fontSize = 17.sp, color = Color.White)
                 if (up) {
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        "LEVEL UP",
+                        "UP!",
                         style = Label,
+                        fontWeight = FontWeight.Bold,
                         color = Color(0xFF1A1206),
                         modifier = Modifier
                             .graphicsLayer {
@@ -1054,74 +1175,130 @@ private fun XpBar(session: Session, report: Report, accent: Color, play: Boolean
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                Text(if (report.practice) "NO XP" else "+${report.xp} XP", style = Label, color = accent)
+                Text(
+                    if (report.practice) "NO XP" else "+${report.xp} XP",
+                    style = Label,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1A1206),
+                    modifier = Modifier
+                        .background(Brush.horizontalGradient(listOf(accent, Color(0xFFFFE9A8))), RoundedCornerShape(50))
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                )
             }
-            Spacer(Modifier.height(6.dp))
-            // The bar, with a soft light at its leading edge and a shine running along it.
-            Canvas(Modifier.fillMaxWidth().height(10.dp)) {
+            Spacer(Modifier.height(8.dp))
+            Canvas(
+                Modifier
+                    .fillMaxWidth()
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(7.dp)),
+            ) {
                 val radius = CornerRadius(size.height / 2f)
-                drawRoundRect(Color.White.copy(alpha = 0.08f), cornerRadius = radius)
+                // A recessed track.
+                drawRoundRect(Color(0xFF07080D), cornerRadius = radius)
+                drawRoundRect(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent), 0f, size.height * 0.5f), cornerRadius = radius)
                 val w = size.width * bar.value.coerceIn(0f, 1f)
                 if (w > 0f) {
-                    drawRoundRect(Brush.horizontalGradient(listOf(accent.copy(alpha = 0.7f), accent), 0f, w), size = Size(w, size.height), cornerRadius = radius)
+                    drawRoundRect(Brush.horizontalGradient(listOf(Color(0xFFFF8A3D), accent, Color(0xFFFFE9A8)), 0f, size.width), size = Size(w, size.height), cornerRadius = radius)
+                    // Gloss on the top.
+                    drawRoundRect(
+                        Color.White.copy(alpha = 0.28f),
+                        Offset(2.dp.toPx(), 1.5.dp.toPx()),
+                        Size((w - 4.dp.toPx()).coerceAtLeast(0f), size.height * 0.32f),
+                        CornerRadius(size.height / 4f),
+                    )
                     if (!calm) {
-                        val run = ((t() * 0.5f) % 1.4f) * size.width
-                        drawRoundRect(
-                            Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.45f), Color.Transparent), run - 40.dp.toPx(), run),
+                        val run = ((t() * 0.45f) % 1.4f) * size.width
+                        drawRect(
+                            Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.5f), Color.Transparent), run - 36.dp.toPx(), run),
                             size = Size(w, size.height),
-                            cornerRadius = radius,
                         )
                     }
-                    val head = Offset(w, size.height / 2f)
-                    drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.8f), Color.Transparent), head, size.height * 1.4f), size.height * 1.4f, head)
+                }
+                // Segments, so it reads as a gauge.
+                for (k in 1 until 10) {
+                    val x = size.width * k / 10f
+                    drawLine(Color.Black.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, size.height), 1.5.dp.toPx())
                 }
             }
-            Spacer(Modifier.height(4.dp))
-            Text("${xpToGo(xpAfter).grouped()} XP to level ${level + 1}", style = Label, color = MUTED)
+            Spacer(Modifier.height(6.dp))
+            Row {
+                Text("${xpToGo(xpAfter).grouped()} to level ${level + 1}", style = Label, color = MUTED, modifier = Modifier.weight(1f))
+                Text("${into.grouped()} / ${span.grouped()}", style = Label, color = MUTED.copy(alpha = 0.7f))
+            }
         }
     }
 }
 
-/** A modern pill button: solid in the result's colour with a moving shine, or quiet glass. */
+/**
+ * A chunky 3D game button: a face on a darker slab, so it stands up off the card and pushes down
+ * when pressed. The main one is in the result's colour with a shine crossing it, its icon in a
+ * round well and a small line under its word; the other is slate.
+ */
 @Composable
-private fun PillButton(text: String, glyph: Glyph, primary: Boolean, accent: Color, deep: Color, t: () -> Float, modifier: Modifier, onClick: () -> Unit) {
+private fun GameButton(text: String, sub: String?, glyph: Glyph, primary: Boolean, accent: Color, deep: Color, t: () -> Float, modifier: Modifier, onClick: () -> Unit) {
     val touch = remember { MutableInteractionSource() }
     val pressed by touch.collectIsPressedAsState()
-    val press by animateFloatAsState(if (pressed) 0.95f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "press")
-    val shape = RoundedCornerShape(18.dp)
-    val ink = if (primary) Color(0xFF1A1206) else Color.White
-    Row(
+    val push by animateFloatAsState(if (pressed) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessHigh), label = "push")
+    val depth = 6.dp
+    val height = 66.dp
+    val shape = RoundedCornerShape(20.dp)
+    val ink = if (primary) Color(0xFF241405) else Color.White
+    val faceTop = if (primary) Color(0xFFFFF0C4).copy(alpha = 0.85f).compositeOver(accent) else Color(0xFF3A4157)
+    val faceMid = if (primary) accent else Color(0xFF2A3043)
+    val faceBottom = if (primary) deep else Color(0xFF20253A)
+    val slab = if (primary) Color(deep.red * 0.55f, deep.green * 0.55f, deep.blue * 0.55f) else Color(0xFF11141F)
+    Box(
         modifier
-            .height(56.dp)
-            .graphicsLayer {
-                scaleX = press
-                scaleY = press
-            }
-            .shadow(if (primary) 14.dp else 0.dp, shape, ambientColor = deep, spotColor = deep)
-            .clip(shape)
-            .then(
-                if (primary) Modifier.background(Brush.verticalGradient(listOf(Color(0xFFFFF0C4).copy(alpha = 0.9f).compositeOver(accent), accent, deep)))
-                else Modifier.background(Color.White.copy(alpha = 0.07f)).border(1.dp, Color.White.copy(alpha = 0.16f), shape),
-            )
-            .drawWithContent {
-                drawContent()
-                if (primary) {
-                    val run = ((t() * 0.35f) % 1.5f) * size.width * 1.6f - size.width * 0.3f
-                    drawRect(
-                        Brush.linearGradient(
-                            listOf(Color.Transparent, Color.White.copy(alpha = 0.35f), Color.Transparent),
-                            Offset(run - size.height, 0f),
-                            Offset(run, size.height),
-                        ),
-                    )
-                }
-            }
+            .height(height)
             .clickable(interactionSource = touch, indication = null, role = Role.Button, onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
     ) {
-        GlyphArt(glyph, ink, Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(text, style = BodyText, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = ink, maxLines = 1)
+        // The slab underneath.
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(height - 2.dp)
+                .offset(y = 2.dp)
+                .shadow(if (primary) 16.dp else 6.dp, shape, ambientColor = deep, spotColor = if (primary) deep else Color.Black)
+                .background(slab, shape),
+        )
+        // The face.
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(height - depth)
+                .offset { IntOffset(0, (push * (depth.toPx() - 1.dp.toPx())).roundToInt()) }
+                .clip(shape)
+                .background(Brush.verticalGradient(listOf(faceTop, faceMid, faceBottom)))
+                .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = if (primary) 0.6f else 0.18f), Color.Transparent)), shape)
+                .drawWithContent {
+                    drawContent()
+                    if (primary) {
+                        val run = ((t() * 0.35f) % 1.6f) * size.width * 1.6f - size.width * 0.3f
+                        drawRect(
+                            Brush.linearGradient(
+                                listOf(Color.Transparent, Color.White.copy(alpha = 0.4f), Color.Transparent),
+                                Offset(run - size.height, 0f),
+                                Offset(run, size.height),
+                            ),
+                        )
+                    }
+                }
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .background(if (primary) Color.White.copy(alpha = 0.35f) else accent.copy(alpha = 0.16f), RoundedCornerShape(50))
+                    .border(1.dp, if (primary) Color.White.copy(alpha = 0.5f) else accent.copy(alpha = 0.4f), RoundedCornerShape(50)),
+                contentAlignment = Alignment.Center,
+            ) { GlyphArt(glyph, if (primary) ink else accent, Modifier.size(18.dp)) }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(text.uppercase(), style = Display, fontSize = 19.sp, color = ink, maxLines = 1)
+                if (sub != null) Text(sub, style = Label, color = ink.copy(alpha = 0.7f), maxLines = 1)
+            }
+        }
     }
 }
