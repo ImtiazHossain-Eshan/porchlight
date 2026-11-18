@@ -141,7 +141,10 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
     val round = session.round
     val id = round.deck[index]
     // During the deal and warm-up the cards lie face down, though the round is already in its peek.
-    val faceUp = round.isFaceUp(index) && !(round.phase == Phase.Peek && session.peekStage != PeekStage.Look)
+    // While the round is paused (by the player, or the app going to the background) every card lies
+    // face down: a pause must never become extra time to study the board.
+    val hidden = round.paused || session.peekPaused
+    val faceUp = round.isFaceUp(index) && !(round.phase == Phase.Peek && session.peekStage != PeekStage.Look) && !hidden
     // Turning up for the peek runs in a wave from the bulb down (top row first); folding shut at
     // its end runs back up (bottom row first). A player's own flips turn at once.
     var up by remember { mutableStateOf(faceUp) }
