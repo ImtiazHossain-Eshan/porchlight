@@ -294,300 +294,283 @@ internal fun Results(session: Session, report: Report) {
     Box(Modifier.fillMaxSize()) {
         // The backdrop: a veil, a slow aurora in the result's colour, and confetti (a win) or embers (a loss).
         Canvas(Modifier.fillMaxSize()) { resultBackdrop(won, if (calm) 0f else t, appear, calm) }
-        Box(
+        Column(
             Modifier
                 .fillMaxSize()
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { skipped = true }
                 .safeDrawingPadding()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
-            contentAlignment = Alignment.Center,
+                .padding(horizontal = 20.dp, vertical = 10.dp)
+                .graphicsLayer {
+                    // Everything rises in from below, tipped back in 3D, and leans with the phone.
+                    val p = slide.value
+                    cameraDistance = 16f * density
+                    transformOrigin = TransformOrigin(0.5f, 1f)
+                    translationY = p * size.height * 0.25f
+                    rotationX = p * 30f + if (calm) 0f else -session.tilt.y * 3f
+                    rotationY = if (calm) 0f else session.tilt.x * 4f
+                    alpha = appear
+                    translationX = shake.value * density
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(
-                Modifier
-                    .widthIn(max = 440.dp)
-                    .graphicsLayer {
-                        // The card swings up out of the floor in 3D, then leans with the phone.
-                        val p = slide.value
-                        cameraDistance = 16f * density
-                        transformOrigin = TransformOrigin(0.5f, 1f)
-                        translationY = p * size.height * 0.5f
-                        rotationX = p * 55f + if (calm) 0f else -session.tilt.y * 5f
-                        rotationY = if (calm) 0f else session.tilt.x * 6f
-                        val sc = 0.9f + 0.1f * appear
-                        scaleX = sc
-                        scaleY = sc
-                        alpha = appear
-                        translationX = shake.value * density
-                    },
-            ) {
+            // The top bar: back to the porch, and where this was.
+            Row(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                RoundIcon(Glyph.Close, "Back to the porch") { session.toPorch() }
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        if (round.daily) "DAILY PORCH" else "LEVEL ${round.level.number}",
+                        style = Label,
+                        color = accent,
+                    )
+                    Text(
+                        if (round.daily) "Today's deal" else chapterOf(round.level).name,
+                        style = Modern,
+                        fontSize = 18.sp,
+                        color = Color.White,
+                        maxLines = 1,
+                    )
+                }
+                Spacer(Modifier.size(44.dp))
+            }
+
+            // The middle: centred when it fits, scrolling when it doesn't.
+            Box(Modifier.weight(1f).widthIn(max = 480.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Column(
-                    Modifier
-                        .shadow(30.dp, CARD_SHAPE, ambientColor = Color.Black, spotColor = accentDeep)
-                        .clip(CARD_SHAPE)
-                        .drawBehind { glassCard(accent, if (calm) 0f else t) }
-                        .border(1.dp, Brush.verticalGradient(listOf(accent.copy(alpha = 0.7f), Color.White.copy(alpha = 0.08f), accent.copy(alpha = 0.25f))), CARD_SHAPE)
-                        .padding(start = 20.dp, end = 20.dp, top = 18.dp, bottom = 20.dp),
+                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Column(
-                        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+                    // The hero: the pairs found as a ring round a lit (or burnt-out) bulb.
+                    HeroLamp(
+                        session = session,
+                        moths = remember(report) { round.deck.filter { it != MothId.Leaf }.distinct().take(4) },
+                        won = won,
+                        found = round.pairs,
+                        of = round.pairCount,
+                        play = headline,
+                        instant = skipped,
+                        calm = calm,
+                        t = { t },
+                        modifier = Modifier.onGloballyPositioned { if (round.score == 0) spots.score = it.boundsInRoot().center },
+                    )
+
+                    // Stars on an arc, the middle one raised and bigger, slamming in with a burst.
+                    Row(
+                        Modifier.offset(y = (-22).dp),
+                        horizontalArrangement = Arrangement.spacedBy((-4).dp),
+                        verticalAlignment = Alignment.Top,
                     ) {
-                        // Where this was: a small pill at the top.
-                        Text(
-                            if (round.daily) "DAILY PORCH" else "LEVEL ${round.level.number} · ${chapterOf(round.level).name.uppercase()}",
-                            style = Label,
-                            color = accent,
-                            modifier = Modifier
-                                .background(accent.copy(alpha = 0.12f), RoundedCornerShape(50))
-                                .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(50))
-                                .glint({ t }, calm, every = 4f)
-                                .padding(horizontal = 12.dp, vertical = 4.dp),
-                        )
-                        Spacer(Modifier.height(14.dp))
-
-                        // The hero: the pairs found as a ring round a lit (or burnt-out) bulb.
-                        HeroLamp(
-                            session = session,
-                            moths = remember(report) { round.deck.filter { it != MothId.Leaf }.distinct().take(4) },
-                            won = won,
-                            found = round.pairs,
-                            of = round.pairCount,
-                            play = headline,
-                            instant = skipped,
-                            calm = calm,
-                            t = { t },
-                            modifier = Modifier.onGloballyPositioned { if (round.score == 0) spots.score = it.boundsInRoot().center },
-                        )
-
-                        // Stars on an arc, the middle one raised and bigger, slamming in with a burst.
-                        Row(
-                            Modifier.offset(y = (-22).dp),
-                            horizontalArrangement = Arrangement.spacedBy((-4).dp),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            repeat(3) { i ->
-                                MedalStar(
-                                    filled = i < report.stars,
-                                    turn = starsIn > i,
-                                    instant = skipped,
-                                    calm = calm,
-                                    size = if (i == 1) 70.dp else 54.dp,
-                                    tilt = (i - 1) * 16f,
-                                    drop = if (i == 1) 0.dp else 14.dp,
-                                    t = { t },
-                                    hint = if (i >= report.stars && won) starHint(i, round) else null,
-                                )
-                            }
-                        }
-
-                        // The headline, then a word on a loss: how close, or a tip.
-                        HeroTitle(
-                            if (won) "Every pair found!" else "The bulb burned out",
-                            won = won,
-                            shown = headline,
-                            instant = skipped,
-                            calm = calm,
-                            t = { t },
-                        )
-                        if (note != null) {
-                            TypeText(note, shown = headline, instant = skipped || calm, modifier = Modifier.padding(top = 6.dp))
-                        }
-                        report.chapterDone?.let { chapter ->
-                            Reveal(headline, skipped, stamp = !calm) {
-                                ChapterStamp(chapter, onLand = {
-                                    if (!skipped) {
-                                        session.sfx.play(Sound.Thunk)
-                                        session.buzz(HapticFeedbackType.LongPress)
-                                    }
-                                })
-                            }
-                        }
-                        if (bestIn) {
-                            Reveal(true, skipped, stamp = !calm) {
-                                LaunchedEffect(Unit) {
-                                    if (!skipped && !calm) {
-                                        session.sfx.play(Sound.Thunk)
-                                        session.buzz(HapticFeedbackType.LongPress)
-                                        for (x in listOf(3f, -3f, 2f, -2f, 0f)) shake.animateTo(x, tween(40))
-                                    }
-                                }
-                                Text(
-                                    "NEW BEST",
-                                    style = Label,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1A1206),
-                                    modifier = Modifier
-                                        .padding(top = 8.dp)
-                                        .background(Brush.horizontalGradient(listOf(WIN, Color(0xFFFFE9A8), WIN)), RoundedCornerShape(50))
-                                        .padding(horizontal = 14.dp, vertical = 4.dp),
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-
-                        // Three numbers: pairs, score, and time left (a win) or your best (a loss).
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatTile("PAIRS", Glyph.Moth, accent, headline, skipped, 0, Modifier.weight(1f)) {
-                                Text("${round.pairs}/${round.pairCount}", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                            }
-                            StatTile(
-                                "SCORE",
-                                Glyph.Star,
-                                accent,
-                                headline,
-                                skipped,
-                                1,
-                                Modifier
-                                    .weight(1.25f)
-                                    .onGloballyPositioned { if (round.score > 0) spots.score = it.boundsInRoot().center }
-                                    .graphicsLayer {
-                                        scaleX = punch.value
-                                        scaleY = punch.value
-                                    },
-                            ) {
-                                CountUp(scoreShown, numberStyle(accent), 24.sp, durationMs = 300, instant = skipped, calm = calm)
-                            }
-                            if (won) {
-                                StatTile("TIME LEFT", Glyph.Clock, accent, headline, skipped, 2, Modifier.weight(1f)) {
-                                    Text("${(round.left + 999) / 1000} s", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                                }
-                            } else {
-                                StatTile("BEST", Glyph.Trophy, accent, headline, skipped, 2, Modifier.weight(1f)) {
-                                    Text(progress.best.grouped(), style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                                }
-                            }
-                        }
-
-                        // The tally: short lines that build the score.
-                        if (lines.isNotEmpty() || (won && round.misses == 0) || report.practice) {
-                            Spacer(Modifier.height(10.dp))
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.02f))))
-                                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                lines.forEachIndexed { i, line ->
-                                    SlideIn(linesIn > i, skipped || calm) {
-                                        TallyRow(line, accent, last = i == lines.lastIndex, modifier = Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
-                                    }
-                                }
-                                if (won && round.misses == 0) {
-                                    Reveal(linesIn >= lines.size, skipped, stamp = !calm) { FlawlessBadge(Modifier.padding(top = 8.dp, bottom = 4.dp)) }
-                                }
-                                if (report.practice) Text("Practice round", style = BodyText, color = MUTED, modifier = Modifier.padding(top = 4.dp))
-                            }
-                        }
-                        if (!report.practice && !report.newBest && round.score > 0 && progress.best > round.score) {
-                            Reveal(linesIn >= lines.size && scoreShown == round.score, skipped) { ShortOfBest(round.score, progress.best, accent) }
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-                        Reveal(xpIn, skipped) {
-                            XpPanel(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
-                        }
-
-                        if (rewards.isNotEmpty()) {
-                            Spacer(Modifier.height(12.dp))
-                            Row(
-                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                            ) {
-                                rewards.forEachIndexed { i, reward ->
-                                    Reveal(rewardsIn > i, skipped, stamp = !calm) {
-                                        Column(
-                                            Modifier
-                                                .width(132.dp)
-                                                .clip(RoundedCornerShape(16.dp))
-                                                .background(Brush.verticalGradient(listOf(accent.copy(alpha = 0.14f), Color.White.copy(alpha = 0.03f))))
-                                                .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
-                                                .padding(horizontal = 8.dp, vertical = 10.dp)
-                                                .semantics(mergeDescendants = true) {},
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                        ) {
-                                            reward.art()
-                                            Spacer(Modifier.height(6.dp))
-                                            Text(reward.title.uppercase(), style = Label, color = accent, textAlign = TextAlign.Center, maxLines = 2)
-                                            Text(reward.detail, style = BodyText, color = MUTED, lineHeight = 19.sp, textAlign = TextAlign.Center, maxLines = 3)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        if (round.daily) {
-                            Spacer(Modifier.height(10.dp))
-                            Text(
-                                if (report.practice) "Today's scored try is already in. A new porch comes tomorrow."
-                                else "Daily porch · ${report.dailyStreak} ${if (report.dailyStreak == 1) "day" else "days"} running",
-                                style = BodyText,
-                                color = MUTED,
-                                textAlign = TextAlign.Center,
+                        repeat(3) { i ->
+                            MedalStar(
+                                filled = i < report.stars,
+                                turn = starsIn > i,
+                                instant = skipped,
+                                calm = calm,
+                                size = if (i == 1) 70.dp else 54.dp,
+                                tilt = (i - 1) * 16f,
+                                drop = if (i == 1) 0.dp else 14.dp,
+                                t = { t },
+                                hint = if (i >= report.stars && won) starHint(i, round) else null,
                             )
                         }
                     }
 
-                    // The buttons rise in last, so they can't be hit by accident mid-sequence.
-                    Spacer(Modifier.height(16.dp))
-                    Box(
-                        Modifier.graphicsLayer {
-                            alpha = buttons.value.coerceIn(0f, 1f)
-                            translationY = (1f - buttons.value) * 24.dp.toPx()
-                        },
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                GameButton("Porch", null, Glyph.Porch, primary = false, accent, accentDeep, { t }, Modifier.weight(1f)) { session.toPorch() }
-                                val next = !round.daily && progress.current != round.level.number
-                                GameButton(
-                                    if (next) "Next" else "Again",
-                                    if (round.daily) "Daily porch" else "Level ${progress.current}",
-                                    if (next) Glyph.Play else Glyph.Replay,
-                                    primary = true,
-                                    accent,
-                                    accentDeep,
-                                    { t },
-                                    Modifier.weight(1.5f),
-                                ) { session.start() }
-                            }
-                            // Three losses running on this level: a gentler try, offered and never pushed.
-                            if (!round.daily && !won && progress.easierOffered && progress.current == round.level.number) {
-                                GameButton("Easier bulb", null, Glyph.Bulb, primary = false, accent, accentDeep, { t }, Modifier.fillMaxWidth()) {
-                                    session.start(daily = false, easy = true)
+                    // The headline, then a word on a loss: how close, or a tip.
+                    HeroTitle(
+                        if (won) "Every pair found!" else "The bulb burned out",
+                        won = won,
+                        shown = headline,
+                        instant = skipped,
+                        calm = calm,
+                        t = { t },
+                    )
+                    if (note != null) {
+                        TypeText(note, shown = headline, instant = skipped || calm, modifier = Modifier.padding(top = 6.dp))
+                    }
+                    report.chapterDone?.let { chapter ->
+                        Reveal(headline, skipped, stamp = !calm) {
+                            ChapterStamp(chapter, onLand = {
+                                if (!skipped) {
+                                    session.sfx.play(Sound.Thunk)
+                                    session.buzz(HapticFeedbackType.LongPress)
                                 }
-                                Text(
-                                    "A fifth more time. One star at most.",
-                                    style = BodyText,
-                                    color = MUTED,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                            }
-                            if (round.daily && !report.practice) {
-                                GameButton("Share", null, Glyph.Share, primary = false, accent, accentDeep, { t }, Modifier.fillMaxWidth()) {
-                                    val card = session.store.progress.dailyCard
-                                    if (card != null) session.sharing = card
-                                    else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
-                                }
-                            }
+                            })
                         }
-                        // Until they have risen, a tap there skips ahead like anywhere else.
-                        if (buttons.value < 0.95f) {
-                            Box(
-                                Modifier
-                                    .matchParentSize()
-                                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { skipped = true },
+                    }
+                    if (bestIn) {
+                        Reveal(true, skipped, stamp = !calm) {
+                            LaunchedEffect(Unit) {
+                                if (!skipped && !calm) {
+                                    session.sfx.play(Sound.Thunk)
+                                    session.buzz(HapticFeedbackType.LongPress)
+                                    for (x in listOf(3f, -3f, 2f, -2f, 0f)) shake.animateTo(x, tween(40))
+                                }
+                            }
+                            Text(
+                                "NEW BEST",
+                                style = Label,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A1206),
+                                modifier = Modifier
+                                    .padding(top = 8.dp)
+                                    .background(Brush.horizontalGradient(listOf(WIN, Color(0xFFFFE9A8), WIN)), RoundedCornerShape(50))
+                                    .padding(horizontal = 14.dp, vertical = 4.dp),
                             )
                         }
+                    }
+                    Spacer(Modifier.height(16.dp))
+
+                    // Three numbers: pairs, score, and time left (a win) or your best (a loss).
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        StatTile("PAIRS", Glyph.Moth, accent, headline, skipped, 0, Modifier.weight(1f)) {
+                            Text("${round.pairs}/${round.pairCount}", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
+                        }
+                        StatTile(
+                            "SCORE",
+                            Glyph.Star,
+                            accent,
+                            headline,
+                            skipped,
+                            1,
+                            Modifier
+                                .weight(1.25f)
+                                .onGloballyPositioned { if (round.score > 0) spots.score = it.boundsInRoot().center }
+                                .graphicsLayer {
+                                    scaleX = punch.value
+                                    scaleY = punch.value
+                                },
+                        ) {
+                            CountUp(scoreShown, numberStyle(accent), 24.sp, durationMs = 300, instant = skipped, calm = calm)
+                        }
+                        if (won) {
+                            StatTile("TIME LEFT", Glyph.Clock, accent, headline, skipped, 2, Modifier.weight(1f)) {
+                                Text("${(round.left + 999) / 1000} s", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
+                            }
+                        } else {
+                            StatTile("BEST", Glyph.Trophy, accent, headline, skipped, 2, Modifier.weight(1f)) {
+                                Text(progress.best.grouped(), style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
+                            }
+                        }
+                    }
+
+                    // The tally: short lines that build the score.
+                    if (lines.isNotEmpty() || (won && round.misses == 0) || report.practice) {
+                        Spacer(Modifier.height(10.dp))
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.02f))))
+                                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            lines.forEachIndexed { i, line ->
+                                SlideIn(linesIn > i, skipped || calm) {
+                                    TallyRow(line, accent, last = i == lines.lastIndex, modifier = Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
+                                }
+                            }
+                            if (won && round.misses == 0) {
+                                Reveal(linesIn >= lines.size, skipped, stamp = !calm) { FlawlessBadge(Modifier.padding(top = 8.dp, bottom = 4.dp)) }
+                            }
+                            if (report.practice) Text("Practice round", style = BodyText, color = MUTED, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                    if (!report.practice && !report.newBest && round.score > 0 && progress.best > round.score) {
+                        Reveal(linesIn >= lines.size && scoreShown == round.score, skipped) { ShortOfBest(round.score, progress.best, accent) }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+                    Reveal(xpIn, skipped) {
+                        XpPanel(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
+                    }
+
+                    if (rewards.isNotEmpty()) {
+                        Spacer(Modifier.height(12.dp))
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                        ) {
+                            rewards.forEachIndexed { i, reward ->
+                                Reveal(rewardsIn > i, skipped, stamp = !calm) {
+                                    Column(
+                                        Modifier
+                                            .width(132.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(Brush.verticalGradient(listOf(accent.copy(alpha = 0.14f), Color.White.copy(alpha = 0.03f))))
+                                            .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                                            .padding(horizontal = 8.dp, vertical = 10.dp)
+                                            .semantics(mergeDescendants = true) {},
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                    ) {
+                                        reward.art()
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(reward.title.uppercase(), style = Label, color = accent, textAlign = TextAlign.Center, maxLines = 2)
+                                        Text(reward.detail, style = BodyText, color = MUTED, lineHeight = 19.sp, textAlign = TextAlign.Center, maxLines = 3)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if (round.daily) {
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            if (report.practice) "Today's scored try is already in. A new porch comes tomorrow."
+                            else "Daily porch · ${report.dailyStreak} ${if (report.dailyStreak == 1) "day" else "days"} running",
+                            style = BodyText,
+                            color = MUTED,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
             }
-        }
 
+            // The actions rise in last, so they can't be hit by accident mid-sequence.
+            Box(
+                Modifier
+                    .widthIn(max = 480.dp)
+                    .fillMaxWidth()
+                    .padding(top = 10.dp)
+                    .graphicsLayer {
+                        alpha = buttons.value.coerceIn(0f, 1f)
+                        translationY = (1f - buttons.value) * 40.dp.toPx()
+                    },
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    val next = !round.daily && progress.current != round.level.number
+                    CtaButton(
+                        when {
+                            next -> "Next level"
+                            won -> "Play again"
+                            else -> "Try again"
+                        },
+                        accent,
+                        accentDeep,
+                        calm,
+                        { t },
+                    ) { session.start() }
+                    // Three losses running on this level: a gentler try, offered and never pushed.
+                    if (!round.daily && !won && progress.easierOffered && progress.current == round.level.number) {
+                        GhostButton("Easier bulb", "20% more time · one star at most") { session.start(daily = false, easy = true) }
+                    }
+                    if (round.daily && !report.practice) {
+                        GhostButton("Share today's porch", null) {
+                            val card = session.store.progress.dailyCard
+                            if (card != null) session.sharing = card
+                            else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
+                        }
+                    }
+                }
+                // Until they have risen, a tap there skips ahead like anywhere else.
+                if (buttons.value < 0.95f) {
+                    Box(
+                        Modifier
+                            .matchParentSize()
+                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { skipped = true },
+                    )
+                }
+            }
+        }
         // What flies: points from the tally into the score, sparks off the landed score, XP orbs.
         Box(Modifier.fillMaxSize().onGloballyPositioned { spots.origin = it.positionInRoot() }) {
             flights.forEach { f ->
@@ -707,7 +690,6 @@ private val WIN_DEEP = Color(0xFFFF8A3D)
 private val LOSS = Color(0xFFFF7A59)
 private val LOSS_DEEP = Color(0xFFB0385A)
 private val MUTED = Color(0xFFA9B0C2)
-private val CARD_SHAPE = RoundedCornerShape(28.dp)
 private val CONFETTI = listOf(Color(0xFFFFC857), Color(0xFFFF7A9C), Color(0xFF7CC6FF), Color(0xFF8BE3B0), Color(0xFFB9A2FF), Color(0xFFFFFFFF))
 
 /** Behind the card: a dark veil, an aurora drifting in the result's colours, and confetti or embers. */
@@ -755,18 +737,6 @@ private fun DrawScope.resultBackdrop(won: Boolean, t: Float, appear: Float, calm
     }
 }
 
-/** The card itself: dark glass, a glow of the result's colour from the top, and a slow sheen. */
-private fun DrawScope.glassCard(accent: Color, t: Float) {
-    drawRect(Brush.verticalGradient(listOf(Color(0xFF1C2030), Color(0xFF12141D), Color(0xFF0D0F16))))
-    val top = Offset(size.width / 2f, 0f)
-    drawCircle(Brush.radialGradient(listOf(accent.copy(alpha = 0.26f), Color.Transparent), top, size.width * 0.9f), size.width * 0.9f, top)
-    // A faint grid of light, like a screen's glass.
-    val sweep = ((t * 0.12f) % 1.6f) - 0.3f
-    val x = size.width * sweep * 1.4f
-    drawRect(
-        Brush.linearGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.05f), Color.Transparent), Offset(x - size.width * 0.3f, 0f), Offset(x, size.height)),
-    )
-}
 
 
 
@@ -799,12 +769,8 @@ private fun StatTile(label: String, glyph: Glyph, accent: Color, shown: Boolean,
             .semantics(mergeDescendants = true) {},
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            GlyphArt(glyph, accent, Modifier.size(12.dp))
-            Text(label, style = Label, color = MUTED, maxLines = 1)
-        }
-        Spacer(Modifier.height(2.dp))
         value()
+        Text(label, style = Label, color = MUTED, maxLines = 1)
     }
 }
 
@@ -1237,95 +1203,12 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
     }
 }
 
-/**
- * A chunky 3D game button: a face on a darker slab, so it stands up off the card and pushes down
- * when pressed. The main one is in the result's colour with a shine crossing it, its icon in a
- * round well and a small line under its word; the other is slate.
- */
-@Composable
-private fun GameButton(text: String, sub: String?, glyph: Glyph, primary: Boolean, accent: Color, deep: Color, t: () -> Float, modifier: Modifier, onClick: () -> Unit) {
-    val touch = remember { MutableInteractionSource() }
-    val pressed by touch.collectIsPressedAsState()
-    val push by animateFloatAsState(if (pressed) 1f else 0f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessHigh), label = "push")
-    val depth = 6.dp
-    val height = 66.dp
-    val shape = RoundedCornerShape(20.dp)
-    val ink = if (primary) Color(0xFF241405) else Color.White
-    val faceTop = if (primary) Color(0xFFFFF0C4).copy(alpha = 0.85f).compositeOver(accent) else Color(0xFF3A4157)
-    val faceMid = if (primary) accent else Color(0xFF2A3043)
-    val faceBottom = if (primary) deep else Color(0xFF20253A)
-    val slab = if (primary) Color(deep.red * 0.55f, deep.green * 0.55f, deep.blue * 0.55f) else Color(0xFF11141F)
-    Box(
-        modifier
-            .height(height)
-            .clickable(interactionSource = touch, indication = null, role = Role.Button, onClick = onClick),
-    ) {
-        // The slab underneath.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(height - 2.dp)
-                .offset(y = 2.dp)
-                .shadow(if (primary) 16.dp else 6.dp, shape, ambientColor = deep, spotColor = if (primary) deep else Color.Black)
-                .background(slab, shape),
-        )
-        // The face.
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .height(height - depth)
-                .offset { IntOffset(0, (push * (depth.toPx() - 1.dp.toPx())).roundToInt()) }
-                .clip(shape)
-                .background(Brush.verticalGradient(listOf(faceTop, faceMid, faceBottom)))
-                .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = if (primary) 0.6f else 0.18f), Color.Transparent)), shape)
-                .drawWithContent {
-                    drawContent()
-                    if (primary) {
-                        val run = ((t() * 0.35f) % 1.6f) * size.width * 1.6f - size.width * 0.3f
-                        drawRect(
-                            Brush.linearGradient(
-                                listOf(Color.Transparent, Color.White.copy(alpha = 0.4f), Color.Transparent),
-                                Offset(run - size.height, 0f),
-                                Offset(run, size.height),
-                            ),
-                        )
-                    }
-                }
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center,
-        ) {
-            Box(
-                Modifier
-                    .size(30.dp)
-                    .background(if (primary) Color.White.copy(alpha = 0.35f) else accent.copy(alpha = 0.16f), RoundedCornerShape(50))
-                    .border(1.dp, if (primary) Color.White.copy(alpha = 0.5f) else accent.copy(alpha = 0.4f), RoundedCornerShape(50)),
-                contentAlignment = Alignment.Center,
-            ) { GlyphArt(glyph, if (primary) ink else accent, Modifier.size(18.dp)) }
-            Spacer(Modifier.width(8.dp))
-            Column {
-                Text(
-                    text.uppercase(),
-                    style = Display.copy(
-                        letterSpacing = 0.5.sp,
-                        shadow = androidx.compose.ui.graphics.Shadow(if (primary) Color.White.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.6f), Offset(0f, 2f), 0f),
-                    ),
-                    fontSize = 18.sp,
-                    color = ink,
-                    maxLines = 1,
-                    softWrap = false,
-                )
-                if (sub != null) Text(sub, style = Label, color = ink.copy(alpha = 0.7f), maxLines = 1)
-            }
-        }
-    }
-}
 
 // ---------------------------------------------------------------------------------------------
 // Type that moves
 
 /** Big numbers: white melting into the result's colour toward the bottom, with a soft glow. */
-private fun numberStyle(accent: Color, strong: Boolean = false) = Display.copy(
+private fun numberStyle(accent: Color, strong: Boolean = false) = Modern.copy(
     brush = Brush.verticalGradient(
         if (strong) listOf(lerp(Color.White, accent, 0.35f), accent)
         else listOf(Color.White, Color.White, lerp(Color.White, accent, 0.6f)),
@@ -1384,9 +1267,10 @@ private fun HeroTitle(text: String, won: Boolean, shown: Boolean, instant: Boole
     val accent = if (won) WIN else LOSS
     val top = if (won) Color(0xFFFFF8DA) else Color(0xFFFFE6DC)
     val bottom = if (won) Color(0xFFFFB83A) else Color(0xFFFF6A4D)
-    val style = Display.copy(
-        fontSize = 32.sp,
-        lineHeight = 38.sp,
+    val style = Modern.copy(
+        fontSize = 36.sp,
+        lineHeight = 40.sp,
+        letterSpacing = (-0.6).sp,
         brush = Brush.verticalGradient(listOf(top, top, bottom)),
         shadow = androidx.compose.ui.graphics.Shadow(accent.copy(alpha = 0.75f), Offset(0f, 0f), 26f),
     )
@@ -1459,4 +1343,127 @@ private fun TypeText(text: String, shown: Boolean, instant: Boolean, modifier: M
         textAlign = TextAlign.Center,
         modifier = modifier.semantics { contentDescription = text },
     )
+}
+
+// ---------------------------------------------------------------------------------------------
+// Modern type and actions
+
+/** The scorecard's own type: Fredoka at its heaviest, tight, with tabular figures. */
+private val Modern = TextStyle(
+    fontFamily = BodyFont,
+    fontWeight = FontWeight.Bold,
+    fontFeatureSettings = "tnum",
+    letterSpacing = (-0.2).sp,
+)
+
+/** A round glass button with one icon: the way back to the porch. */
+@Composable
+private fun RoundIcon(glyph: Glyph, description: String, onClick: () -> Unit) {
+    val touch = remember { MutableInteractionSource() }
+    val pressed by touch.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "press")
+    Box(
+        Modifier
+            .size(44.dp)
+            .graphicsLayer {
+                scaleX = press
+                scaleY = press
+            }
+            .clip(RoundedCornerShape(50))
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(50))
+            .clickable(interactionSource = touch, indication = null, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) { GlyphArt(glyph, Color.White, Modifier.size(16.dp)) }
+}
+
+/**
+ * The one big thing to do next: a full-width pill in the result's colours, glowing softly and
+ * breathing, with a band of light crossing it. It squeezes a little under the finger.
+ */
+@Composable
+private fun CtaButton(text: String, accent: Color, deep: Color, calm: Boolean, t: () -> Float, onClick: () -> Unit) {
+    val touch = remember { MutableInteractionSource() }
+    val pressed by touch.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "press")
+    val shape = RoundedCornerShape(30.dp)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(62.dp)
+            .graphicsLayer {
+                scaleX = press
+                scaleY = press
+            }
+            .drawBehind {
+                // A soft glow under the pill that breathes.
+                val glow = if (calm) 0.5f else 0.4f + 0.2f * sin(t() * 2.4f)
+                val c = Offset(size.width / 2f, size.height * 0.75f)
+                drawOval(
+                    Brush.radialGradient(listOf(accent.copy(alpha = glow), Color.Transparent), c, size.width * 0.55f),
+                    Offset(c.x - size.width * 0.55f, c.y - size.height * 0.9f),
+                    Size(size.width * 1.1f, size.height * 1.8f),
+                )
+            }
+            .clip(shape)
+            .background(Brush.linearGradient(listOf(lerp(accent, Color.White, 0.25f), accent, deep), Offset.Zero, Offset(900f, 300f)))
+            .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.Transparent)), shape)
+            .drawWithContent {
+                drawContent()
+                if (!calm) {
+                    val run = ((t() * 0.4f) % 1.7f) * size.width * 1.6f - size.width * 0.3f
+                    drawRect(
+                        Brush.linearGradient(
+                            listOf(Color.Transparent, Color.White.copy(alpha = 0.38f), Color.Transparent),
+                            Offset(run - size.height * 1.5f, 0f),
+                            Offset(run, size.height),
+                        ),
+                    )
+                }
+            }
+            .clickable(interactionSource = touch, indication = null, role = Role.Button, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text,
+            style = Modern.copy(
+                shadow = if (accent == WIN) androidx.compose.ui.graphics.Shadow(Color.White.copy(alpha = 0.35f), Offset(0f, 1.5f), 0f)
+                else androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.35f), Offset(0f, 2f), 6f),
+            ),
+            fontSize = 21.sp,
+            color = if (accent == WIN) Color(0xFF221204) else Color.White,
+            maxLines = 1,
+        )
+    }
+}
+
+/** A quiet outlined pill for a second choice, with an optional small line after its word. */
+@Composable
+private fun GhostButton(text: String, sub: String?, onClick: () -> Unit) {
+    val touch = remember { MutableInteractionSource() }
+    val pressed by touch.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "press")
+    val shape = RoundedCornerShape(26.dp)
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .height(52.dp)
+            .graphicsLayer {
+                scaleX = press
+                scaleY = press
+            }
+            .clip(shape)
+            .background(Color.White.copy(alpha = 0.05f))
+            .border(1.5.dp, Color.White.copy(alpha = 0.18f), shape)
+            .clickable(interactionSource = touch, indication = null, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        Text(text, style = Modern, fontSize = 17.sp, color = Color.White, maxLines = 1)
+        if (sub != null) {
+            Text("  ·  $sub", style = BodyText, color = MUTED, maxLines = 1)
+        }
+    }
 }
