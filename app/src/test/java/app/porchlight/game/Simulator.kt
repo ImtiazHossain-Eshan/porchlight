@@ -148,21 +148,21 @@ object Simulator {
 
 /**
  * The win rate an average player should have on [level]: a straight line across each chapter's
- * normal levels, a breather eight points easier, a boss ten points harder.
+ * normal levels, a breather six points easier, a boss eight points harder.
  */
 fun targetWinRate(level: Level): Double {
     val (from, to) = when (level.chapter) {
-        1 -> 97.0 to 90.0
-        2 -> 90.0 to 82.0
-        3 -> 85.0 to 74.0
-        4 -> 80.0 to 67.0
-        else -> 72.0 to 56.0
+        1 -> 98.0 to 94.0
+        2 -> 94.0 to 88.0
+        3 -> 90.0 to 80.0
+        4 -> 86.0 to 74.0
+        else -> 80.0 to 64.0
     }
     val i = (level.number - 1) % 10
     val base = from + (to - from) * i / 9.0
     return when (level.kind) {
         Kind.Normal -> base
-        Kind.Breather -> (base + 8).coerceAtMost(99.0)
-        Kind.Boss -> base - 10
+        Kind.Breather -> (base + 6).coerceAtMost(99.0)
+        Kind.Boss -> base - 8
     }
 }

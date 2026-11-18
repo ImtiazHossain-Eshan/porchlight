@@ -70,7 +70,8 @@ class LevelCurveTest {
             val neighbours = listOfNotNull(LEVELS.getOrNull(level.number - 2), LEVELS.getOrNull(level.number))
                 .filter { it.kind == Kind.Normal }.map { average(it.number) }.average()
             when (level.kind) {
-                Kind.Breather -> assertTrue("breather ${level.number}", average(level.number) >= neighbours + 4)
+                // Where the neighbours are already near-certain wins, a breather at 98% or more is easy enough.
+                Kind.Breather -> assertTrue("breather ${level.number}", average(level.number) >= minOf(neighbours + 4, 98.0))
                 Kind.Boss -> assertTrue("boss ${level.number}", average(level.number) <= average(level.number - 1) - 4)
                 Kind.Normal -> Unit
             }

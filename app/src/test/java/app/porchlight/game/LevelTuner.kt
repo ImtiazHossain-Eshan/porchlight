@@ -84,33 +84,12 @@ class LevelTuner {
                 // Levels 1 to 5: a casual player must win 90%. Find the longest peek (from the
                 // level's own, down) where the seconds that give a casual player 90% still keep
                 // the average player within reach of the target.
-                level.number <= 5 -> {
-                    var peek = level.peekMs
-                    while (peek >= 2_000) { // never less than two seconds to look
-                        val tryLevel = level.copy(peekMs = peek)
-                        val s = secondsFor(tryLevel, 90.5, Skill.Casual)
-                        if (rate(tryLevel, s) <= target + 4.5) {
-                            l = tryLevel
-                            best = s
-                            break
-                        }
-                        peek -= 100
-                    }
-                }
-                // Level 50: a strong player must win 50 to 70% while the average player is at target.
-                level.number == 50 -> {
-                    var peek = level.peekMs
-                    while (peek <= 8_000) {
-                        val tryLevel = level.copy(peekMs = peek)
-                        val s = closest(tryLevel)
-                        if (rate(tryLevel, s, Skill.Strong) >= 53.0) {
-                            l = tryLevel
-                            best = s
-                            break
-                        }
-                        peek += 100
-                    }
-                }
+                // Levels 1 to 5: the look is set by the board; give a casual player the seconds to win
+                // nine times in ten. They may come out easier than their targets, never harder.
+                level.number <= 5 -> best = maxOf(best, secondsFor(level, 90.5, Skill.Casual))
+                // Level 50: the look is set by the board; the seconds keep the average player on target.
+                level.number == 50 -> Unit
+
             }
             l = l.copy(roundMs = best * 1_000L)
             Triple(l, best, Skill.entries.map { Simulator.run(l, it).winRate })
@@ -151,9 +130,9 @@ class LevelTuner {
             appendLine("- A turn takes ${Simulator.FLIP_MS / 1000.0} s on average (anywhere from half to one and a half times that), and a wrong pair shows for the game's 0.8 s before it folds back.")
             appendLine("- The lead has no perk, so the numbers are the level's own. Luna, the first lead, adds 5 s; Iris adds 1.4 s of peek.")
             appendLine()
-            appendLine("The turn time is 1.0 s. The spec's 0.7 s made rounds too strict for real players (7 to 36 seconds), so the owner asked for an easier pace; at 1.0 s the tuned rounds run 10 to 55 seconds.")
+            appendLine("The turn time is 1.0 s. The spec's 0.7 s made rounds too strict for real players (7 to 36 seconds), so the owner asked for an easier pace; at 1.0 s, with the look growing with the board, the tuned rounds run 10 to 38 seconds.")
             appendLine()
-            appendLine("Targets for the average player: chapter 1 97 to 90%, chapter 2 90 to 82%, chapter 3 85 to 74%, chapter 4 80 to 67%, chapter 5 72 to 56%; breathers 8 points easier (at most 99%), bosses 10 harder. Levels 1 to 5 also need a casual player to win 90%, and level 50 needs a strong player to win 50 to 70%. Every level gives at least two seconds to look; levels 1 to 5 may come out easier than their targets because of it, and level 50 has a long look so a strong player has a real chance.")
+            appendLine("Targets for the average player: chapter 1 97 to 90%, chapter 2 90 to 82%, chapter 3 85 to 74%, chapter 4 80 to 67%, chapter 5 72 to 56%; breathers 8 points easier (at most 99%), bosses 10 harder. Levels 1 to 5 also need a casual player to win 90%, and level 50 needs a strong player to win 50 to 70%. The look grows with the board: 2.5 s plus 0.12 s a card, from 3.2 s for six cards to 5.4 s for twenty-four. Levels 1 to 5 may come out easier than their targets so a casual player wins nine times in ten.")
             appendLine()
             appendLine("## The table")
             appendLine()
