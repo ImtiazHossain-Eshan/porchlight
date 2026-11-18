@@ -269,6 +269,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         if (id != lead) {
             lead = id
             store.change { it.copy(lead = id) }
+            notice = "${id.label} leads: ${id.perk}"
             sfx.play(Sound.Flip)
             buzz(HapticFeedbackType.SegmentTick)
         }

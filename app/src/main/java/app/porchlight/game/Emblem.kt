@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
@@ -52,14 +53,16 @@ private val WING_GOLD = listOf(Color(0xFFFFE9A6), Color(0xFFE2A230))
  * The player's level, drawn in brass. One composable for every place a level shows: the top bar,
  * Results, the level-up, the share card, the Moths and Nights screens.
  *
- * - Levels 1-4: a brass disc with the number and a small moth above it.
- * - 5-9: a ring of eight rivets and a laurel of moth wings on both sides.
- * - 10-19: a silver-gold rim, the wings spread wider, and a tiny lit bulb on top.
- * - 20 and up: gold, with glowing wings and a shine that sweeps across every 4 s.
+ * A small porch lamp: a milled metal bezel round a dome of warm glass with the number on it.
  *
- * [xp] draws the progress to the next level as a thin gold ring, filling clockwise.
+ * - Levels 1-4: brass.
+ * - 5-9: darker brass with four rivets.
+ * - 10-19: silver, and brighter glass.
+ * - 20 and up: gold with four rivets, rays behind it, and a shine across the glass every 4 s.
+ *
+ * [xp] lights the twenty tiny filaments round the bezel one after another, clockwise from the top.
  * For the level-up: [from] and [flip] (0..1) run a split-flap from the old number to [level];
- * [parts] (0..1) pops the tier's wings, rivets and bulb on one after another; [burst] (0..1) throws
+ * [parts] (0..1) lights the glass up from dark and grows the gold rays; [burst] (0..1) throws
  * sparks out. [still] stops the shine (reduce motion, or a still image).
  */
 @Composable
@@ -81,103 +84,99 @@ internal fun Emblem(
     } else null
     Canvas(modifier.semantics { contentDescription = "Level $level" }) {
         val c = Offset(size.width / 2f, size.height / 2f)
-        val r = size.minDimension * 0.25f
-        // Seen from the start of a level-up, the parts that belong to the new tier pop on in turn.
-        fun step(from: Float, to: Float) = ((parts - from) / (to - from)).coerceIn(0f, 1f)
-        val wingsIn = if (tier >= EmblemTier.Riveted) step(0.3f, 0.75f) else 0f
-        val rivetsIn = if (tier >= EmblemTier.Riveted) step(0f, 0.4f) else 0f
-        val bulbIn = if (tier >= EmblemTier.Lit) step(0.6f, 1f) else 0f
-
-        if (tier == EmblemTier.Gilded) rays(c, r, wingsIn)
-        if (wingsIn > 0f) wings(c, r, tier, wingsIn)
-        if (xp != null) xpRing(c, r, xp)
-        disc(c, r, tier, shine?.value)
-        if (rivetsIn > 0f) rivets(c, r, rivetsIn)
-        if (bulbIn > 0f) lamp(c, r, bulbIn)
-
-        // The moth above the number.
-        glyph(Glyph.Moth, Offset(c.x, c.y - r * 0.5f), r * 0.62f, ENGRAVE_DARK, alpha = 0.85f)
-        number(measurer, c, r, level, from, flip)
-        if (burst > 0f && burst < 1f) sparks(c, r, burst)
-    }
-}
-
-/** The disc: a metal face with a darker rim, and on gold a band of light that sweeps across. */
-private fun DrawScope.disc(c: Offset, r: Float, tier: EmblemTier, shine: Float?) {
-    val face = when (tier) {
-        EmblemTier.Gilded -> GOLD_FACE
-        else -> BRASS_FACE
-    }
-    drawCircle(Color.Black.copy(alpha = 0.35f), r * 1.04f, Offset(c.x, c.y + r * 0.06f))
-    val rim = if (tier == EmblemTier.Lit) SILVER_GOLD else face
-    drawCircle(Brush.linearGradient(listOf(rim[0], rim[1], rim[2]), Offset(c.x - r, c.y - r), Offset(c.x + r, c.y + r)), r, c)
-    drawCircle(Brush.radialGradient(listOf(face[0], face[1], face[2]), Offset(c.x - r * 0.3f, c.y - r * 0.35f), r * 1.4f), r * 0.84f, c)
-    drawCircle(rim[2], r * 0.84f, c, style = Stroke(r * 0.05f))
-    drawCircle(rim[2], r, c, style = Stroke(r * 0.06f))
-    if (shine != null) {
-        val disc = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r * 0.84f)) }
-        clipPath(disc) {
-            // The band crosses in the first third of each 4 s cycle, then waits.
-            val p = (shine * 3f).coerceAtMost(1f)
-            val x = c.x - r * 1.6f + r * 3.2f * p
-            rotate(25f, c) {
-                drawRect(Color.White.copy(alpha = 0.45f), Offset(x - r * 0.12f, c.y - r * 1.5f), Size(r * 0.24f, r * 3f))
-            }
-        }
-    }
-}
-
-/** Eight rivets round the face, popping on one by one with [amount]. */
-private fun DrawScope.rivets(c: Offset, r: Float, amount: Float) {
-    for (i in 0 until 8) {
-        val each = ((amount * 8f) - i).coerceIn(0f, 1f)
-        if (each <= 0f) continue
-        val a = Math.toRadians(i * 45.0 + 22.5)
-        val at = Offset(c.x + (r * 0.92f * cos(a)).toFloat(), c.y + (r * 0.92f * sin(a)).toFloat())
-        rivet(at, r * 0.07f * each)
+        val r = size.minDimension * 0.4f
+        // On a level-up the glass lights up from dark as the new number lands.
+        val glow = 0.35f + 0.65f * parts
+        if (tier == EmblemTier.Gilded) rays(c, r * 0.8f, parts)
+        bezel(c, r, tier)
+        filaments(c, r, xp)
+        glass(c, r * 0.74f, tier, glow, shine?.value)
+        number(measurer, c, r * 0.86f, level, from, flip)
+        if (burst > 0f && burst < 1f) sparks(c, r * 0.9f, burst)
     }
 }
 
 /**
- * The laurel: moth wings sweeping up both sides of the disc. Wider and with a third wing from
- * level 10; gold and glowing from level 20.
+ * The lamp's bezel: a milled ring of metal, brass at first, darker riveted brass from level 5,
+ * silver from 10, gold from 20, with a groove inside and a shadow under it.
  */
-private fun DrawScope.wings(c: Offset, r: Float, tier: EmblemTier, amount: Float) {
-    val wide = tier >= EmblemTier.Lit
-    val gold = tier == EmblemTier.Gilded
-    val colours = if (gold) WING_GOLD else WING_BRASS
-    val angles = if (wide) listOf(222f, 186f, 150f) else listOf(205f, 165f)
-    val length = r * (if (wide) 1.05f else 0.9f)
-    val reach = r * (if (wide) 1.5f else 1.38f)
-    if (gold) {
-        drawCircle(Brush.radialGradient(listOf(Craft.gold.copy(alpha = 0.45f), Color.Transparent), c, r * 1.9f), r * 1.9f, c)
+private fun DrawScope.bezel(c: Offset, r: Float, tier: EmblemTier) {
+    val metal = when (tier) {
+        EmblemTier.Brass -> listOf(Color(0xFFF6D894), Color(0xFFC99A48), Color(0xFF6E4A1C))
+        EmblemTier.Riveted -> listOf(Color(0xFFE9B97A), Color(0xFFB0773A), Color(0xFF5A3414))
+        EmblemTier.Lit -> listOf(Color(0xFFFFFFFF), Color(0xFFC3CDD6), Color(0xFF55606C))
+        EmblemTier.Gilded -> listOf(Color(0xFFFFF2B8), Color(0xFFF0B83C), Color(0xFF8A5A0E))
     }
-    for (side in listOf(-1f, 1f)) {
-        angles.forEachIndexed { i, deg ->
-            val each = ((amount * angles.size) - i).coerceIn(0f, 1f)
-            if (each <= 0f) return@forEachIndexed
-            // Mirror the angle for the right side.
-            val a = Math.toRadians((if (side < 0) deg else 180f - deg).toDouble())
-            val base = Offset(c.x + (reach * cos(a)).toFloat(), c.y + (reach * sin(a)).toFloat())
-            val tilt = (if (side < 0) deg + 70f else 110f - deg)
-            translate(base.x, base.y) {
-                rotate(tilt, Offset.Zero) {
-                    scale(each, each, Offset.Zero) {
-                        val wing = Path().apply {
-                            moveTo(0f, length * 0.5f)
-                            cubicTo(length * 0.42f, length * 0.25f, length * 0.42f, -length * 0.25f, 0f, -length * 0.5f)
-                            cubicTo(-length * 0.32f, -length * 0.2f, -length * 0.32f, length * 0.2f, 0f, length * 0.5f)
-                            close()
-                        }
-                        drawPath(wing, Brush.verticalGradient(colours, -length * 0.5f, length * 0.5f))
-                        drawPath(wing, ENGRAVE_DARK, alpha = 0.8f, style = Stroke(r * 0.045f, join = StrokeJoin.Round))
-                        drawLine(ENGRAVE_DARK, Offset(0f, length * 0.42f), Offset(0f, -length * 0.36f), r * 0.03f, StrokeCap.Round, alpha = 0.6f)
-                    }
-                }
+    drawCircle(Color.Black.copy(alpha = 0.4f), r * 1.02f, Offset(c.x, c.y + r * 0.08f))
+    drawCircle(Brush.linearGradient(metal, Offset(c.x - r, c.y - r), Offset(c.x + r, c.y + r)), r, c)
+    // Milling round the edge.
+    for (k in 0 until 48) {
+        val a = k * (2 * Math.PI / 48)
+        val o = Offset(c.x + (r * 0.97f * cos(a)).toFloat(), c.y + (r * 0.97f * sin(a)).toFloat())
+        val i = Offset(c.x + (r * 0.9f * cos(a)).toFloat(), c.y + (r * 0.9f * sin(a)).toFloat())
+        drawLine(metal[2].copy(alpha = 0.45f), i, o, r * 0.025f)
+    }
+    drawCircle(metal[2], r, c, style = Stroke(r * 0.05f))
+    // The groove the glass sits in.
+    drawCircle(Brush.linearGradient(listOf(metal[2], metal[0]), Offset(c.x, c.y - r), Offset(c.x, c.y + r)), r * 0.8f, c, style = Stroke(r * 0.06f))
+    if (tier == EmblemTier.Riveted || tier == EmblemTier.Gilded) {
+        for (k in 0 until 4) {
+            val a = Math.PI / 4 + k * Math.PI / 2
+            val at = Offset(c.x + (r * 0.87f * cos(a)).toFloat(), c.y + (r * 0.87f * sin(a)).toFloat())
+            drawCircle(metal[2], r * 0.06f, at)
+            drawCircle(metal[0], r * 0.035f, Offset(at.x - r * 0.012f, at.y - r * 0.012f))
+        }
+    }
+}
+
+/**
+ * XP as tiny filaments set round the bezel: they light up amber, one after another, as the level
+ * fills; the rest are dark. With no [xp] they are all dark studs.
+ */
+private fun DrawScope.filaments(c: Offset, r: Float, xp: Float?) {
+    val count = 20
+    val lit = ((xp ?: 0f) * count)
+    for (k in 0 until count) {
+        val a = -Math.PI / 2 + k * (2 * Math.PI / count)
+        val at = Offset(c.x + (r * 0.87f * cos(a)).toFloat(), c.y + (r * 0.87f * sin(a)).toFloat())
+        val on = (lit - k).coerceIn(0f, 1f)
+        drawCircle(Color(0xFF1A120A), r * 0.052f, at)
+        if (on > 0f) {
+            drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.7f * on), Color.Transparent), at, r * 0.13f), r * 0.13f, at)
+            drawCircle(Color(0xFFFFE6A8).copy(alpha = on), r * 0.04f, at)
+        }
+    }
+}
+
+/** The glass: a dome of warm light, brighter in the middle, with a highlight; on gold a shine crosses it. */
+private fun DrawScope.glass(c: Offset, r: Float, tier: EmblemTier, glow: Float, shine: Float?) {
+    val warm = if (tier == EmblemTier.Lit) Color(0xFFFFF1CF) else Color(0xFFFFE2A0)
+    drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.6f * glow), Color.Transparent), c, r * 1.25f), r * 1.25f, c)
+    drawCircle(
+        Brush.radialGradient(
+            listOf(lerp(Color(0xFF6B4A22), warm, glow), lerp(Color(0xFF4A3216), Color(0xFFF2B456), glow), lerp(Color(0xFF2A1A0C), Color(0xFFB8641E), glow)),
+            Offset(c.x, c.y - r * 0.1f),
+            r,
+        ),
+        r,
+        c,
+    )
+    // A curved highlight on the glass, upper left.
+    drawArc(Color.White.copy(alpha = 0.45f), 200f, 70f, false, Offset(c.x - r * 0.78f, c.y - r * 0.78f), Size(r * 1.56f, r * 1.56f), style = Stroke(r * 0.08f, cap = StrokeCap.Round))
+    if (shine != null) {
+        val disc = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r)) }
+        clipPath(disc) {
+            val p = (shine * 3f).coerceAtMost(1f)
+            val x = c.x - r * 1.6f + r * 3.2f * p
+            rotate(25f, c) {
+                drawRect(Color.White.copy(alpha = 0.45f), Offset(x - r * 0.14f, c.y - r * 1.5f), Size(r * 0.28f, r * 3f))
             }
         }
     }
 }
+
+
+
 
 /** Level 20 and up: short gold rays all round, behind the wings, so gold reads even when small. */
 private fun DrawScope.rays(c: Offset, r: Float, amount: Float) {
@@ -197,25 +196,7 @@ private fun DrawScope.rays(c: Offset, r: Float, amount: Float) {
     }
 }
 
-/** The tiny porch bulb on top of the emblem from level 10, lit. */
-private fun DrawScope.lamp(c: Offset, r: Float, amount: Float) {
-    val at = Offset(c.x, c.y - r * 1.42f)
-    val b = r * 0.2f * amount
-    drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.7f), Color.Transparent), at, b * 3f), b * 3f, at)
-    drawCircle(Color(0xFFFFF3C4), b, at)
-    drawCircle(ENGRAVE_DARK, b, at, style = Stroke(r * 0.04f))
-    drawRect(Craft.brass, Offset(at.x - b * 0.55f, at.y - b * 1.7f), Size(b * 1.1f, b * 0.8f))
-}
 
-/** XP towards the next level: a dark track with gold filling clockwise from 12 o'clock. */
-private fun DrawScope.xpRing(c: Offset, r: Float, fill: Float) {
-    val rr = r * 1.22f
-    val w = r * 0.13f
-    val topLeft = Offset(c.x - rr, c.y - rr)
-    val box = Size(rr * 2f, rr * 2f)
-    drawArc(Dusk.slot, 0f, 360f, false, topLeft, box, style = Stroke(w))
-    if (fill > 0f) drawArc(Craft.gold, -90f, 360f * fill.coerceIn(0f, 1f), false, topLeft, box, style = Stroke(w, cap = StrokeCap.Round))
-}
 
 /**
  * The number, engraved: a dark cut above and a light edge below, no drop shadow. During a
@@ -224,7 +205,7 @@ private fun DrawScope.xpRing(c: Offset, r: Float, fill: Float) {
 private fun DrawScope.number(measurer: TextMeasurer, c: Offset, r: Float, level: Int, from: Int, flip: Float) {
     val fontSize = (r * (if (level >= 100) 0.62f else 0.82f)).toSp()
     fun layout(n: Int) = measurer.measure("$n", Display.copy(fontSize = fontSize))
-    val centreY = c.y + r * 0.2f
+    val centreY = c.y + r * 0.04f
     fun draw(n: Int) {
         val text = layout(n)
         val at = Offset(c.x - text.size.width / 2f, centreY - text.size.height / 2f)

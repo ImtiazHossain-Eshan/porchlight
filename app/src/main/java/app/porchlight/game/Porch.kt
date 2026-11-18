@@ -129,7 +129,6 @@ internal fun Porch(session: Session) {
                     verticalArrangement = Arrangement.Center,
                 ) {
                     Logo(session.calm)
-                    Tonight(session)
                     Spacer(Modifier.height(8.dp))
                     Controls(session, tight = true)
                 }
@@ -139,7 +138,6 @@ internal fun Porch(session: Session) {
                 TopRow(session)
                 Spacer(Modifier.height(6.dp))
                 Logo(session.calm)
-                Tonight(session)
                 Stage(session, Modifier.fillMaxWidth().weight(1f))
                 Controls(session)
             }
@@ -192,7 +190,7 @@ private fun Controls(session: Session, tight: Boolean = false) {
         Spacer(Modifier.height(if (tight) 6.dp else 10.dp))
         Box(contentAlignment = Alignment.TopCenter) {
             // The lead rides on the sign itself, carved small under PLAY: who leads, and what they bring.
-            PlayButton("Play", session.calm, Modifier.fillMaxWidth(), sub = "with ${lead.label} · ${brief(lead)}") { session.start(daily = false) }
+            PlayButton("Play", session.calm, Modifier.fillMaxWidth(), sub = "Level ${progress.current} · with ${lead.label}") { session.start(daily = false) }
             if (notice != null) {
                 Row(
                     Modifier
@@ -359,6 +357,65 @@ private fun Stage(session: Session, modifier: Modifier) {
         val lampY = 14.dp + jarH * 0.55f
         // The moths that may take a turn flying round the lamp: met, and not the one leading.
         val flyers = LEADS.indices.filter { progress.unlocked(LEADS[it]) && LEADS[it] != session.lead }
+        // A flying moth leaves a trail of light behind it: a soft ribbon that tapers and fades, and
+        // sparkles shed along the way. Each sparkle stays where it was dropped, twinkles, drifts down
+        // a little and fades out, and the trail keeps fading for a moment after the moth has landed.
+        Canvas(Modifier.matchParentSize()) {
+            if (session.calm || session.porchDark) return@Canvas
+            val t = session.clock.seconds
+            val i = flyers.firstOrNull { trailAge(it, t, flyers) != null } ?: return@Canvas
+            val raw = trailAge(i, t, flyers) ?: return@Canvas
+            val head = raw.coerceAtMost(1f)
+            val slot = Offset(size.width * SLOTS[i].x, size.height * SLOTS[i].y)
+            val lamp = Offset(size.width / 2f, lampY.toPx())
+            val ringW = (w * 0.34f).toPx()
+            val ringH = (jarH * 0.18f).toPx()
+            val tint = MOTH_TRAIL[i % MOTH_TRAIL.size]
+            // Once landed, the whole trail dims away.
+            val after = if (raw > 1f) 1f - ((raw - 1f) / TRAIL_SPAN).coerceIn(0f, 1f) else 1f
+            fun ease(x: Float) = x * x * (3f - 2f * x)
+
+            // The ribbon: many short pieces from the moth backwards, thinner and fainter as they age.
+            val steps = 40
+            var prev = flightPoint(head, i, slot, lamp, ringW, ringH)
+            for (k in 1..steps) {
+                val q = (head - TRAIL_SPAN * k / steps).coerceAtLeast(0f)
+                val pt = flightPoint(q, i, slot, lamp, ringW, ringH)
+                val life = ease(1f - k / steps.toFloat()) * after
+                if ((pt - prev).getDistance() > 0.3f && life > 0.01f) {
+                    drawLine(tint.copy(alpha = 0.16f * life), prev, pt, (16f * life + 1f) * density, StrokeCap.Round)
+                    drawLine(tint.copy(alpha = 0.45f * life), prev, pt, (6f * life + 0.5f) * density, StrokeCap.Round)
+                    drawLine(Color.White.copy(alpha = 0.8f * life), prev, pt, (2.2f * life + 0.3f) * density, StrokeCap.Round)
+                }
+                prev = pt
+            }
+
+            // Sparkles, dropped at fixed moments of the flight so they stay put as the moth flies on.
+            val rate = 70f
+            val newest = kotlin.math.floor(head * rate).toInt()
+            val oldest = kotlin.math.floor((head - SPARKLE_LIFE).coerceAtLeast(0f) * rate).toInt()
+            for (n in newest downTo oldest) {
+                val q = n / rate
+                val age = (raw - q) / SPARKLE_LIFE
+                if (age !in 0f..1f) continue
+                val fade = (1f - age).let { it * it }
+                // Each sparkle has its own little scatter and drift, the same every frame.
+                val h1 = ((n * 92821) % 1000) / 1000f
+                val h2 = ((n * 68917) % 1000) / 1000f
+                val from = flightPoint(q, i, slot, lamp, ringW, ringH)
+                val at = Offset(from.x + (h1 - 0.5f) * 16f * density, from.y + (h2 - 0.5f) * 16f * density + age * 18f * density)
+                val twinkle = 0.55f + 0.45f * sin(t * (9f + h1 * 8f) + n)
+                val r = (1.5f + 3.5f * h2) * density * (0.6f + 0.4f * twinkle) * (1f - age * 0.4f)
+                val a = fade * twinkle
+                drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = 0.55f * a), Color.Transparent), at, r * 3f), r * 3f, at)
+                if (h1 > 0.45f) {
+                    // A four-pointed glint.
+                    drawLine(Color.White.copy(alpha = a), Offset(at.x - r * 1.6f, at.y), Offset(at.x + r * 1.6f, at.y), 1.1f * density, StrokeCap.Round)
+                    drawLine(Color.White.copy(alpha = a), Offset(at.x, at.y - r * 1.6f), Offset(at.x, at.y + r * 1.6f), 1.1f * density, StrokeCap.Round)
+                }
+                drawCircle(Color.White.copy(alpha = a), r * 0.45f, at)
+            }
+        }
         LEADS.forEachIndexed { i, id ->
             val chosen = id == session.lead
             val open = progress.unlocked(id)
@@ -405,11 +462,10 @@ private fun Stage(session: Session, modifier: Modifier) {
                         val p = flight(i, t, flyers)
                         if (p != null) {
                             val bell = sin(p * PI.toFloat()).let { it * it }
-                            val a = -PI.toFloat() / 2f + p * 2f * PI.toFloat() * 1.25f + i
-                            val ringX = (lampX + (w * 0.34f) * cos(a)).toPx()
-                            val ringY = (lampY + (jarH * 0.18f) * sin(a)).toPx()
-                            translationX += (ringX - x.toPx()) * bell
-                            translationY += (ringY - y.toPx()) * bell
+                            val a = flightAngle(p, i)
+                            val at = flightPoint(p, i, Offset(x.toPx(), y.toPx()), Offset(lampX.toPx(), lampY.toPx()), (w * 0.34f).toPx(), (jarH * 0.18f).toPx())
+                            translationX += at.x - x.toPx()
+                            translationY += at.y - y.toPx()
                             val depth = sin(a) * bell
                             val sc = 1f + 0.18f * depth - 0.12f * bell
                             scaleX = sc
@@ -486,35 +542,6 @@ private fun Stage(session: Session, modifier: Modifier) {
     }
 }
 
-/**
- * Tonight, quietly, under the title: the level and its chapter, its cards and time, and the best score, each with
- * a small mark. Plain faint lettering: it informs without competing with the play sign.
- */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun Tonight(session: Session) {
-    val progress = session.store.progress
-    val level = levelAt(progress.current)
-    // On a narrow screen or with a big font the facts wrap onto a second line instead of running off.
-    FlowRow(
-        Modifier.padding(top = 2.dp).semantics(mergeDescendants = true) {},
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Fact(Glyph.Map, "LEVEL ${level.number} · ${chapterOf(level).name.uppercase()}")
-        Fact(Glyph.Moth, "${level.cards}")
-        Fact(Glyph.Clock, "${level.roundMs / 1000} S")
-        if (progress.best > 0) Fact(Glyph.Trophy, progress.best.grouped())
-    }
-}
-
-@Composable
-private fun Fact(glyph: Glyph, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        GlyphArt(glyph, Dusk.inkSoft.copy(alpha = 0.75f), Modifier.size(12.dp))
-        Text(text, style = Label, color = Dusk.inkSoft.copy(alpha = 0.85f), maxLines = 1)
-    }
-}
 
 /**
  * Where a resting moth is in its flight round the lamp, 0 to 1, or null when it is resting. One moth
@@ -530,3 +557,38 @@ private fun flight(i: Int, t: Float, flyers: List<Int>): Float? {
 
 private const val FLIGHT_EVERY = 6.5f
 private const val FLIGHT_FOR = 2.8f
+
+/** How long the ribbon behind a flying moth is, as a share of the flight, and how long a sparkle lasts. */
+private const val TRAIL_SPAN = 0.26f
+private const val SPARKLE_LIFE = 0.3f
+
+/**
+ * How far through its flight a moth is, carried on past 1 for a moment after it lands so its trail
+ * can fade; null when there is nothing to draw.
+ */
+private fun trailAge(i: Int, t: Float, flyers: List<Int>): Float? {
+    if (flyers.isEmpty()) return null
+    val k = (t / FLIGHT_EVERY).toInt()
+    if (flyers[k % flyers.size] != i) return null
+    val since = (t - k * FLIGHT_EVERY - 1.2f) / FLIGHT_FOR
+    return if (since in 0f..(1f + SPARKLE_LIFE)) since else null
+}
+
+/** The angle round the lamp a moth has reached, [p] of the way through its flight. */
+private fun flightAngle(p: Float, i: Int) = -PI.toFloat() / 2f + p * 2f * PI.toFloat() * 1.25f + i
+
+/**
+ * Where a moth flying from [slot] is, [p] of the way through its flight: it rises off the wall onto
+ * a tilted ring round the [lamp], [ringW] by [ringH], circles, and settles back. In pixels.
+ */
+private fun flightPoint(p: Float, i: Int, slot: Offset, lamp: Offset, ringW: Float, ringH: Float): Offset {
+    val bell = sin(p * PI.toFloat()).let { it * it }
+    val a = flightAngle(p, i)
+    val ring = Offset(lamp.x + ringW * cos(a), lamp.y + ringH * sin(a))
+    return Offset(slot.x + (ring.x - slot.x) * bell, slot.y + (ring.y - slot.y) * bell)
+}
+
+/** Each lead's trail, in its own colour. */
+private val MOTH_TRAIL = listOf(
+    Color(0xFFB8F2C9), Color(0xFFFF8A6A), Color(0xFFFFB25E), Color(0xFFF2EEE0), Color(0xFFC2B0FF), Color(0xFF8ED8FF),
+)

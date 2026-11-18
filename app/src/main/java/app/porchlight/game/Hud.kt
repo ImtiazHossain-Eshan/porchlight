@@ -1,5 +1,7 @@
 package app.porchlight.game
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -185,23 +187,85 @@ internal fun levelFill(xp: Int): Float {
 }
 
 /**
- * The level in the top bar: the emblem with its XP ring, the level as a label, and what's next in
- * words ("172 XP to level 12") rather than raw totals.
+ * The level in the top bar: the emblem's little lamp, and beside it on the wall the level, a brass
+ * gauge of the XP towards the next one, and what's next in words ("172 XP to level 12"). The lamp
+ * sways slowly in 3D, the gauge fills as it appears, and a glint runs along it now and then.
+ * [still] keeps it all still.
  */
 @Composable
 internal fun LevelPlate(xp: Int, modifier: Modifier = Modifier, still: Boolean = false) {
     val level = levelFor(xp)
-    Row(
-        modifier.semantics(mergeDescendants = true) { contentDescription = "Level $level. ${xpToGo(xp).grouped()} XP to level ${level + 1}" },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    val fill = levelFill(xp)
+    val shown = remember { Animatable(if (still) fill else 0f) }
+    LaunchedEffect(fill, still) {
+        if (still) shown.snapTo(fill) else shown.animateTo(fill, tween(900, delayMillis = 250, easing = FastOutSlowInEasing))
+    }
+    val loop = rememberInfiniteTransition(label = "plate")
+    val sway by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(5_200, easing = LinearEasing), RepeatMode.Restart), label = "sway")
+    val wave = kotlin.math.sin(sway * 2f * Math.PI.toFloat())
+    Box(
+        modifier
+            .height(68.dp)
+            .semantics(mergeDescendants = true) { contentDescription = "Level $level. ${xpToGo(xp).grouped()} XP to level ${level + 1}" },
+        contentAlignment = Alignment.CenterStart,
     ) {
-        // The scorecard's emblem flies home to this spot.
-        Emblem(level, Modifier.flies("emblem").size(64.dp), xp = levelFill(xp), still = still)
-        Column {
-            Text("LEVEL $level", style = Label, color = Dusk.ink, maxLines = 1)
-            Text("${xpToGo(xp).grouped()} XP to level ${level + 1}", style = BodyText, color = Dusk.inkSoft, maxLines = 1)
+        // The plaque, set back behind the medallion.
+        Column(
+            Modifier
+                .padding(start = 74.dp)
+                .widthIn(max = 200.dp)
+                .padding(top = 4.dp, bottom = 4.dp),
+        ) {
+            Text("LEVEL $level", style = TextGlow.copy(letterSpacing = 1.5.sp), fontSize = 15.sp, maxLines = 1)
+            Spacer(Modifier.height(4.dp))
+            // The gauge: brass filling an ebony slot, cut every tenth, with a glint running along it.
+            Canvas(
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
+            ) {
+                val r = CornerRadius(size.height / 2f)
+                drawRoundRect(Color(0xFF0B0805), cornerRadius = r)
+                val w = size.width * shown.value.coerceIn(0f, 1f)
+                if (w > 0f) {
+                    drawRoundRect(
+                        Brush.verticalGradient(listOf(Craft.brassLight, Craft.gold, Craft.brassDark)),
+                        size = androidx.compose.ui.geometry.Size(w, size.height),
+                        cornerRadius = r,
+                    )
+                    if (!still) {
+                        val run = ((sway * 2f) % 1f) * size.width * 1.6f - size.width * 0.3f
+                        drawRect(
+                            Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.55f), Color.Transparent), run - 24.dp.toPx(), run),
+                            size = androidx.compose.ui.geometry.Size(w, size.height),
+                        )
+                    }
+                }
+                for (k in 1 until 10) {
+                    val x = size.width * k / 10f
+                    drawLine(Color.Black.copy(alpha = 0.4f), Offset(x, 0f), Offset(x, size.height), 1.dp.toPx())
+                }
+            }
+            Spacer(Modifier.height(3.dp))
+            Text("${xpToGo(xp).grouped()} XP to level ${level + 1}", style = BodyText, fontSize = 12.sp, color = Dusk.inkSoft, maxLines = 1)
         }
+        // The medallion, pinned over the plaque's end. The scorecard's emblem flies home to this spot.
+        Emblem(
+            level,
+            Modifier
+                .flies("emblem")
+                .size(68.dp)
+                .graphicsLayer {
+                    if (!still) {
+                        cameraDistance = 10f * density
+                        rotationY = wave * 16f
+                        rotationX = kotlin.math.cos(sway * 2f * Math.PI.toFloat()) * 6f
+                    }
+                },
+            xp = fill,
+            still = still,
+        )
     }
 }
 
