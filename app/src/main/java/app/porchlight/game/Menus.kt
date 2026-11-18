@@ -577,6 +577,8 @@ internal fun BadgesScreen(session: Session) {
                                 color = if (chosen) Dusk.amber else if (earned) Dusk.ink else Dusk.inkSoft,
                                 textAlign = TextAlign.Center,
                                 maxLines = 2,
+                                // A gutter each side, so two neighbouring names never read as one.
+                                modifier = Modifier.padding(horizontal = 6.dp),
                             )
                         }
                     }

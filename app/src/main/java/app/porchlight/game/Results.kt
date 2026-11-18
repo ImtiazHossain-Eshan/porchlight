@@ -1,5 +1,8 @@
 package app.porchlight.game
 
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.ui.semantics.contentDescription
 import kotlin.math.exp
 import androidx.compose.foundation.layout.FlowRow
@@ -333,238 +336,270 @@ internal fun Results(session: Session, report: Report) {
                 Spacer(Modifier.size(48.dp))
             }
 
-            // The middle: centred when it fits, scrolling when it doesn't.
-            Box(Modifier.weight(1f).widthIn(max = 480.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Column(
-                    Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    // The hero: the pairs found as a ring round a lit (or burnt-out) bulb.
-                    HeroLamp(
-                        session = session,
-                        moths = remember(report) { round.deck.filter { it != MothId.Leaf }.distinct().take(4) },
-                        won = won,
-                        found = round.pairs,
-                        of = round.pairCount,
-                        play = headline,
-                        instant = skipped,
-                        calm = calm,
-                        t = { t },
-                        modifier = Modifier.onGloballyPositioned { if (round.score == 0) spots.score = it.boundsInRoot().center },
-                    )
+            // The result, its details and the actions, laid out by the room there is: one column on a
+            // phone held upright (smaller on a short screen), two side by side when it is wide.
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                val landscape = maxWidth > maxHeight * 1.15f
+                val compact = maxHeight < 660.dp || landscape
+                val heroPart: @Composable () -> Unit = {
+                        // The hero: the pairs found as a ring round a lit (or burnt-out) bulb.
+                        HeroLamp(
+                            scale = if (maxHeight < 560.dp) 0.6f else if (compact) 0.72f else 1f,
+                            session = session,
+                            moths = remember(report) { round.deck.filter { it != MothId.Leaf }.distinct().take(4) },
+                            won = won,
+                            found = round.pairs,
+                            of = round.pairCount,
+                            play = headline,
+                            instant = skipped,
+                            calm = calm,
+                            t = { t },
+                            modifier = Modifier.onGloballyPositioned { if (round.score == 0) spots.score = it.boundsInRoot().center },
+                        )
 
-                    // Stars on an arc, the middle one raised and bigger, slamming in with a burst.
-                    Row(
-                        Modifier.offset(y = (-22).dp),
-                        horizontalArrangement = Arrangement.spacedBy((-4).dp),
-                        verticalAlignment = Alignment.Top,
-                    ) {
-                        repeat(3) { i ->
-                            MedalStar(
-                                filled = i < report.stars,
-                                turn = starsIn > i,
-                                instant = skipped,
-                                calm = calm,
-                                size = if (i == 1) 70.dp else 54.dp,
-                                tilt = (i - 1) * 16f,
-                                drop = if (i == 1) 0.dp else 14.dp,
-                                t = { t },
-                                hint = if (i >= report.stars && won) starHint(i, round) else null,
-                            )
-                        }
-                    }
-
-                    // The headline, then a word on a loss: how close, or a tip.
-                    HeroTitle(
-                        if (won) "Every pair found!" else "The bulb burned out",
-                        won = won,
-                        shown = headline,
-                        instant = skipped,
-                        calm = calm,
-                        t = { t },
-                    )
-                    if (note != null) {
-                        TypeText(note, shown = headline, instant = skipped || calm, modifier = Modifier.padding(top = 6.dp))
-                    }
-                    report.chapterDone?.let { chapter ->
-                        Reveal(headline, skipped, stamp = !calm) {
-                            ChapterStamp(chapter, onLand = {
-                                if (!skipped) {
-                                    session.sfx.play(Sound.Thunk)
-                                    session.buzz(HapticFeedbackType.LongPress)
-                                }
-                            })
-                        }
-                    }
-                    if (bestIn) {
-                        Reveal(true, skipped, stamp = !calm) {
-                            LaunchedEffect(Unit) {
-                                if (!skipped && !calm) {
-                                    session.sfx.play(Sound.Thunk)
-                                    session.buzz(HapticFeedbackType.LongPress)
-                                    for (x in listOf(3f, -3f, 2f, -2f, 0f)) shake.animateTo(x, tween(40))
-                                }
-                            }
-                            Text(
-                                "NEW BEST",
-                                style = Label,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1A1206),
-                                modifier = Modifier
-                                    .padding(top = 8.dp)
-                                    .background(Brush.horizontalGradient(listOf(WIN, Color(0xFFFFE9A8), WIN)), RoundedCornerShape(50))
-                                    .padding(horizontal = 14.dp, vertical = 4.dp),
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-
-                    // Three numbers: pairs, score, and time left (a win) or your best (a loss).
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatTile("PAIRS", Glyph.Moth, accent, headline, skipped, 0, Modifier.weight(1f)) {
-                            Text("${round.pairs}/${round.pairCount}", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                        }
-                        StatTile(
-                            "SCORE",
-                            Glyph.Star,
-                            accent,
-                            headline,
-                            skipped,
-                            1,
-                            Modifier
-                                .weight(1.25f)
-                                .onGloballyPositioned { if (round.score > 0) spots.score = it.boundsInRoot().center }
-                                .graphicsLayer {
-                                    scaleX = punch.value
-                                    scaleY = punch.value
-                                },
-                        ) {
-                            CountUp(scoreShown, numberStyle(accent), 24.sp, durationMs = 300, instant = skipped, calm = calm)
-                        }
-                        if (won) {
-                            StatTile("TIME LEFT", Glyph.Clock, accent, headline, skipped, 2, Modifier.weight(1f)) {
-                                Text("${(round.left + 999) / 1000} s", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                            }
-                        } else {
-                            StatTile("BEST", Glyph.Trophy, accent, headline, skipped, 2, Modifier.weight(1f)) {
-                                Text(progress.best.grouped(), style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                            }
-                        }
-                    }
-
-                    // The tally: short lines that build the score.
-                    if (lines.isNotEmpty() || (won && round.misses == 0) || report.practice) {
-                        Spacer(Modifier.height(10.dp))
-                        Column(
-                            Modifier
-                                .fillMaxWidth()
-                                .plank(Wood.Walnut, corner = 14.dp, elevation = 4.dp, seed = 9)
-                                .border(1.dp, BrassRule, RoundedCornerShape(14.dp))
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            lines.forEachIndexed { i, line ->
-                                SlideIn(linesIn > i, skipped || calm) {
-                                    TallyRow(line, accent, last = i == lines.lastIndex, modifier = Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
-                                }
-                            }
-                            if (won && round.misses == 0) {
-                                Reveal(linesIn >= lines.size, skipped, stamp = !calm) { FlawlessBadge(Modifier.padding(top = 8.dp, bottom = 4.dp)) }
-                            }
-                            if (report.practice) Text("Practice round", style = BodyText, color = MUTED, modifier = Modifier.padding(top = 4.dp))
-                        }
-                    }
-                    if (!report.practice && !report.newBest && round.score > 0 && progress.best > round.score) {
-                        Reveal(linesIn >= lines.size && scoreShown == round.score, skipped) { ShortOfBest(round.score, progress.best, accent) }
-                    }
-
-                    Spacer(Modifier.height(12.dp))
-                    Reveal(xpIn, skipped) {
-                        XpPanel(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
-                    }
-
-                    if (rewards.isNotEmpty()) {
-                        Spacer(Modifier.height(12.dp))
+                        // Stars on an arc, the middle one raised and bigger, slamming in with a burst.
                         Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                            Modifier.offset(y = (-22).dp),
+                            horizontalArrangement = Arrangement.spacedBy((-4).dp),
+                            verticalAlignment = Alignment.Top,
                         ) {
-                            rewards.forEachIndexed { i, reward ->
-                                Reveal(rewardsIn > i, skipped, stamp = !calm) {
-                                    Column(
-                                        Modifier
-                                            .width(132.dp)
-                                            .plate(RoundedCornerShape(12.dp))
-                                            .border(1.dp, BrassRule, RoundedCornerShape(12.dp))
-                                            .padding(horizontal = 8.dp, vertical = 10.dp)
-                                            .semantics(mergeDescendants = true) {},
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                    ) {
-                                        reward.art()
-                                        Spacer(Modifier.height(6.dp))
-                                        Text(reward.title.uppercase(), style = Label, color = accent, textAlign = TextAlign.Center, maxLines = 2)
-                                        Text(reward.detail, style = BodyText, color = MUTED, lineHeight = 19.sp, textAlign = TextAlign.Center, maxLines = 3)
+                            repeat(3) { i ->
+                                MedalStar(
+                                    filled = i < report.stars,
+                                    turn = starsIn > i,
+                                    instant = skipped,
+                                    calm = calm,
+                                    size = (if (i == 1) 70.dp else 54.dp) * (if (compact) 0.8f else 1f),
+                                    tilt = (i - 1) * 16f,
+                                    drop = if (i == 1) 0.dp else 14.dp,
+                                    t = { t },
+                                    hint = if (i >= report.stars && won) starHint(i, round) else null,
+                                )
+                            }
+                        }
+
+                        // The headline, then a word on a loss: how close, or a tip.
+                        HeroTitle(
+                            if (won) "Every pair found!" else "The bulb burned out",
+                            won = won,
+                            shown = headline,
+                            instant = skipped,
+                            calm = calm,
+                            t = { t },
+                            fontSize = if (compact) 28.sp else 36.sp,
+                        )
+                        if (note != null) {
+                            TypeText(note, shown = headline, instant = skipped || calm, modifier = Modifier.padding(top = 6.dp))
+                        }
+                        report.chapterDone?.let { chapter ->
+                            Reveal(headline, skipped, stamp = !calm) {
+                                ChapterStamp(chapter, onLand = {
+                                    if (!skipped) {
+                                        session.sfx.play(Sound.Thunk)
+                                        session.buzz(HapticFeedbackType.LongPress)
+                                    }
+                                })
+                            }
+                        }
+                        if (bestIn) {
+                            Reveal(true, skipped, stamp = !calm) {
+                                LaunchedEffect(Unit) {
+                                    if (!skipped && !calm) {
+                                        session.sfx.play(Sound.Thunk)
+                                        session.buzz(HapticFeedbackType.LongPress)
+                                        for (x in listOf(3f, -3f, 2f, -2f, 0f)) shake.animateTo(x, tween(40))
+                                    }
+                                }
+                                Text(
+                                    "NEW BEST",
+                                    style = Label,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1A1206),
+                                    modifier = Modifier
+                                        .padding(top = 8.dp)
+                                        .background(Brush.horizontalGradient(listOf(WIN, Color(0xFFFFE9A8), WIN)), RoundedCornerShape(50))
+                                        .padding(horizontal = 14.dp, vertical = 4.dp),
+                                )
+                            }
+                        }
+                }
+                val detailsPart: @Composable () -> Unit = {
+                        // Three numbers: pairs, score, and time left (a win) or your best (a loss).
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            StatTile("PAIRS", Glyph.Moth, accent, headline, skipped, 0, Modifier.weight(1f)) {
+                                Text("${round.pairs}/${round.pairCount}", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
+                            }
+                            StatTile(
+                                "SCORE",
+                                Glyph.Star,
+                                accent,
+                                headline,
+                                skipped,
+                                1,
+                                Modifier
+                                    .weight(1.25f)
+                                    .onGloballyPositioned { if (round.score > 0) spots.score = it.boundsInRoot().center }
+                                    .graphicsLayer {
+                                        scaleX = punch.value
+                                        scaleY = punch.value
+                                    },
+                            ) {
+                                CountUp(scoreShown, numberStyle(accent), 24.sp, durationMs = 300, instant = skipped, calm = calm)
+                            }
+                            if (won) {
+                                StatTile("TIME LEFT", Glyph.Clock, accent, headline, skipped, 2, Modifier.weight(1f)) {
+                                    Text("${(round.left + 999) / 1000} s", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
+                                }
+                            } else {
+                                StatTile("BEST", Glyph.Trophy, accent, headline, skipped, 2, Modifier.weight(1f)) {
+                                    Text(progress.best.grouped(), style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
+                                }
+                            }
+                        }
+
+                        // The tally: short lines that build the score.
+                        if (lines.isNotEmpty() || (won && round.misses == 0) || report.practice) {
+                            Spacer(Modifier.height(10.dp))
+                            Column(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .plank(Wood.Walnut, corner = 14.dp, elevation = 4.dp, seed = 9)
+                                    .border(1.dp, BrassRule, RoundedCornerShape(14.dp))
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                lines.forEachIndexed { i, line ->
+                                    SlideIn(linesIn > i, skipped || calm) {
+                                        TallyRow(line, accent, last = i == lines.lastIndex, modifier = Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
+                                    }
+                                }
+                                if (won && round.misses == 0) {
+                                    Reveal(linesIn >= lines.size, skipped, stamp = !calm) { FlawlessBadge(Modifier.padding(top = 8.dp, bottom = 4.dp)) }
+                                }
+                                if (report.practice) Text("Practice round", style = BodyText, color = MUTED, modifier = Modifier.padding(top = 4.dp))
+                            }
+                        }
+                        if (!report.practice && !report.newBest && round.score > 0 && progress.best > round.score) {
+                            Reveal(linesIn >= lines.size && scoreShown == round.score, skipped) { ShortOfBest(round.score, progress.best, accent) }
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+                        Reveal(xpIn, skipped) {
+                            XpPanel(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
+                        }
+
+                        if (rewards.isNotEmpty()) {
+                            Spacer(Modifier.height(12.dp))
+                            Row(
+                                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                            ) {
+                                rewards.forEachIndexed { i, reward ->
+                                    Reveal(rewardsIn > i, skipped, stamp = !calm) {
+                                        Column(
+                                            Modifier
+                                                .width(132.dp)
+                                                .plate(RoundedCornerShape(12.dp))
+                                                .border(1.dp, BrassRule, RoundedCornerShape(12.dp))
+                                                .padding(horizontal = 8.dp, vertical = 10.dp)
+                                                .semantics(mergeDescendants = true) {},
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                        ) {
+                                            reward.art()
+                                            Spacer(Modifier.height(6.dp))
+                                            Text(reward.title.uppercase(), style = Label, color = accent, textAlign = TextAlign.Center, maxLines = 2)
+                                            Text(reward.detail, style = BodyText, color = MUTED, lineHeight = 19.sp, textAlign = TextAlign.Center, maxLines = 3)
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
 
-                    if (round.daily) {
-                        Spacer(Modifier.height(10.dp))
-                        Text(
-                            if (report.practice) "Today's scored try is already in. A new porch comes tomorrow."
-                            else "Daily porch · ${report.dailyStreak} ${if (report.dailyStreak == 1) "day" else "days"} running",
-                            style = BodyText,
-                            color = MUTED,
-                            textAlign = TextAlign.Center,
+                        if (round.daily) {
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                if (report.practice) "Today's scored try is already in. A new porch comes tomorrow."
+                                else "Daily porch · ${report.dailyStreak} ${if (report.dailyStreak == 1) "day" else "days"} running",
+                                style = BodyText,
+                                color = MUTED,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                }
+                val actionsPart: @Composable (Modifier) -> Unit = { modifier ->
+                Box(
+                    modifier
+                        .padding(top = 10.dp)
+                        .graphicsLayer {
+                            alpha = buttons.value.coerceIn(0f, 1f)
+                            translationY = (1f - buttons.value) * 40.dp.toPx()
+                        },
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            val next = !round.daily && progress.current != round.level.number
+                            val again = when {
+                                next -> "Next level"
+                                won -> "Again"
+                                else -> "Try again"
+                            }
+                            // Three losses running on this level: a gentler try, offered and never pushed.
+                            val easier = !round.daily && !won && progress.easierOffered && progress.current == round.level.number
+                            if (landscape && easier) {
+                                // Wide and short: the two signs side by side.
+                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    PlayButton(again, calm, Modifier.weight(1.3f)) { session.start() }
+                                    SecondaryButton("Easier bulb", Modifier.weight(1f)) { session.start(daily = false, easy = true) }
+                                }
+                            } else {
+                                PlayButton(again, calm, Modifier.fillMaxWidth()) { session.start() }
+                                if (easier) {
+                                    SecondaryButton("Easier bulb", Modifier.fillMaxWidth()) { session.start(daily = false, easy = true) }
+                                    if (!compact) Text("A fifth more time. One star at most.", style = BodyText, color = MUTED, textAlign = TextAlign.Center)
+                                }
+                            }
+                            if (round.daily && !report.practice) {
+                            SecondaryButton("Share", Modifier.fillMaxWidth()) {
+                                val card = session.store.progress.dailyCard
+                                if (card != null) session.sharing = card
+                                else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
+                            }
+                        }
+                    }
+                    // Until they have risen, a tap there skips ahead like anywhere else.
+                    if (buttons.value < 0.95f) {
+                        Box(
+                            Modifier
+                                .matchParentSize()
+                                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { skipped = true },
                         )
                     }
                 }
-            }
-
-            // The actions rise in last, so they can't be hit by accident mid-sequence.
-            Box(
-                Modifier
-                    .widthIn(max = 480.dp)
-                    .fillMaxWidth()
-                    .padding(top = 10.dp)
-                    .graphicsLayer {
-                        alpha = buttons.value.coerceIn(0f, 1f)
-                        translationY = (1f - buttons.value) * 40.dp.toPx()
-                    },
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    val next = !round.daily && progress.current != round.level.number
-                    PlayButton(
-                        when {
-                            next -> "Next level"
-                            won -> "Again"
-                            else -> "Try again"
-                        },
-                        calm,
-                        Modifier.fillMaxWidth(),
-                    ) { session.start() }
-                    // Three losses running on this level: a gentler try, offered and never pushed.
-                    if (!round.daily && !won && progress.easierOffered && progress.current == round.level.number) {
-                        SecondaryButton("Easier bulb", Modifier.fillMaxWidth()) { session.start(daily = false, easy = true) }
-                        Text("A fifth more time. One star at most.", style = BodyText, color = MUTED, textAlign = TextAlign.Center)
-                    }
-                    if (round.daily && !report.practice) {
-                        SecondaryButton("Share", Modifier.fillMaxWidth()) {
-                            val card = session.store.progress.dailyCard
-                            if (card != null) session.sharing = card
-                            else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
+                }
+                if (landscape) {
+                    Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) { heroPart() }
+                        }
+                        Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(Modifier.weight(1f).widthIn(max = 480.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                                val scroll = rememberScrollState()
+                                Column(Modifier.fadeEnd(scroll).fillMaxWidth().verticalScroll(scroll), horizontalAlignment = Alignment.CenterHorizontally) { detailsPart() }
+                            }
+                            actionsPart(Modifier.widthIn(max = 480.dp).fillMaxWidth())
                         }
                     }
-                }
-                // Until they have risen, a tap there skips ahead like anywhere else.
-                if (buttons.value < 0.95f) {
-                    Box(
-                        Modifier
-                            .matchParentSize()
-                            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { skipped = true },
-                    )
+                } else {
+                    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(Modifier.weight(1f).widthIn(max = 480.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            val scroll = rememberScrollState()
+                            Column(Modifier.fadeEnd(scroll).fillMaxWidth().verticalScroll(scroll), horizontalAlignment = Alignment.CenterHorizontally) {
+                                heroPart()
+                                Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
+                                detailsPart()
+                            }
+                        }
+                        actionsPart(Modifier.widthIn(max = 480.dp).fillMaxWidth())
+                    }
                 }
             }
         }
@@ -806,7 +841,7 @@ private fun ShortOfBest(score: Int, best: Int, accent: Color) {
  * and smoking (a loss), inside a ring of one segment per pair that light up one by one.
  */
 @Composable
-private fun HeroLamp(session: Session, moths: List<MothId>, won: Boolean, found: Int, of: Int, play: Boolean, instant: Boolean, calm: Boolean, t: () -> Float, modifier: Modifier = Modifier) {
+private fun HeroLamp(scale: Float, session: Session, moths: List<MothId>, won: Boolean, found: Int, of: Int, play: Boolean, instant: Boolean, calm: Boolean, t: () -> Float, modifier: Modifier = Modifier) {
     val lit = remember { Animatable(0f) }
     val pop = remember { Animatable(if (calm) 1f else 0f) }
     LaunchedEffect(play, instant) {
@@ -822,7 +857,7 @@ private fun HeroLamp(session: Session, moths: List<MothId>, won: Boolean, found:
     val deep = if (won) WIN_DEEP else LOSS_DEEP
     Box(
         modifier
-            .size(170.dp)
+            .size(170.dp * scale)
             .graphicsLayer {
                 val p = pop.value
                 scaleX = 0.6f + 0.4f * p
@@ -883,7 +918,7 @@ private fun HeroLamp(session: Session, moths: List<MothId>, won: Boolean, found:
             clock = session.clock,
             timeLeft = { if (won) 1f else 0f },
             power = { if (won) 1.05f + 0.1f * sin(t() * 2f) else 0f },
-            modifier = Modifier.size(70.dp, 100.dp).offset(y = (-6).dp),
+            modifier = Modifier.size(70.dp * scale, 100.dp * scale).offset(y = (-6).dp * scale),
             lamp = Lamp.Jar,
             smoke = { !won },
             still = calm,
@@ -899,7 +934,7 @@ private fun HeroLamp(session: Session, moths: List<MothId>, won: Boolean, found:
                         .graphicsLayer {
                             val a = t() * 0.9f + k * (2 * PI.toFloat() / moths.size)
                             val depth = sin(a)
-                            translationX = cos(a) * 62.dp.toPx()
+                            translationX = cos(a) * 62.dp.toPx() * scale
                             translationY = depth * 20.dp.toPx() - 4.dp.toPx() + sin(t() * 2.5f + k) * 4.dp.toPx()
                             val sc = 0.7f + 0.3f * depth
                             scaleX = sc
@@ -1244,7 +1279,7 @@ private fun Modifier.glint(t: () -> Float, calm: Boolean, every: Float = 3.5f, s
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun HeroTitle(text: String, won: Boolean, shown: Boolean, instant: Boolean, calm: Boolean, t: () -> Float) {
+private fun HeroTitle(text: String, won: Boolean, shown: Boolean, instant: Boolean, calm: Boolean, t: () -> Float, fontSize: TextUnit = 36.sp) {
     val letters = text.length
     val drops = remember(text) { List(letters) { Animatable(if (calm) 1f else 0f) } }
     val landedAt = remember(text) { mutableFloatStateOf(-1f) }
@@ -1267,8 +1302,8 @@ private fun HeroTitle(text: String, won: Boolean, shown: Boolean, instant: Boole
     val top = if (won) Color(0xFFFFF8DA) else Color(0xFFFFE6DC)
     val bottom = if (won) Color(0xFFFFB83A) else Color(0xFFFF6A4D)
     val style = Modern.copy(
-        fontSize = 36.sp,
-        lineHeight = 40.sp,
+        fontSize = fontSize,
+        lineHeight = fontSize * 1.12f,
         letterSpacing = (-0.6).sp,
         brush = Brush.verticalGradient(listOf(top, top, bottom)),
         shadow = androidx.compose.ui.graphics.Shadow(accent.copy(alpha = 0.75f), Offset(0f, 0f), 26f),
@@ -1355,5 +1390,20 @@ private val Modern = TextStyle(
     letterSpacing = (-0.2).sp,
 )
 
-
-
+/**
+ * Fades the last few dp of a scrolling area out while there is more below, so content slides away
+ * under what follows instead of being cut. When everything fits, nothing fades.
+ */
+private fun Modifier.fadeEnd(scroll: androidx.compose.foundation.ScrollState): Modifier = this
+    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+    .drawWithContent {
+        drawContent()
+        if (scroll.value >= scroll.maxValue) return@drawWithContent
+        val edge = 28.dp.toPx()
+        drawRect(
+            Brush.verticalGradient(listOf(Color.Black, Color.Transparent), size.height - edge, size.height),
+            topLeft = Offset(0f, size.height - edge),
+            size = Size(size.width, edge),
+            blendMode = BlendMode.DstIn,
+        )
+    }

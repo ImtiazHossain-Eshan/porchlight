@@ -368,7 +368,7 @@ private val signOnOak = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacin
 private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, -1.5f), 0f))
 
 /**
- * The play button: the porch's one big action. A taller oak sign with one word in wood type, a warm glow breathing behind it, and a band of light sliding across every
+ * The play button: the porch's one big action. A taller oak sign with one word in wood type, and a band of light sliding across every
  * few seconds. It sinks under the finger like the other signs. [calm] keeps it still.
  */
 @Composable
@@ -377,21 +377,10 @@ internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifi
     val pressed by press.collectIsPressedAsState()
     val squeeze by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "squeeze")
     val loop = rememberInfiniteTransition(label = "play")
-    val breathe by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(1_600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "breathe")
     val sweep by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(3_200, easing = LinearEasing), RepeatMode.Restart), label = "sweep")
     Box(
         modifier
             .height(72.dp)
-            // The glow it sits in: the porch light falling on the sign.
-            .drawBehind {
-                val pulse = if (calm) 0.6f else 0.45f + 0.35f * breathe
-                drawRoundRect(
-                    Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.55f * pulse), Color.Transparent), center, size.width * 0.62f),
-                    topLeft = Offset(-18.dp.toPx(), -16.dp.toPx()),
-                    size = androidx.compose.ui.geometry.Size(size.width + 36.dp.toPx(), size.height + 32.dp.toPx()),
-                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(40.dp.toPx()),
-                )
-            }
             .graphicsLayer {
                 scaleX = squeeze
                 scaleY = squeeze

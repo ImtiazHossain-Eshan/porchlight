@@ -110,20 +110,22 @@ internal fun Porch(session: Session) {
             .padding(horizontal = 18.dp, vertical = 10.dp),
     ) {
         if (maxWidth > maxHeight) {
-            // Landscape and wide tablets: the jar on the left, the signs on the right.
+            // Landscape and wide tablets: the level and settings over the jar on the left, the signs
+            // on the right, so the right side has room for the name, the play sign and the tiles.
             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                Stage(session, Modifier.fillMaxHeight().weight(1f))
+                Column(Modifier.fillMaxHeight().weight(1f)) {
+                    TopRow(session)
+                    Stage(session, Modifier.fillMaxWidth().weight(1f))
+                }
                 Column(
                     Modifier.fillMaxHeight().weight(1f).verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    TopRow(session)
-                    Spacer(Modifier.height(10.dp))
                     Logo(session.calm)
                     Tonight(session)
-                    Spacer(Modifier.height(12.dp))
-                    Controls(session)
+                    Spacer(Modifier.height(8.dp))
+                    Controls(session, tight = true)
                 }
             }
         } else {
@@ -165,7 +167,7 @@ private fun Logo(calm: Boolean) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Controls(session: Session) {
+private fun Controls(session: Session, tight: Boolean = false) {
     val progress = session.store.progress
     val lead = session.lead
     // On a tablet the sign and tiles keep to a comfortable width instead of spanning the screen.
@@ -196,9 +198,9 @@ private fun Controls(session: Session) {
             }
         }
         // Room to breathe between the tag, the sign and the tiles.
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(if (tight) 8.dp else 16.dp))
         PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(if (tight) 8.dp else 18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MenuTile(Glyph.Map, "Levels", 0, session, Modifier.weight(1f)) { session.open(Screen.Levels) }
             MenuTile(Glyph.Calendar, "Daily", 1, session, Modifier.weight(1f)) { session.open(Screen.Daily) }
@@ -412,14 +414,16 @@ private fun Stage(session: Session, modifier: Modifier) {
  * Tonight, quietly, under the title: the level and its chapter, its cards and time, and the best score, each with
  * a small mark. Plain faint lettering: it informs without competing with the play sign.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Tonight(session: Session) {
     val progress = session.store.progress
     val level = levelAt(progress.current)
-    Row(
+    // On a narrow screen or with a big font the facts wrap onto a second line instead of running off.
+    FlowRow(
         Modifier.padding(top = 2.dp).semantics(mergeDescendants = true) {},
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Fact(Glyph.Map, "LEVEL ${level.number} · ${chapterOf(level).name.uppercase()}")
         Fact(Glyph.Moth, "${level.cards}")
