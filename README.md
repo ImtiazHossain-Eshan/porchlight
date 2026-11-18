@@ -109,7 +109,7 @@ Fifty levels in five chapters of ten, each on its own stretch of the map. Every 
 | 4 · Shadows | The rooftops | 31–40 | 55 ★ | **Shadow:** one moth is a silhouette during the peek. **Lookalikes:** two moths are near-twins |
 | 5 · Last Light | The last porch | 41–50 | 80 ★ | The twists in pairs, and all three of Wanderer, Shadow and Lookalikes on the last boss |
 
-Beating a level opens the next; a new chapter also needs its total of stars. Rounds run from 7 seconds on level 1 to 36 on the longest boards, and the peek is set per level. Lose a level three times in a row and an **Easier bulb** retry is offered: 20% more time, for one star at most. Boss wins earn half again as much XP.
+Beating a level opens the next; a new chapter also needs its total of stars. Rounds run from 10 seconds on level 1 to 55 on the longest boards, and the peek is set per level. Lose a level three times in a row and an **Easier bulb** retry is offered: 20% more time, for one star at most. Boss wins earn half again as much XP.
 
 Each new twist is introduced once, in one line with a small animation, the first time you play it. The full table, with simulated win rates for casual, average and strong players, is in [`docs/LEVELS.md`](docs/LEVELS.md); `LevelCurveTest` checks the difficulty curve on every build. Saves from the six-night version carry over: each night's stars move to the matching level.
 

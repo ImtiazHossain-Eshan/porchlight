@@ -85,7 +85,7 @@ internal sealed interface Fx {
 /** Everything the three screens share: which screen is up, the round in play, and the player's taps. */
 internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     var screen by mutableStateOf(Screen.Porch)
-    var lead by mutableStateOf(MothId.Luna)
+    var lead by mutableStateOf(store.progress.lead.takeIf { store.progress.unlocked(it) } ?: MothId.Luna)
     var round by mutableStateOf(Round.ready(MothId.Luna))
     var report by mutableStateOf<Report?>(null)
     var fx by mutableStateOf<Fx?>(null)
@@ -268,6 +268,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         noticeMoth = null
         if (id != lead) {
             lead = id
+            store.change { it.copy(lead = id) }
             sfx.play(Sound.Flip)
             buzz(HapticFeedbackType.SegmentTick)
         }

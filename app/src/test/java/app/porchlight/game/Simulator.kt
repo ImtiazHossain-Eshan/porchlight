@@ -27,7 +27,8 @@ data class SimStats(val games: Int, val wins: Int, val stars: Double, val leftMs
  *   pair it knows; otherwise it turns a card it doesn't know, then that card's partner if it knows
  *   it, or another unknown card.
  *
- * The turn time is the spec's 0.7 s. PORCH_FLIP_MS and PORCH_RECALL_TURNED (remember turned
+ * The turn time is 1.0 s, a little slower than the spec's 0.7 s so rounds are kinder to real
+ * players. PORCH_FLIP_MS and PORCH_RECALL_TURNED (remember turned
  * cards only with chance p) override it for experiments.
  * - It steers clear of dead leaves it knows about.
  * - A Lookalike is taken for its twin 15% of the times it is seen.
@@ -36,7 +37,7 @@ data class SimStats(val games: Int, val wins: Int, val stars: Double, val leftMs
  * The lead is a moth without a perk, so the level's own numbers are what is measured.
  */
 object Simulator {
-    val FLIP_MS = System.getenv("PORCH_FLIP_MS")?.toLongOrNull() ?: 700L
+    val FLIP_MS = System.getenv("PORCH_FLIP_MS")?.toLongOrNull() ?: 1_000L
     private val recallTurned = System.getenv("PORCH_RECALL_TURNED") == "1"
     const val CARD_MS = 260.0
     const val FORGET_PER_SECOND = 0.04
@@ -147,21 +148,21 @@ object Simulator {
 
 /**
  * The win rate an average player should have on [level]: a straight line across each chapter's
- * normal levels, a breather ten points easier, a boss ten points harder.
+ * normal levels, a breather eight points easier, a boss ten points harder.
  */
 fun targetWinRate(level: Level): Double {
     val (from, to) = when (level.chapter) {
-        1 -> 95.0 to 85.0
-        2 -> 85.0 to 75.0
-        3 -> 78.0 to 65.0
-        4 -> 70.0 to 55.0
-        else -> 60.0 to 40.0
+        1 -> 97.0 to 90.0
+        2 -> 90.0 to 82.0
+        3 -> 85.0 to 74.0
+        4 -> 80.0 to 67.0
+        else -> 72.0 to 56.0
     }
     val i = (level.number - 1) % 10
     val base = from + (to - from) * i / 9.0
     return when (level.kind) {
         Kind.Normal -> base
-        Kind.Breather -> base + 10
+        Kind.Breather -> (base + 8).coerceAtMost(99.0)
         Kind.Boss -> base - 10
     }
 }

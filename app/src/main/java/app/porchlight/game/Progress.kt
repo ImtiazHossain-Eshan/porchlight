@@ -129,6 +129,8 @@ data class Progress(
     /** The furthest level a win has opened, and the one picked on the porch. */
     val reached: Int = 1,
     val current: Int = 1,
+    /** The lead moth last picked, so it is still leading the next time the app opens. */
+    val lead: MothId = MothId.Luna,
     /** The best stars earned on each level, level 1 first. */
     val levelStars: List<Int> = List(LEVELS.size) { 0 },
     /** The highest chapter opened. Once open a chapter stays open. */
@@ -441,6 +443,7 @@ class Store(private val prefs: SharedPreferences) {
         owedMastery = names("owedMastery"),
         reached = prefs.getInt("reached", 1).coerceIn(1, LEVELS.size),
         current = prefs.getInt("current", 1).coerceIn(1, LEVELS.size),
+        lead = prefs.getString("lead", null)?.let { name -> MothId.entries.find { it.name == name && it.isLead } } ?: MothId.Luna,
         levelStars = readStars(prefs.getString("levelStars", null)),
         chapters = prefs.getInt("chapters", 1).coerceIn(1, CHAPTERS.size),
         lossLevel = prefs.getInt("lossLevel", 0),
@@ -476,6 +479,7 @@ class Store(private val prefs: SharedPreferences) {
             .putStringSet("owedMastery", next.owedMastery.map { it.name }.toSet())
             .putInt("reached", next.reached)
             .putInt("current", next.current)
+            .putString("lead", next.lead.name)
             .putString("levelStars", next.levelStars.joinToString(","))
             .putInt("chapters", next.chapters)
             .putInt("lossLevel", next.lossLevel)

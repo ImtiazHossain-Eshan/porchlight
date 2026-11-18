@@ -197,7 +197,8 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
             up -> 1f
             else -> 0.1f
         },
-        if (wrong) tween(90) else tween(380, delayMillis = if (up) 120 else 0),
+        // A Second look is brief: the moths open at once so every one can be read in the flash.
+        if (wrong) tween(90) else if (round.flashing) tween(120) else tween(380, delayMillis = if (up) 120 else 0),
         label = "wings",
     )
     val lift by animateFloatAsState(
