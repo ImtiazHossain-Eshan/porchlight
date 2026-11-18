@@ -10,7 +10,7 @@ Moths gather at a porch bulb, and the bulb is the clock. Find every pair before 
 <a href="https://github.com/ImtiazHossain-Eshan/porchlight/actions/workflows/android.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/ImtiazHossain-Eshan/porchlight/android.yml?branch=main&style=flat-square&label=build&labelColor=15181a&color=2c6f6c"></a>
 <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-f4c20d?style=flat-square&logo=android&logoColor=white&labelColor=15181a">
 <img alt="Kotlin with Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-f4c20d?style=flat-square&logo=kotlin&logoColor=white&labelColor=15181a">
-<img alt="141 tests passing" src="https://img.shields.io/badge/tests-141%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
+<img alt="151 tests passing" src="https://img.shields.io/badge/tests-151%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
 <img alt="Sound synthesized in app" src="https://img.shields.io/badge/sound-synthesized-f4c20d?style=flat-square&labelColor=15181a">
 <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-f4c20d?style=flat-square&labelColor=15181a"></a>
 
@@ -207,7 +207,7 @@ A round opens like the porch light warming up. The cards drop onto the board fac
 - **Type:** Alfa Slab One only for the big words (titles, the score, the level number), Fredoka for everything else, on one fixed scale, with one treatment per surface: carved on wood, glowing where the bulb lights it, engraved in metal, plain on paper. See [`DESIGN.md`](DESIGN.md).
 
 
-Modern effects without a game engine or a WebView: Compose `graphicsLayer` for the 3D, and [AGSL](https://developer.android.com/develop/ui/views/graphics/agsl) shaders in [`Shaders.kt`](app/src/main/java/app/porchlight/game/Shaders.kt) for the GPU work.
+Modern effects without a game engine or a WebView: Compose `graphicsLayer` for the 3D, and [AGSL](https://developer.android.com/develop/ui/views/graphics/agsl) shaders in [`Shaders.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Shaders.kt) for the GPU work.
 
 - **Cards are thick tiles.**
   - They tilt up to 12° toward your finger, sway slowly when idle, and flip on an overshooting spring.
@@ -274,6 +274,8 @@ Sound effects, night sounds, vibration and reduce motion each have their own swi
 
 A single-activity Compose app: a lobby with five screens off it, the round, and its scorecard. No navigation library. The game rules are plain Kotlin with no Android dependencies, which is what makes them testable.
 
+The game and its whole UI live in [`shared/`](shared), a Kotlin Multiplatform module with Compose Multiplatform, so the same code runs on Android, on iPhone and iPad ([`iosApp/`](iosApp)) and in the browser ([`webApp/`](webApp)). Each platform hands the game one [`Platform`](shared/src/commonMain/kotlin/app/porchlight/game/Platform.kt) object for storage, sound, tilt, haptics and sharing. [`docs/PLATFORMS.md`](docs/PLATFORMS.md) compares the three, feature by feature.
+
 ```mermaid
 flowchart LR
     A[MainActivity] --> S[GameScreen<br/><i>Compose UI</i>]
@@ -288,23 +290,24 @@ flowchart LR
 
 | File | What it holds |
 | --- | --- |
-| [`Game.kt`](app/src/main/java/app/porchlight/game/Game.kt) | Round rules: the 50 levels and their chapters, twists, dealing, peek, matching, streaks, timer, pause, scoring, and saving a round. Every move returns a new immutable `Round`. |
-| [`Progress.kt`](app/src/main/java/app/porchlight/game/Progress.kt) | XP, levels, unlocks, stars, mastery, badges, the daily streak, and saving progress. |
-| [`GameScreen.kt`](app/src/main/java/app/porchlight/game/GameScreen.kt) | The session: which screen is up, the player's taps, feedback, pausing and saved state. |
-| [`Porch.kt`](app/src/main/java/app/porchlight/game/Porch.kt), [`RoundScreen.kt`](app/src/main/java/app/porchlight/game/RoundScreen.kt), [`Results.kt`](app/src/main/java/app/porchlight/game/Results.kt) | The lobby, the round and the scorecard. |
-| [`Bulb.kt`](app/src/main/java/app/porchlight/game/Bulb.kt), [`Flock.kt`](app/src/main/java/app/porchlight/game/Flock.kt), [`Scene.kt`](app/src/main/java/app/porchlight/game/Scene.kt) | The bulb that is the timer, the moths that orbit it, and the night wall it lights. |
-| [`Shaders.kt`](app/src/main/java/app/porchlight/game/Shaders.kt), [`Bloom.kt`](app/src/main/java/app/porchlight/game/Bloom.kt), [`Depth.kt`](app/src/main/java/app/porchlight/game/Depth.kt) | The AGSL shaders and what the phone can draw, the bloom layer, and the tilt sensor and frame watch. |
-| [`Cards.kt`](app/src/main/java/app/porchlight/game/Cards.kt), [`Particles.kt`](app/src/main/java/app/porchlight/game/Particles.kt), [`Hud.kt`](app/src/main/java/app/porchlight/game/Hud.kt) | The board, sparks and shockwaves, score pops, and the small pieces of UI. |
-| [`Onboarding.kt`](app/src/main/java/app/porchlight/game/Onboarding.kt) | The first-launch tutorial (a 3 × 2 board) and the one-time twist introductions. |
-| [`Menus.kt`](app/src/main/java/app/porchlight/game/Menus.kt) | The screens off the lobby: the daily porch, lead moths, badges and settings. |
-| [`LevelMap.kt`](app/src/main/java/app/porchlight/game/LevelMap.kt) | The level map: the five chapter scenes, the coins, star gates and the level card. |
-| [`ShareCard.kt`](app/src/main/java/app/porchlight/game/ShareCard.kt) | The daily share card, its preview window, and rendering it to a PNG to share. |
-| [`Materials.kt`](app/src/main/java/app/porchlight/game/Materials.kt), [`Icons.kt`](app/src/main/java/app/porchlight/game/Icons.kt) | Wood, metal, parchment, velvet, gilded panels, gears, rivets and pipes; and the drawn icon set. |
-| [`Moths.kt`](app/src/main/java/app/porchlight/game/Moths.kt) | Fourteen moths and a dead leaf, drawn as vector paths on a Compose `Canvas`. |
-| [`Sfx.kt`](app/src/main/java/app/porchlight/game/Sfx.kt) | The synthesizer and the mixer. |
-| [`Theme.kt`](app/src/main/java/app/porchlight/game/Theme.kt) | The night palette and the type. |
+| [`Game.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Game.kt) | Round rules: the 50 levels and their chapters, twists, dealing, peek, matching, streaks, timer, pause, scoring, and saving a round. Every move returns a new immutable `Round`. |
+| [`Progress.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Progress.kt) | XP, levels, unlocks, stars, mastery, badges, the daily streak, and saving progress. |
+| [`GameScreen.kt`](shared/src/commonMain/kotlin/app/porchlight/game/GameScreen.kt) | The session: which screen is up, the player's taps, feedback, pausing and saved state. |
+| [`Porch.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Porch.kt), [`RoundScreen.kt`](shared/src/commonMain/kotlin/app/porchlight/game/RoundScreen.kt), [`Results.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Results.kt) | The lobby, the round and the scorecard. |
+| [`Bulb.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Bulb.kt), [`Flock.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Flock.kt), [`Scene.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Scene.kt) | The bulb that is the timer, the moths that orbit it, and the night wall it lights. |
+| [`Shaders.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Shaders.kt), [`Bloom.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Bloom.kt), [`Depth.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Depth.kt) | The AGSL shaders and what the phone can draw, the bloom layer, and the tilt sensor and frame watch. |
+| [`Cards.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Cards.kt), [`Particles.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Particles.kt), [`Hud.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Hud.kt) | The board, sparks and shockwaves, score pops, and the small pieces of UI. |
+| [`Onboarding.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Onboarding.kt) | The first-launch tutorial (a 3 × 2 board) and the one-time twist introductions. |
+| [`Menus.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Menus.kt) | The screens off the lobby: the daily porch, lead moths, badges and settings. |
+| [`LevelMap.kt`](shared/src/commonMain/kotlin/app/porchlight/game/LevelMap.kt) | The level map: the five chapter scenes, the coins, star gates and the level card. |
+| [`ShareCard.kt`](shared/src/commonMain/kotlin/app/porchlight/game/ShareCard.kt) | The daily share card, its preview window, and rendering it to a PNG to share. |
+| [`Materials.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Materials.kt), [`Icons.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Icons.kt) | Wood, metal, parchment, velvet, gilded panels, gears, rivets and pipes; and the drawn icon set. |
+| [`Moths.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Moths.kt) | Fourteen moths and a dead leaf, drawn as vector paths on a Compose `Canvas`. |
+| [`Sfx.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Sfx.kt) | The synthesizer and the mixer. |
+| [`Theme.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Theme.kt) | The night palette and the type. |
+| [`Platform.kt`](shared/src/commonMain/kotlin/app/porchlight/game/Platform.kt), [`PorchlightApp.kt`](shared/src/commonMain/kotlin/app/porchlight/game/PorchlightApp.kt) | What the game needs from each platform, and the entry point every host calls. Each platform's side is in `shared/src/androidMain`, `iosMain` and `wasmJsMain`; `skikoMain` holds the Skia shaders iOS and the web share. |
 
-**Stack:** Kotlin · Jetpack Compose (Material 3) · Android Gradle Plugin 9 · Gradle 9.6 · JUnit 4. Minimum Android 7.0 (API 24). No network, no analytics, no permissions. Progress stays on the device.
+**Stack:** Kotlin 2.4 · Compose Multiplatform 1.12 (Jetpack Compose on Android) · Android Gradle Plugin 9 · Gradle 9.6 · kotlin.test and JUnit 4. Minimum Android 7.0 (API 24). No network, no analytics, no permissions. Progress stays on the device.
 
 **On Android:**
 - A round pauses when the app goes to the background, and continues when you tap.
@@ -345,23 +348,58 @@ If Gradle can't find the SDK, create `local.properties`:
 sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 ```
 
-## Tests
+### Play on an iPhone in Safari
 
-141 unit tests cover the rules, the progression system, the balance between leads and the difficulty curve. They run on the JVM in a few seconds, with no emulator.
+Every push to `multiplatform` publishes the web version to GitHub Pages
+(`https://imtiazhossain-eshan.github.io/porchlight/`, once **Settings → Pages → Source** is set to
+**GitHub Actions**).
+
+1. On the iPhone (iOS 18.2 or later), open the address in **Safari**. Older versions show a page asking to update iOS.
+2. Tap anywhere once: Safari only plays sound after a tap.
+3. For full screen and offline play: **Share → Add to Home Screen**, then open Porchlight from the Home Screen.
+4. The first round asks to use motion for the tilt effect; allow it if you like the parallax.
+
+Progress is kept in Safari's storage for that address, separate from the Android app.
+
+### Build the web version
 
 ```bash
-./gradlew testDebugUnitTest
+./gradlew :webApp:wasmJsBrowserDevelopmentRun   # serves it locally and opens a browser
+./gradlew :webApp:wasmJsBrowserDistribution     # the site, in webApp/build/dist/wasmJs/productionExecutable/
 ```
+
+Add `?noshaders` or `?noblur` to the address to see the fallbacks.
+
+### iPhone and iPad app
+
+The app is built in the cloud, so no Mac is needed:
+
+- **Every push:** the [iOS workflow](.github/workflows/ios.yml) tests the shared code on the iOS simulator, builds the app, and uploads simulator screenshots (*Artifacts → ios-simulator-screenshots*).
+- **TestFlight:** **Actions → iOS → Run workflow**, tick **Also send this build to TestFlight**. This needs an Apple Developer Program membership and four repository secrets; [`docs/IOS_RELEASE.md`](docs/IOS_RELEASE.md) walks through the one-time setup.
+- **On a Mac:** `brew install xcodegen`, then `cd iosApp && xcodegen && open Porchlight.xcodeproj`, and Run. See [`iosApp/README.md`](iosApp/README.md).
+
+## Tests
+
+151 unit tests cover the rules, the progression system, the balance between leads and the difficulty curve. They run on the JVM in a few seconds, with no emulator.
+
+```bash
+./gradlew testDebugUnitTest                      # all of them, on the JVM
+./gradlew :shared:wasmJsBrowserTest              # the shared ones in headless Chrome (set CHROME_BIN on Windows)
+./gradlew :shared:iosSimulatorArm64Test          # the shared ones on the iOS simulator (macOS only; CI runs it)
+```
+
+The rules tests live in `shared/src/commonTest` and run on every platform; the level tuner and `LevelCurveTest` (with the simulated player) and `FormatParityTest` (the number and date text against Java's formatter) run on the JVM only.
 
 | Suite | Covers |
 | --- | --- |
-| [`GameTest`](app/src/test/java/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, levels, Lookalikes, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
-| [`ProgressTest`](app/src/test/java/app/porchlight/game/ProgressTest.kt) | XP curve, levels, unlocks, stars, chapter gates, the Easier bulb, moving old saves over, mastery, the daily porch and its streak, the share line, badges |
-| [`FlightLogTest`](app/src/test/java/app/porchlight/game/FlightLogTest.kt) | The round's flight log: order, multipliers, misses, saving and restoring, and that no card position leaks into it; the daily share card's data and the unchanged share line |
-| [`TallyTest`](app/src/test/java/app/porchlight/game/TallyTest.kt) | The Results tally: its points add up to the score, lines that say nothing are left out, close-loss notes, tips and star hints |
-| [`PeekTest`](app/src/test/java/app/porchlight/game/PeekTest.kt) | The peek countdown shows the whole seconds left, rounded up: 2, 1 for 2 s and 4, 3, 2, 1 for 3.4 s |
-| [`BalanceTest`](app/src/test/java/app/porchlight/game/BalanceTest.kt) | Simulated perfect and typical players with every lead: none may beat the rest by more than 15% on both score and time |
-| [`LevelCurveTest`](app/src/test/java/app/porchlight/game/LevelCurveTest.kt) | A simulated player plays every level 2,000 times at three skills: each level within five points of its target win rate, no sudden spikes, breathers easier and bosses harder. |
+| [`GameTest`](shared/src/commonTest/kotlin/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, levels, Lookalikes, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
+| [`ProgressTest`](shared/src/commonTest/kotlin/app/porchlight/game/ProgressTest.kt) | XP curve, levels, unlocks, stars, chapter gates, the Easier bulb, moving old saves over, mastery, the daily porch and its streak, the share line, badges |
+| [`FlightLogTest`](shared/src/commonTest/kotlin/app/porchlight/game/FlightLogTest.kt) | The round's flight log: order, multipliers, misses, saving and restoring, and that no card position leaks into it; the daily share card's data and the unchanged share line |
+| [`TallyTest`](shared/src/commonTest/kotlin/app/porchlight/game/TallyTest.kt) | The Results tally: its points add up to the score, lines that say nothing are left out, close-loss notes, tips and star hints |
+| [`PeekTest`](shared/src/commonTest/kotlin/app/porchlight/game/PeekTest.kt) | The peek countdown shows the whole seconds left, rounded up: 2, 1 for 2 s and 4, 3, 2, 1 for 3.4 s |
+| [`BalanceTest`](shared/src/commonTest/kotlin/app/porchlight/game/BalanceTest.kt) | Simulated perfect and typical players with every lead: none may beat the rest by more than 15% on both score and time |
+| [`FormatTest`](shared/src/commonTest/kotlin/app/porchlight/game/FormatTest.kt), [`FormatParityTest`](shared/src/androidHostTest/kotlin/app/porchlight/game/FormatParityTest.kt) | The shared number and date text ("2,340", "12.4", "Thu 19 Nov") reads exactly as Java's formatter wrote it |
+| [`LevelCurveTest`](shared/src/androidHostTest/kotlin/app/porchlight/game/LevelCurveTest.kt) | A simulated player plays every level 2,000 times at three skills: each level within five points of its target win rate, no sudden spikes, breathers easier and bosses harder. |
 
 CI runs them on every push. A failing test stops the build and uploads the HTML report.
 
