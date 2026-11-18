@@ -16,7 +16,7 @@ The build phase runs `./gradlew :shared:embedAndSignAppleFrameworkForXcode`, so 
 on the PATH (or set `JAVA_HOME`).
 
 Debug builds take launch arguments like the Android debug extras:
-`--level 12 --setXp 3000 --screen Daily` (Levels, Daily, Moths, Badges, Settings) and `--quality 2`.
+`--level 12 --setXp 3000 --screen Daily` (Levels, Daily, Moths, Badges, Settings, or Round to start the picked level) and `--quality 2`.
 
 ## Without a Mac
 

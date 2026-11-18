@@ -595,9 +595,13 @@ fun GameScreen(store: Store, sfx: Sfx, debugScreen: String? = null) {
     // The very first launch opens on the tutorial.
     LaunchedEffect(Unit) {
         if (!store.progress.tutorialDone) session.startTutorial()
-        // A debug launch can open a menu screen straight away, for screenshots.
-        Screen.entries.find { it.name.equals(debugScreen, ignoreCase = true) && it.isMenu && it != Screen.Porch }
-            ?.let { session.open(it) }
+        // A debug launch can open a screen straight away, for screenshots: a menu, or a round of
+        // the picked level, as if PLAY was pressed.
+        val wanted = Screen.entries.find { it.name.equals(debugScreen, ignoreCase = true) }
+        when {
+            wanted == Screen.Round && store.progress.tutorialDone -> session.start(daily = false)
+            wanted != null && wanted.isMenu && wanted != Screen.Porch -> session.open(wanted)
+        }
     }
 
     // On iOS a live round hides the status bar and home indicator and holds back edge swipes.

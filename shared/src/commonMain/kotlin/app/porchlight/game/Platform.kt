@@ -110,7 +110,7 @@ data class DebugLaunch(
     val setXp: Int? = null,
     /** Open every level up to this one and pick it. */
     val level: Int? = null,
-    /** Open this screen at launch (Levels, Daily, Moths, Badges or Settings), for screenshots. */
+    /** Open this screen at launch (Levels, Daily, Moths, Badges, Settings, or Round to start one), for screenshots. */
     val screen: String? = null,
 )
 

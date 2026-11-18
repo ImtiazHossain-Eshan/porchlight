@@ -1,11 +1,20 @@
 name: iOS
 
-# The shared game rules, tested on the iOS simulator. Needs a Mac, so it runs on GitHub's macOS runners.
+# Everything iOS, without a Mac of our own: GitHub's macOS runners.
+#   shared-tests  the shared game rules, tested on the iOS simulator
+#   simulator     builds the app for the simulator, launches it, and uploads screenshots
+#   testflight    (manual: Actions > iOS > Run workflow > testflight) archives, signs and uploads
+#                 a build to TestFlight. Needs the secrets in docs/IOS_RELEASE.md.
 on:
   push:
     branches: [main, multiplatform]
   pull_request:
   workflow_dispatch:
+    inputs:
+      testflight:
+        description: "Also send this build to TestFlight"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,3 +44,141 @@ jobs:
         with:
           name: ios-test-report
           path: shared/build/reports/tests/iosSimulatorArm64Test/
+
+  simulator:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - run: chmod +x gradlew
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          cd iosApp && xcodegen
+
+      - name: Build for the simulator
+        run: |
+          xcodebuild build \
+            -project iosApp/Porchlight.xcodeproj -scheme Porchlight -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath iosApp/build CODE_SIGNING_ALLOWED=NO > xcodebuild.log 2>&1 \
+            || { grep -E "error:|BUILD FAILED" xcodebuild.log | head -40; tail -40 xcodebuild.log; exit 1; }
+          tail -3 xcodebuild.log
+
+      - name: Screenshots on the simulator
+        run: |
+          APP=iosApp/build/Build/Products/Debug-iphonesimulator/Porchlight.app
+          DEVICE=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name | test("^iPhone [0-9]+ Pro$"))][-1].udid')
+          [ "$DEVICE" != "null" ] || DEVICE=$(xcrun simctl list devices available -j | jq -r '[.devices[][] | select(.name | startswith("iPhone"))][-1].udid')
+          xcrun simctl boot "$DEVICE"
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl status_bar "$DEVICE" override --time 9:41 --batteryState charged --batteryLevel 100
+          xcrun simctl install "$DEVICE" "$APP"
+          mkdir -p shots
+          shot() {
+            xcrun simctl terminate "$DEVICE" app.porchlight.game 2>/dev/null || true
+            xcrun simctl launch "$DEVICE" app.porchlight.game --level 12 --setXp 3000 --screen "$2"
+            sleep "$3"
+            xcrun simctl io "$DEVICE" screenshot "shots/$1.png"
+          }
+          shot 01-porch Porch 10
+          shot 02-round Round 9
+          shot 04-level-map Levels 6
+          shot 05-daily Daily 6
+          shot 06-moths Moths 6
+          shot 07-badges Badges 6
+          shot 08-settings Settings 6
+          xcrun simctl spawn "$DEVICE" log show --last 5m --predicate 'eventMessage CONTAINS "Porchlight"' > shots/log.txt || true
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: ios-simulator-screenshots
+          path: |
+            shots/
+            xcodebuild.log
+          if-no-files-found: warn
+
+  testflight:
+    if: github.event_name == 'workflow_dispatch' && inputs.testflight
+    needs: [shared-tests, simulator]
+    runs-on: macos-latest
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v6
+
+      - run: chmod +x gradlew
+
+      - name: Check the secrets
+        run: |
+          for name in ASC_KEY_ID ASC_ISSUER_ID APPLE_TEAM_ID; do
+            [ -n "${!name}" ] || { echo "::error::Secret $name is missing; see docs/IOS_RELEASE.md"; exit 1; }
+          done
+
+      # The App Store Connect API key signs in for Xcode: it creates the certificate and profile
+      # (automatic signing) and uploads the build. It is written to the runner's temp folder only.
+      - name: Install the App Store Connect key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          [ -n "$ASC_KEY_P8" ] || { echo "::error::Secret ASC_KEY_P8 is missing; see docs/IOS_RELEASE.md"; exit 1; }
+          KEY="$RUNNER_TEMP/AuthKey_${ASC_KEY_ID}.p8"
+          printf '%s' "$ASC_KEY_P8" > "$KEY"
+          chmod 600 "$KEY"
+          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          cd iosApp && xcodegen
+
+      - name: Archive
+        run: |
+          xcodebuild archive \
+            -project iosApp/Porchlight.xcodeproj -scheme Porchlight -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Porchlight.xcarchive" \
+            PORCHLIGHT_TEAM_ID="$APPLE_TEAM_ID" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Upload to TestFlight
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Porchlight.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP"/AuthKey_*.p8
