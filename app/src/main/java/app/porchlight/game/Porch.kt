@@ -1,5 +1,12 @@
 package app.porchlight.game
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.animation.core.Animatable
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -416,12 +423,62 @@ private fun Stage(session: Session, modifier: Modifier) {
                 drawCircle(Color.White.copy(alpha = a), r * 0.45f, at)
             }
         }
+        val scope = rememberCoroutineScope()
         LEADS.forEachIndexed { i, id ->
             val chosen = id == session.lead
             val open = progress.unlocked(id)
             val spot = if (chosen) LEAD_SPOT else SLOTS[i]
-            val x by animateDpAsState(w * spot.x, fly, label = "x")
-            val y by animateDpAsState(h * spot.y, fly, label = "y")
+            val goX = w * spot.x
+            val goY = h * spot.y
+            // A change of lead is a flight: the moth lifts off and flies an arc that swings up toward
+            // the light, from wherever it is to its new place. A change of screen size just moves it.
+            val travel = remember { Animatable(1f) }
+            val land = remember { Animatable(1f) }
+            val pop = remember { Animatable(1f) }
+            val shake = remember { Animatable(0f) }
+            var fromX by remember { mutableStateOf(goX) }
+            var fromY by remember { mutableStateOf(goY) }
+            var toX by remember { mutableStateOf(goX) }
+            var toY by remember { mutableStateOf(goY) }
+            var wasChosen by remember { mutableStateOf(chosen) }
+            val ctrlX = (fromX + toX) / 2 * 0.6f + lampX * 0.4f
+            val ctrlY = minOf(fromY, toY) - h * 0.22f
+            fun arc(q: Float): Pair<Dp, Dp> {
+                val u = 1f - q
+                return (fromX * (u * u) + ctrlX * (2 * u * q) + toX * (q * q)) to (fromY * (u * u) + ctrlY * (2 * u * q) + toY * (q * q))
+            }
+            val (x, y) = arc(travel.value)
+            LaunchedEffect(goX, goY) {
+                if (goX == toX && goY == toY) return@LaunchedEffect
+                val flight = chosen != wasChosen && !session.calm
+                wasChosen = chosen
+                fromX = x
+                fromY = y
+                toX = goX
+                toY = goY
+                if (!flight) {
+                    travel.snapTo(1f)
+                    return@LaunchedEffect
+                }
+                travel.snapTo(0f)
+                travel.animateTo(1f, tween(1_050, easing = FastOutSlowInEasing))
+                if (chosen) {
+                    // The new lead lands in the light: a ring and sparks under it, and the lamp flares.
+                    session.flareUp(0.35f, 260)
+                    land.snapTo(0f)
+                    land.animateTo(1f, tween(700, easing = FastOutSlowInEasing))
+                }
+            }
+            val flying = travel.value < 1f
+            // How far into its flight it is, as a bell: 0 at each end, 1 in the middle.
+            val air = sin(travel.value * PI.toFloat())
+            // Which way it is heading, so it turns to face where it is going.
+            val heading = run {
+                val q = travel.value
+                val dx = (ctrlX - fromX) * (2 * (1 - q)) + (toX - ctrlX) * (2 * q)
+                val dy = (ctrlY - fromY) * (2 * (1 - q)) + (toY - ctrlY) * (2 * q)
+                Math.toDegrees(atan2(dx.value.toDouble(), -dy.value.toDouble())).toFloat()
+            }
             // Moths shrink on short screens so they never crowd each other or the jar.
             // ...and grow on tablets, where the wall has room for them.
             val size by animateDpAsState(
@@ -437,12 +494,72 @@ private fun Stage(session: Session, modifier: Modifier) {
                     // Each moth flies off to its own jar on the Moths screen, and back.
                     .flies("moth-${id.name}", Fly.Arc)
                     .size(size)
+                    // Behind a moth changing places: its sparkle trail along the arc; and where the new
+                    // lead lands, a ring of light and sparks.
+                    .drawBehind {
+                        if (session.calm) return@drawBehind
+                        val here = Offset(x.toPx(), y.toPx())
+                        val centre = Offset(this.size.width / 2f, this.size.height / 2f)
+                        val tint = MOTH_TRAIL[i % MOTH_TRAIL.size]
+                        if (flying) {
+                            val head = travel.value
+                            val steps = 30
+                            fun at(q: Float) = arc(q).let { (ax, ay) -> Offset(ax.toPx(), ay.toPx()) - here + centre }
+                            var prev = at(head)
+                            for (k in 1..steps) {
+                                val q = (head - 0.32f * k / steps).coerceAtLeast(0f)
+                                val pt = at(q)
+                                val life = (1f - k / steps.toFloat()).let { it * it * (3f - 2f * it) }
+                                if ((pt - prev).getDistance() > 0.3f) {
+                                    drawLine(tint.copy(alpha = 0.18f * life), prev, pt, (18f * life + 1f) * density, StrokeCap.Round)
+                                    drawLine(Color.White.copy(alpha = 0.8f * life), prev, pt, (2.6f * life + 0.3f) * density, StrokeCap.Round)
+                                }
+                                prev = pt
+                            }
+                            for (n in 0 until 14) {
+                                val q = (head - n * 0.022f).coerceAtLeast(0f)
+                                val g = (1f - n / 14f) * (0.55f + 0.45f * sin(session.clock.seconds * 12f + n * 1.9f))
+                                val h1 = ((n * 92821 + i * 31) % 1000) / 1000f
+                                val p0 = at(q) + Offset((h1 - 0.5f) * 18f * density, (0.5f - h1) * 12f * density + n * 1.2f * density)
+                                val r = (2f + 3f * h1) * density * g
+                                drawCircle(Brush.radialGradient(listOf(tint.copy(alpha = 0.5f * g), Color.Transparent), p0, r * 3f), r * 3f, p0)
+                                drawLine(Color.White.copy(alpha = g), Offset(p0.x - r * 1.5f, p0.y), Offset(p0.x + r * 1.5f, p0.y), 1.1f * density, StrokeCap.Round)
+                                drawLine(Color.White.copy(alpha = g), Offset(p0.x, p0.y - r * 1.5f), Offset(p0.x, p0.y + r * 1.5f), 1.1f * density, StrokeCap.Round)
+                            }
+                        }
+                        val l = land.value
+                        if (l < 1f) {
+                            val fade = 1f - l
+                            val ring = this.size.minDimension * (0.25f + 0.55f * l)
+                            drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.5f * fade), Color.Transparent), centre, ring * 1.3f), ring * 1.3f, centre)
+                            drawCircle(Color(0xFFFFE6A8).copy(alpha = 0.8f * fade), ring, centre, style = Stroke(3f * density * fade + 0.5f))
+                            for (k in 0 until 10) {
+                                val a = k * (2 * PI.toFloat() / 10) + 0.3f
+                                val d = ring * (0.9f + 0.5f * l)
+                                val p0 = Offset(centre.x + cos(a) * d, centre.y + sin(a) * d)
+                                drawCircle(Color.White.copy(alpha = fade), (2.5f * fade + 0.5f) * density, p0)
+                            }
+                        }
+                    }
                     .graphicsLayer {
                         val t = session.clock.seconds
                         val calm = session.calm
                         cameraDistance = 10f * density
-                        rotationZ = if (chosen) 0f else toward
+                        rotationZ = (if (chosen) 0f else toward) + shake.value
+                        scaleX = pop.value
+                        scaleY = pop.value
                         if (calm) return@graphicsLayer
+                        if (flying) {
+                            // In the air: turned to face where it is going, a little bigger at the top
+                            // of the arc as it comes toward you, and banking into the turn.
+                            val toward0 = if (wasChosen) 0f else toward
+                            rotationZ = toward0 * (1f - air) + heading * air * 0.7f + shake.value
+                            val sc = pop.value * (1f + 0.18f * air)
+                            scaleX = sc
+                            scaleY = sc
+                            rotationY = sin(travel.value * PI.toFloat() * 2f) * 25f
+                            return@graphicsLayer
+                        }
                         // Depth: the phone's tilt slides the hovering lead further than the moths on the wall.
                         val lean = (if (chosen) 10.dp else 4.dp).toPx()
                         translationX = -session.tilt.x * lean
@@ -480,7 +597,21 @@ private fun Stage(session: Session, modifier: Modifier) {
                         if (chosen) drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.34f), Color.Transparent)))
                     }
                     // No clip here: a circle clip cut the wing tips off. The pick shows as the moth flying to the lead spot.
-                    .clickable(interactionSource = null, indication = null, role = Role.RadioButton) { session.pickLead(id) }
+                    .clickable(interactionSource = null, indication = null, role = Role.RadioButton) {
+                        session.pickLead(id)
+                        if (!session.calm) {
+                            scope.launch {
+                                if (open) {
+                                    // A met moth jumps under the finger before it takes off.
+                                    pop.snapTo(1.22f)
+                                    pop.animateTo(1f, spring(dampingRatio = 0.4f, stiffness = Spring.StiffnessMedium))
+                                } else {
+                                    // A locked moth shakes its head: not yet.
+                                    for (a in listOf(14f, -12f, 9f, -6f, 3f, 0f)) shake.animateTo(a, tween(55))
+                                }
+                            }
+                        }
+                    }
                     .semantics {
                         contentDescription =
                             if (open) "${id.label}: ${id.perkName}" else "${id.label}, locked until level ${id.unlockLevel}"
@@ -500,8 +631,8 @@ private fun Stage(session: Session, modifier: Modifier) {
                         val since = t - session.stirAt
                         val stir = if (since in 0f..1.1f && !session.calm) kotlin.math.abs(kotlin.math.sin(since * 21f + i)) * (1f - since / 1.1f) else 0f
                         // In flight the wings beat hard; resting, they breathe open and shut a little.
-                        val inFlight = !session.calm && !chosen && flight(i, t, flyers) != null
-                        val beating = if (inFlight) kotlin.math.abs(kotlin.math.sin(t * 24f + i)) else 0f
+                        val inFlight = !session.calm && ((!chosen && flight(i, t, flyers) != null) || flying)
+                        val beating = if (inFlight) kotlin.math.abs(kotlin.math.sin(t * 26f + i)) else 0f
                         val breathe = if (session.calm || chosen) 0f else 0.1f * (0.5f + 0.5f * kotlin.math.sin(t * 0.9f + i * 1.7f))
                         val flutter = maxOf(own, stir, beating)
                         // The lead keeps a steady wingbeat of its own as it hovers.
