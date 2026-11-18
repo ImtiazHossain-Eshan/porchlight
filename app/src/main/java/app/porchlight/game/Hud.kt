@@ -212,7 +212,7 @@ internal fun LevelPlate(xp: Int, modifier: Modifier = Modifier, still: Boolean =
         // The plaque, set back behind the medallion.
         Column(
             Modifier
-                .padding(start = 74.dp)
+                .padding(start = 80.dp)
                 .widthIn(max = 200.dp)
                 .padding(top = 4.dp, bottom = 4.dp),
         ) {

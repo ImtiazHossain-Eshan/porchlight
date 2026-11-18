@@ -53,16 +53,17 @@ private val WING_GOLD = listOf(Color(0xFFFFE9A6), Color(0xFFE2A230))
  * The player's level, drawn in brass. One composable for every place a level shows: the top bar,
  * Results, the level-up, the share card, the Moths and Nights screens.
  *
- * A small porch lamp: a milled metal bezel round a dome of warm glass with the number on it.
+ * A moth medallion: a metal moth with its wings spread and the number on a disc over its body.
  *
- * - Levels 1-4: brass.
- * - 5-9: darker brass with four rivets.
- * - 10-19: silver, and brighter glass.
- * - 20 and up: gold with four rivets, rays behind it, and a shine across the glass every 4 s.
+ * - Levels 1-4: bronze.
+ * - 5-9: brass, with an eye-spot on each forewing.
+ * - 10-19: gold, with swallow tails on the hindwings.
+ * - 20 and up: bright gold, with rays behind it and a shine across the disc every 4 s.
  *
- * [xp] lights the twenty tiny filaments round the bezel one after another, clockwise from the top.
+ * [xp] is warm light filling the wings outward from the body. Every few seconds it gives one soft
+ * wingbeat (not when [still]).
  * For the level-up: [from] and [flip] (0..1) run a split-flap from the old number to [level];
- * [parts] (0..1) lights the glass up from dark and grows the gold rays; [burst] (0..1) throws
+ * [parts] (0..1) spreads the wings open from folded and grows the gold rays; [burst] (0..1) throws
  * sparks out. [still] stops the shine (reduce motion, or a still image).
  */
 @Composable
@@ -78,98 +79,140 @@ internal fun Emblem(
 ) {
     val measurer = rememberTextMeasurer()
     val tier = tierFor(level)
-    val shine = if (tier == EmblemTier.Gilded && !still) {
-        val loop = rememberInfiniteTransition(label = "shine")
-        loop.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = LinearEasing), RepeatMode.Restart), label = "sweep")
-    } else null
+    val loop = if (!still) rememberInfiniteTransition(label = "emblem") else null
+    val shine = loop?.animateFloat(0f, 1f, infiniteRepeatable(tween(4_000, easing = LinearEasing), RepeatMode.Restart), label = "sweep")
+    // Every few seconds the moth gives one soft wingbeat.
+    val beat = loop?.animateFloat(0f, 1f, infiniteRepeatable(tween(3_600, easing = LinearEasing), RepeatMode.Restart), label = "beat")
     Canvas(modifier.semantics { contentDescription = "Level $level" }) {
         val c = Offset(size.width / 2f, size.height / 2f)
-        val r = size.minDimension * 0.4f
-        // On a level-up the glass lights up from dark as the new number lands.
-        val glow = 0.35f + 0.65f * parts
-        if (tier == EmblemTier.Gilded) rays(c, r * 0.8f, parts)
-        bezel(c, r, tier)
-        filaments(c, r, xp)
-        glass(c, r * 0.74f, tier, glow, shine?.value)
-        number(measurer, c, r * 0.86f, level, from, flip)
-        if (burst > 0f && burst < 1f) sparks(c, r * 0.9f, burst)
+        val s = size.minDimension / 2f
+        val b = beat?.value ?: 1f
+        val flap = if (b < 0.18f) 1f - 0.22f * sin(b / 0.18f * Math.PI.toFloat()) else 1f
+        // On a level-up the wings spread open from folded as the new number lands.
+        val spread = (0.35f + 0.65f * parts) * flap
+        if (tier == EmblemTier.Gilded) rays(c, s * 0.62f, parts)
+        mothWings(c, s, tier, xp ?: 1f, spread)
+        medallion(c, s * 0.42f, tier, if (tier == EmblemTier.Gilded) shine?.value else null)
+        number(measurer, c, s * 0.44f, level, from, flip)
+        if (burst > 0f && burst < 1f) sparks(c, s * 0.5f, burst)
+    }
+}
+
+/** The metals, from the first levels to the last. */
+private fun metalFor(tier: EmblemTier) = when (tier) {
+    EmblemTier.Brass -> listOf(Color(0xFFE7B97C), Color(0xFFB07A3A), Color(0xFF5E3816))
+    EmblemTier.Riveted -> listOf(Color(0xFFF6D894), Color(0xFFC99A48), Color(0xFF6E4A1C))
+    EmblemTier.Lit -> listOf(Color(0xFFFFEFC2), Color(0xFFE0B04E), Color(0xFF7A5216))
+    EmblemTier.Gilded -> listOf(Color(0xFFFFF2B8), Color(0xFFF0B83C), Color(0xFF8A5A0E))
+}
+
+/** One side's forewing and hindwing, in units of the emblem's half-width, the body at the origin. */
+private fun wingPath(c: Offset, s: Float, side: Float, spread: Float, tails: Boolean): Path {
+    fun p(x: Float, y: Float) = Offset(c.x + side * x * s * spread, c.y + y * s)
+    return Path().apply {
+        // Forewing: up and out to a rounded tip.
+        val f0 = p(0.12f, -0.08f)
+        moveTo(f0.x, f0.y)
+        p(0.35f, -0.62f).let { k1 -> p(0.92f, -0.82f).let { k2 -> p(0.97f, -0.42f).let { e -> cubicTo(k1.x, k1.y, k2.x, k2.y, e.x, e.y) } } }
+        p(1.0f, -0.12f).let { k1 -> p(0.62f, 0.02f).let { k2 -> p(0.12f, 0.04f).let { e -> cubicTo(k1.x, k1.y, k2.x, k2.y, e.x, e.y) } } }
+        close()
+        // Hindwing: down and out, rounder; with a swallow tail on silver and gold.
+        val h0 = p(0.12f, 0.06f)
+        moveTo(h0.x, h0.y)
+        p(0.58f, 0.04f).let { k1 -> p(0.86f, 0.36f).let { k2 -> p(0.66f, 0.6f).let { e -> cubicTo(k1.x, k1.y, k2.x, k2.y, e.x, e.y) } } }
+        if (tails) {
+            p(0.6f, 0.72f).let { k -> p(0.52f, 0.96f).let { e -> quadraticTo(k.x, k.y, e.x, e.y) } }
+            p(0.42f, 0.76f).let { k -> p(0.3f, 0.66f).let { e -> quadraticTo(k.x, k.y, e.x, e.y) } }
+        } else {
+            p(0.48f, 0.82f).let { k -> p(0.28f, 0.66f).let { e -> quadraticTo(k.x, k.y, e.x, e.y) } }
+        }
+        p(0.18f, 0.5f).let { k -> p(0.12f, 0.06f).let { e -> quadraticTo(k.x, k.y, e.x, e.y) } }
+        close()
     }
 }
 
 /**
- * The lamp's bezel: a milled ring of metal, brass at first, darker riveted brass from level 5,
- * silver from 10, gold from 20, with a groove inside and a shadow under it.
+ * The wings: metal, with the XP as warm light filling them outward from the body ([fill] 0..1),
+ * dark veins, eye-spots from level 5, and swallow tails from level 10.
  */
-private fun DrawScope.bezel(c: Offset, r: Float, tier: EmblemTier) {
-    val metal = when (tier) {
-        EmblemTier.Brass -> listOf(Color(0xFFF6D894), Color(0xFFC99A48), Color(0xFF6E4A1C))
-        EmblemTier.Riveted -> listOf(Color(0xFFE9B97A), Color(0xFFB0773A), Color(0xFF5A3414))
-        EmblemTier.Lit -> listOf(Color(0xFFFFFFFF), Color(0xFFC3CDD6), Color(0xFF55606C))
-        EmblemTier.Gilded -> listOf(Color(0xFFFFF2B8), Color(0xFFF0B83C), Color(0xFF8A5A0E))
+private fun DrawScope.mothWings(c: Offset, s: Float, tier: EmblemTier, fill: Float, spread: Float) {
+    val metal = metalFor(tier)
+    val tails = tier >= EmblemTier.Lit
+    val both = Path().apply {
+        addPath(wingPath(c, s, 1f, spread, tails))
+        addPath(wingPath(c, s, -1f, spread, tails))
     }
-    drawCircle(Color.Black.copy(alpha = 0.4f), r * 1.02f, Offset(c.x, c.y + r * 0.08f))
-    drawCircle(Brush.linearGradient(metal, Offset(c.x - r, c.y - r), Offset(c.x + r, c.y + r)), r, c)
-    // Milling round the edge.
-    for (k in 0 until 48) {
-        val a = k * (2 * Math.PI / 48)
-        val o = Offset(c.x + (r * 0.97f * cos(a)).toFloat(), c.y + (r * 0.97f * sin(a)).toFloat())
-        val i = Offset(c.x + (r * 0.9f * cos(a)).toFloat(), c.y + (r * 0.9f * sin(a)).toFloat())
-        drawLine(metal[2].copy(alpha = 0.45f), i, o, r * 0.025f)
-    }
-    drawCircle(metal[2], r, c, style = Stroke(r * 0.05f))
-    // The groove the glass sits in.
-    drawCircle(Brush.linearGradient(listOf(metal[2], metal[0]), Offset(c.x, c.y - r), Offset(c.x, c.y + r)), r * 0.8f, c, style = Stroke(r * 0.06f))
-    if (tier == EmblemTier.Riveted || tier == EmblemTier.Gilded) {
-        for (k in 0 until 4) {
-            val a = Math.PI / 4 + k * Math.PI / 2
-            val at = Offset(c.x + (r * 0.87f * cos(a)).toFloat(), c.y + (r * 0.87f * sin(a)).toFloat())
-            drawCircle(metal[2], r * 0.06f, at)
-            drawCircle(metal[0], r * 0.035f, Offset(at.x - r * 0.012f, at.y - r * 0.012f))
+    // A soft shadow under the wings.
+    translate(0f, s * 0.06f) { drawPath(both, Color.Black.copy(alpha = 0.35f)) }
+    // Dark metal where the light has not reached yet.
+    drawPath(both, Brush.linearGradient(listOf(lerp(metal[1], metal[2], 0.55f), lerp(metal[2], Color.Black, 0.25f)), Offset(c.x, c.y - s), Offset(c.x, c.y + s)))
+    // The light, spreading out from the body as the level fills.
+    if (fill > 0f) {
+        clipPath(both) {
+            // The light starts at the medallion's edge, so even a little XP shows on the wings.
+            val reach = s * (0.42f + 0.7f * fill.coerceIn(0f, 1f))
+            drawCircle(
+                Brush.radialGradient(
+                    0f to Color(0xFFFFF4D6),
+                    0.45f to metal[0],
+                    0.85f to metal[1],
+                    1f to metal[1].copy(alpha = 0.85f),
+                    center = c,
+                    radius = reach.coerceAtLeast(1f),
+                ),
+                reach,
+                c,
+            )
+            // The leading edge of the light glows.
+            drawCircle(Color(0xFFFFE6A8).copy(alpha = 0.6f), reach, c, style = Stroke(s * 0.05f))
         }
+    }
+    // Veins from the body to the wing edges.
+    for (side in listOf(1f, -1f)) {
+        for ((x, y) in listOf(0.85f to -0.6f, 0.95f to -0.3f, 0.7f to 0.45f, 0.5f to 0.7f)) {
+            drawLine(
+                metal[2].copy(alpha = 0.6f),
+                Offset(c.x + side * 0.16f * s * spread, c.y),
+                Offset(c.x + side * x * s * spread * 0.92f, c.y + y * s * 0.92f),
+                s * 0.025f,
+                StrokeCap.Round,
+            )
+        }
+        if (tier >= EmblemTier.Riveted) {
+            // An eye-spot on each forewing.
+            val eye = Offset(c.x + side * 0.66f * s * spread, c.y - 0.42f * s)
+            drawCircle(metal[2], s * 0.1f, eye)
+            drawCircle(Color(0xFFE38A2A), s * 0.075f, eye)
+            drawCircle(metal[2], s * 0.04f, eye)
+        }
+    }
+    drawPath(both, metal[2], style = Stroke(s * 0.045f, join = StrokeJoin.Round))
+    // Antennae, curling out from above the medallion.
+    for (side in listOf(1f, -1f)) {
+        val path = Path().apply {
+            moveTo(c.x + side * s * 0.08f, c.y - s * 0.38f)
+            quadraticTo(c.x + side * s * 0.16f, c.y - s * 0.78f, c.x + side * s * 0.36f, c.y - s * 0.84f)
+        }
+        drawPath(path, metal[2], style = Stroke(s * 0.04f, cap = StrokeCap.Round))
+        drawCircle(metal[1], s * 0.045f, Offset(c.x + side * s * 0.36f, c.y - s * 0.84f))
     }
 }
 
-/**
- * XP as tiny filaments set round the bezel: they light up amber, one after another, as the level
- * fills; the rest are dark. With no [xp] they are all dark studs.
- */
-private fun DrawScope.filaments(c: Offset, r: Float, xp: Float?) {
-    val count = 20
-    val lit = ((xp ?: 0f) * count)
-    for (k in 0 until count) {
-        val a = -Math.PI / 2 + k * (2 * Math.PI / count)
-        val at = Offset(c.x + (r * 0.87f * cos(a)).toFloat(), c.y + (r * 0.87f * sin(a)).toFloat())
-        val on = (lit - k).coerceIn(0f, 1f)
-        drawCircle(Color(0xFF1A120A), r * 0.052f, at)
-        if (on > 0f) {
-            drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.7f * on), Color.Transparent), at, r * 0.13f), r * 0.13f, at)
-            drawCircle(Color(0xFFFFE6A8).copy(alpha = on), r * 0.04f, at)
-        }
-    }
-}
-
-/** The glass: a dome of warm light, brighter in the middle, with a highlight; on gold a shine crosses it. */
-private fun DrawScope.glass(c: Offset, r: Float, tier: EmblemTier, glow: Float, shine: Float?) {
-    val warm = if (tier == EmblemTier.Lit) Color(0xFFFFF1CF) else Color(0xFFFFE2A0)
-    drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.6f * glow), Color.Transparent), c, r * 1.25f), r * 1.25f, c)
-    drawCircle(
-        Brush.radialGradient(
-            listOf(lerp(Color(0xFF6B4A22), warm, glow), lerp(Color(0xFF4A3216), Color(0xFFF2B456), glow), lerp(Color(0xFF2A1A0C), Color(0xFFB8641E), glow)),
-            Offset(c.x, c.y - r * 0.1f),
-            r,
-        ),
-        r,
-        c,
-    )
-    // A curved highlight on the glass, upper left.
-    drawArc(Color.White.copy(alpha = 0.45f), 200f, 70f, false, Offset(c.x - r * 0.78f, c.y - r * 0.78f), Size(r * 1.56f, r * 1.56f), style = Stroke(r * 0.08f, cap = StrokeCap.Round))
+/** The medallion over the moth's body: a struck disc with a rim, on which the number sits. */
+private fun DrawScope.medallion(c: Offset, r: Float, tier: EmblemTier, shine: Float?) {
+    val metal = metalFor(tier)
+    drawCircle(Color.Black.copy(alpha = 0.4f), r * 1.04f, Offset(c.x, c.y + r * 0.1f))
+    drawCircle(Brush.linearGradient(listOf(metal[0], metal[1], metal[2]), Offset(c.x - r, c.y - r), Offset(c.x + r, c.y + r)), r, c)
+    drawCircle(Brush.radialGradient(listOf(metal[0], metal[1]), Offset(c.x - r * 0.3f, c.y - r * 0.35f), r * 1.3f), r * 0.82f, c)
+    drawCircle(metal[2], r * 0.82f, c, style = Stroke(r * 0.06f))
+    drawCircle(metal[2], r, c, style = Stroke(r * 0.07f))
     if (shine != null) {
-        val disc = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r)) }
+        val disc = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r * 0.82f)) }
         clipPath(disc) {
             val p = (shine * 3f).coerceAtMost(1f)
             val x = c.x - r * 1.6f + r * 3.2f * p
             rotate(25f, c) {
-                drawRect(Color.White.copy(alpha = 0.45f), Offset(x - r * 0.14f, c.y - r * 1.5f), Size(r * 0.28f, r * 3f))
+                drawRect(Color.White.copy(alpha = 0.45f), Offset(x - r * 0.12f, c.y - r * 1.5f), Size(r * 0.24f, r * 3f))
             }
         }
     }
