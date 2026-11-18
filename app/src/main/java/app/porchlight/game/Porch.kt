@@ -238,6 +238,8 @@ private fun MenuTile(glyph: Glyph, label: String, index: Int, session: Session, 
             Modifier
                 .fillMaxWidth()
                 .height(72.dp)
+                // The tile grows into the title plaque of the screen it opens.
+                .flies("plaque-$label", Fly.Bounds)
                 .graphicsLayer { translationY = sink * 6.dp.toPx() }
                 .plank(Wood.Walnut, corner = 12.dp, elevation = 0.dp, seed = label.length + 3)
                 .border(1.5.dp, BrassRule, RoundedCornerShape(12.dp))
@@ -325,6 +327,8 @@ private fun Stage(session: Session, modifier: Modifier) {
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .padding(top = 14.dp)
+                // The jar rises into the round's bulb when a round starts, and comes back after.
+                .flies("lamp")
                 .size(jarH * 0.7f, jarH)
                 .tracksBulb(session)
                 // The jar is the porch light's switch: tap it off and on.
@@ -356,6 +360,8 @@ private fun Stage(session: Session, modifier: Modifier) {
             Box(
                 Modifier
                     .offset { IntOffset((x - size / 2).roundToPx(), (y - size / 2).roundToPx()) }
+                    // Each moth flies off to its own jar on the Moths screen, and back.
+                    .flies("moth-${id.name}", Fly.Arc)
                     .size(size)
                     .drawBehind {
                         // The lead hovers in a soft halo of the lamp's light.

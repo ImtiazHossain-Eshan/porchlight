@@ -193,6 +193,8 @@ private fun Header(session: Session, modifier: Modifier) {
                     smoke = { low },
                     still = session.calm,
                     modifier = Modifier
+                        // The porch jar (or the picked night's coin) grows into this bulb.
+                        .flies("lamp")
                         .size(bulbH * 0.7f, bulbH)
                         .tracksBulb(session)
                         .semantics { contentDescription = "${(round.left + 999) / 1000} seconds left" },

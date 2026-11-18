@@ -9,7 +9,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
@@ -449,6 +457,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun GameScreen(store: Store, sfx: Sfx) {
     val clock = rememberClock()
@@ -652,29 +661,49 @@ fun GameScreen(store: Store, sfx: Sfx) {
             danger = { tighten },
             tighten = { tighten },
         )
-        // Screens change with a short fade through the wall. A round and its results are one place.
-        Crossfade(
+        // Screens change with a short fade through the wall, and the things two screens share fly
+        // across instead (see Flight.kt). A round and its results are one place.
+        SharedTransitionLayout {
+        AnimatedContent(
             targetState = if (session.screen == Screen.Results) Screen.Round else session.screen,
-            animationSpec = tween(if (session.calm) 0 else 220),
+            transitionSpec = {
+                val ms = if (session.calm) 0 else 220
+                fadeIn(tween(ms)) togetherWith fadeOut(tween(ms))
+            },
             label = "screen",
         ) { screen ->
-            when (screen) {
-                Screen.Porch -> Porch(session)
-                Screen.Nights -> NightsScreen(session)
-                Screen.Daily -> DailyScreen(session)
-                Screen.Moths -> MothsScreen(session)
-                Screen.Badges -> BadgesScreen(session)
-                Screen.Settings -> SettingsScreen(session)
-                Screen.Round, Screen.Results -> {
-                    Box(Modifier.fillMaxSize().graphicsLayer { renderEffect = blurOf(behindSheet * density) }) {
-                        RoundScreen(session)
+            CompositionLocalProvider(LocalFlights provides if (session.calm) null else Flights(this@SharedTransitionLayout, this)) {
+                when (screen) {
+                    Screen.Porch -> Porch(session)
+                    Screen.Nights -> NightsScreen(session)
+                    Screen.Daily -> DailyScreen(session)
+                    Screen.Moths -> MothsScreen(session)
+                    Screen.Badges -> BadgesScreen(session)
+                    Screen.Settings -> SettingsScreen(session)
+                    Screen.Round, Screen.Results -> {
+                        Box(Modifier.fillMaxSize().graphicsLayer { renderEffect = blurOf(behindSheet * density) }) {
+                            RoundScreen(session)
+                        }
                     }
                 }
             }
         }
         Bloom(session)
+        // The scorecard keeps its own scope, so its level emblem can fly home to the porch.
         val report = session.report
-        if (session.screen == Screen.Results && report != null) Results(session, report)
+        var lastReport by remember { mutableStateOf(report) }
+        if (report != null) lastReport = report
+        AnimatedVisibility(
+            visible = session.screen == Screen.Results && report != null,
+            enter = EnterTransition.None,
+            exit = fadeOut(tween(if (session.calm) 0 else 90)),
+            label = "results",
+        ) {
+            CompositionLocalProvider(LocalFlights provides if (session.calm) null else Flights(this@SharedTransitionLayout, this)) {
+                lastReport?.let { Results(session, it) }
+            }
+        }
+        }
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = session.pop.value }.background(Color.White))
         if (session.leaving) LeaveNotice(session)
         session.sharing?.let { card ->

@@ -195,7 +195,8 @@ internal fun LevelPlate(xp: Int, modifier: Modifier = Modifier, still: Boolean =
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Emblem(level, Modifier.size(64.dp), xp = levelFill(xp), still = still)
+        // The scorecard's emblem flies home to this spot.
+        Emblem(level, Modifier.flies("emblem").size(64.dp), xp = levelFill(xp), still = still)
         Column {
             Text("LEVEL $level", style = Label, color = Dusk.ink, maxLines = 1)
             Text("${xpToGo(xp).grouped()} XP to level ${level + 1}", style = BodyText, color = Dusk.inkSoft, maxLines = 1)

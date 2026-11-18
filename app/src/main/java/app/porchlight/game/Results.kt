@@ -749,6 +749,7 @@ private fun LevelSection(session: Session, report: Report, play: Boolean, instan
         Emblem(
             report.levelAfter,
             Modifier
+                .flies("emblem")
                 .size(if (up) 96.dp else 72.dp)
                 .onGloballyPositioned { onPlaced(it.boundsInRoot().center) }
                 .graphicsLayer {

@@ -90,7 +90,7 @@ internal fun dayLabel(seed: Long): String = "${seed % 100} ${MONTHS[((seed / 100
  * oak plaque, and the content below, kept to a readable width on tablets.
  */
 @Composable
-internal fun MenuFrame(title: String, session: Session, scroll: Boolean = true, maxContentWidth: Dp = 560.dp, content: @Composable ColumnScope.() -> Unit) {
+internal fun MenuFrame(title: String, session: Session, scroll: Boolean = true, maxContentWidth: Dp = 560.dp, flight: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Column(
         Modifier
             .fillMaxSize()
@@ -105,6 +105,7 @@ internal fun MenuFrame(title: String, session: Session, scroll: Boolean = true, 
                 Modifier
                     .align(Alignment.Center)
                     .padding(horizontal = 56.dp)
+                    .flies(flight, Fly.Bounds)
                     .plank(Wood.Oak, corner = 10.dp, elevation = 6.dp, seed = title.length)
                     .border(1.5.dp, BrassRule, RoundedCornerShape(10.dp))
                     .padding(horizontal = 22.dp, vertical = 9.dp)
@@ -138,7 +139,7 @@ internal fun NightsScreen(session: Session) {
     // The night waiting for a yes in the confirmation card, if one is open.
     var asking by remember { mutableStateOf<Night?>(null) }
     Box(Modifier.fillMaxSize()) {
-    MenuFrame("Six nights", session, scroll = false, maxContentWidth = 980.dp) {
+    MenuFrame("Six nights", session, flight = "plaque-Nights", scroll = false, maxContentWidth = 980.dp) {
       // Portrait: the map, then the night's details and PLAY below it. Wide (landscape, a short
       // window): the map on the left, the details and PLAY beside it, so the map keeps its height.
       BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
@@ -274,6 +275,8 @@ internal fun NightsScreen(session: Session) {
                     Box(
                         Modifier
                             .size(box)
+                            // The picked night's coin grows into the round's bulb when it starts.
+                            .flies(if (chosen) "lamp" else null)
                             .graphicsLayer {
                                 scaleX = grow
                                 scaleY = grow
@@ -366,7 +369,7 @@ internal fun DailyScreen(session: Session) {
     val played = progress.playedDaily(today)
     val context = LocalContext.current
     val alive = played || progress.dailyDay == todaySeed(-1)
-    MenuFrame("Daily porch", session) {
+    MenuFrame("Daily porch", session, flight = "plaque-Daily") {
         Row(
             Modifier
                 .fillMaxWidth()
@@ -560,7 +563,7 @@ private fun CalendarLeaf(seed: Long, modifier: Modifier) {
 @OptIn(ExperimentalLayoutApi::class)
 internal fun MothsScreen(session: Session) {
     val progress = session.store.progress
-    MenuFrame("Lead moths", session) {
+    MenuFrame("Lead moths", session, flight = "plaque-Moths") {
         LEADS.forEach { moth ->
             val open = progress.unlocked(moth)
             val leading = moth == session.lead
@@ -669,6 +672,8 @@ private fun ShowcaseJar(moth: MothId, open: Boolean, gold: Boolean, clock: Clock
                 .fillMaxWidth(0.72f)
                 .height(72.dp)
                 .offset(y = 6.dp)
+                // The same moth that rests on the porch flies in here.
+                .flies("moth-${moth.name}", Fly.Arc)
                 .graphicsLayer {
                     if (open && !calm) {
                         val t = clock.seconds
@@ -713,7 +718,7 @@ internal fun BadgesScreen(session: Session) {
     DisposableEffect(Unit) { onDispose { session.seenBadges = session.store.progress.badges } }
     var picked by remember { mutableStateOf(fresh.firstOrNull() ?: Badge.entries.firstOrNull { it in progress.badges } ?: Badge.FirstLight) }
     val tilt = session.tilt
-    MenuFrame("Badges", session) {
+    MenuFrame("Badges", session, flight = "plaque-Badges") {
         val toGo = Badge.entries.size - progress.badges.size
         Text(if (toGo == 0) "ALL ${Badge.entries.size} EARNED" else "$toGo ${if (toGo == 1) "BADGE" else "BADGES"} TO GO", style = Label, color = Dusk.inkSoft)
         Spacer(Modifier.height(10.dp))
