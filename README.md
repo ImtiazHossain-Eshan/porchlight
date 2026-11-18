@@ -10,11 +10,11 @@ Moths gather at a porch bulb, and the bulb is the clock. Find every pair before 
 <a href="https://github.com/ImtiazHossain-Eshan/porchlight/actions/workflows/android.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/ImtiazHossain-Eshan/porchlight/android.yml?branch=main&style=flat-square&label=build&labelColor=15181a&color=2c6f6c"></a>
 <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-f4c20d?style=flat-square&logo=android&logoColor=white&labelColor=15181a">
 <img alt="Kotlin with Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-f4c20d?style=flat-square&logo=kotlin&logoColor=white&labelColor=15181a">
-<img alt="118 tests passing" src="https://img.shields.io/badge/tests-118%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
+<img alt="142 tests passing" src="https://img.shields.io/badge/tests-142%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
 <img alt="Sound synthesized in app" src="https://img.shields.io/badge/sound-synthesized-f4c20d?style=flat-square&labelColor=15181a">
 <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-f4c20d?style=flat-square&labelColor=15181a"></a>
 
-[Game](#the-game) · [Screens](#screens) · [The moths](#the-moths) · [Nights](#nights-and-the-daily-porch) · [Progression](#progression) · [Architecture](#architecture) · [Get started](#get-started) · [Tests](#tests) · [Releases](#builds-and-releases)
+[Game](#the-game) · [Screens](#screens) · [The moths](#the-moths) · [Levels](#levels-and-the-daily-porch) · [Progression](#progression) · [Architecture](#architecture) · [Get started](#get-started) · [Tests](#tests) · [Releases](#builds-and-releases)
 
 <sub>Designed and built by Imtiaz Hossain</sub>
 
@@ -53,17 +53,17 @@ Pick a lead moth before each round. Each one bends the rules its own way.
     <td align="center"><sub><b>Scorecard</b><br>Built line by line</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screens/6-nights.png" alt="Six nights: an inked map with the porch, a river, pines, a moon and a compass, and six thick brass coins with gold stars along a copper route" width="100%"></td>
+    <td align="center"><img src="docs/screens/6-levels.png" alt="The level map: chapter 5's brass coins 41 to 50 along a copper route on parchment, the boss coin 50 large with a lamp, and a card below reading Level 50, Last Light, boss, 24 cards, 27 s, Wanderer, Shadow, Blackout" width="100%"></td>
     <td align="center"><img src="docs/screens/9-daily.png" alt="Daily porch: a calendar leaf, the week as 3D coins with their stars, your streak and best, your best days, and a big PLAY TODAY sign" width="100%"></td>
     <td align="center"><img src="docs/screens/7-moths.png" alt="Lead moths: each moth beating its wings in a glass jar on velvet, with its strengths as pips" width="100%"></td>
-    <td align="center"><img src="docs/screens/8-badges.png" alt="Badges: twelve medals, each with its own mark, in bronze, silver and gold with tier ribbons; the ones not yet earned are dark outlines" width="100%"></td>
+    <td align="center"><img src="docs/screens/8-badges.png" alt="Badges: seventeen medals, each with its own mark, in bronze, silver and gold with tier ribbons; the ones not yet earned are dark outlines" width="100%"></td>
     <td align="center"><img src="docs/screens/10-settings.png" alt="Settings: a walnut switchboard with four lever switches and Replay the tutorial" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Six nights</b><br>Tap a coin to play</sub></td>
+    <td align="center"><sub><b>Fifty levels</b><br>Five chapters, one map</sub></td>
     <td align="center"><sub><b>Daily porch</b><br>One scored try a day</sub></td>
     <td align="center"><sub><b>Lead moths</b><br>Wings beating in jars</sub></td>
-    <td align="center"><sub><b>Badges</b><br>Twelve medals</sub></td>
+    <td align="center"><sub><b>Badges</b><br>Seventeen medals</sub></td>
     <td align="center"><sub><b>Settings</b><br>Four switches</sub></td>
   </tr>
 </table>
@@ -87,28 +87,31 @@ You start with Luna. Each level up brings the next lead to the porch.
 
 A unit test plays every lead with a perfect player and with one who misses 30% of the time, and checks that no lead beats the rest by more than 15% on both score and time.
 
-### Four more on later nights
+### Six more on later levels
 
 | | | | |
 | :---: | :---: | :---: | :---: |
 | <img src="docs/moths/sulphur.svg" width="56" alt=""><br>**Sulphur** | <img src="docs/moths/rose.svg" width="56" alt=""><br>**Rose** | <img src="docs/moths/midnight.svg" width="56" alt=""><br>**Midnight** | <img src="docs/moths/moss.svg" width="56" alt=""><br>**Moss** |
 
+Sulphur and Rose join on level 8, Midnight and Moss on level 16, and **Ash** and **Tide** on level 36, the first 12-pair board. Two lookalikes, **Domino** (Dot's near-twin) and **Lilac** (Iris's), only appear on Lookalikes levels.
+
 Every moth has one main colour no other moth uses, and a wing shape or pattern of its own, so you can tell any two apart at a glance.
 
-## Nights and the daily porch
+## Levels and the daily porch
 
-Beat a night with two stars or more to open the next. Each night gives about five seconds a pair.
+Fifty levels in five chapters of ten, each on its own stretch of the map. Every chapter has a breather (marked with a sprig) on its 7th level and a boss (a bigger coin with a lamp) on its 10th.
 
-| Night | Board | Bulb | Twist |
-| :---: | --- | :---: | --- |
-| 1 | 6 pairs, 3 × 4 | 30 s, then 24 s once you have won it | None |
-| 2 | 8 pairs, 4 × 4 | 40 s | Sulphur and Rose join |
-| 3 | 10 pairs, 4 × 5 | 50 s | Midnight and Moss join |
-| 4 | 10 pairs | 50 s | **Wanderer:** after a wrong pair, two face-down cards swap places |
-| 5 | 9 pairs and 2 leaves | 46 s | **Dead leaves:** turning one costs 2 seconds |
-| 6 | 10 pairs | 50 s | **Shadow:** one moth is only a silhouette during the peek |
+| Chapter | Scene | Levels | Opens at | What's new |
+| :---: | --- | :---: | :---: | --- |
+| 1 · First Light | The porch | 1–10 | — | Boards grow from 3 to 8 pairs |
+| 2 · Wanderers | The garden | 11–20 | 15 ★ | **Wanderer:** after a wrong pair, two face-down cards swap places |
+| 3 · Dead Leaves | The woods | 21–30 | 35 ★ | **Dead leaves:** turning one costs 2 seconds |
+| 4 · Shadows | The rooftops | 31–40 | 55 ★ | **Shadow:** one moth is a silhouette during the peek. **Lookalikes:** two moths are near-twins |
+| 5 · Last Light | The last porch | 41–50 | 80 ★ | **Blackout:** every 8 seconds the bulb cuts out for a moment |
 
-Each new night and twist is introduced once, in one line with a small animation, the first time you play it.
+Beating a level opens the next; a new chapter also needs its total of stars. Rounds run from 7 seconds on level 1 to 36 on the longest boards, and the peek is set per level. Lose a level three times in a row and an **Easier bulb** retry is offered: 20% more time, for one star at most. Boss wins earn half again as much XP.
+
+Each new twist is introduced once, in one line with a small animation, the first time you play it. The full table, with simulated win rates for casual, average and strong players, is in [`docs/LEVELS.md`](docs/LEVELS.md); `LevelCurveTest` checks the difficulty curve on every build. Saves from the six-night version carry over: each night's stars move to the matching level.
 
 **Daily porch.** The deal comes from today's date, so everyone gets the same porch. You get one scored try a day. Play on consecutive days to build a streak, and share your result as a card.
 
@@ -143,12 +146,14 @@ Levels need 200, 500, 900, 1,400 and 2,000 XP in total.
 | Star | For |
 | :---: | --- |
 | ★ | Finding every pair |
-| ★ | A third of the bulb or more left |
-| ★ | Not a single wrong pair |
+| ★ | A quarter of the bulb or more left |
+| ★ | Few enough wrong pairs: 2 in chapters 1–2, 3 in chapters 3–4, 4 in chapter 5, one fewer on a boss |
 
-**Mastery.** Win three stars with a lead on night 3 or later and that moth turns gold on every card.
+The daily porch keeps its own rule: a third of the bulb left, and no wrong pairs.
 
-**Pacing.** A round hands over at most two unlocks. A new night and a new lead always arrive at once; a gold moth and badges that don't fit wait and arrive in later rounds.
+**Mastery.** Win three stars with a lead on level 10 or later and that moth turns gold on every card.
+
+**Pacing.** A round hands over at most two unlocks. A new level and a new lead always arrive at once; a gold moth and badges that don't fit wait and arrive in later rounds.
 
 </td>
 <td valign="top" width="50%">
@@ -164,11 +169,12 @@ Levels need 200, 500, 900, 1,400 and 2,000 XP in total.
 | Melody | Find six pairs in a row on a board of 8 pairs or more. |
 | Night shift | Play 10 rounds. |
 | Full roster | Win once with every lead. |
-| Wanderers | Beat night 4. |
-| Last light | Beat night 6. |
+| Wanderers | Win a level where the cards move. |
+| Last light | Win a Blackout level, where the bulb cuts out. |
 | Regular | Play the daily porch three days running. |
-| Golden wing | Master a moth: three stars with it leading, on night 3 or later. |
+| Golden wing | Master a moth: three stars with it leading, on level 10 or later. |
 | Gilded porch | Master all six leads. |
+| The porch … The last porch | Five chapter stamps, one for beating each chapter's boss. |
 
 </td>
 </tr>
@@ -194,7 +200,7 @@ A round opens like the porch light warming up. The cards drop onto the board fac
 
 - **Lobby:** a mason jar with a filament inside, hung from an iron bracket. Tap it to switch the porch light off and on: the wall and the moths fall dark, then it flickers back with a hum and every moth starts up. Tonight's night, pairs, time and best sit quietly under the title, the lead moth on a small tag above a big **PLAY** sign that breathes a warm glow, and the four menu tiles are raised walnut blocks with 3D brass coins that bob and sink when pressed.
 - **Level emblem:** the level is a brass emblem that grows with the player in four looks (a moth on brass; rivets and a laurel of wings; a silver rim, wider wings and a lit bulb; gold with rays and a shine), with XP as a gold ring and "152 XP to level 12" beside it. A level-up spins it once in 3D and flips the number like a departure board.
-- **Night map:** an inked country (the porch, a river, hills, pines, a moon, a compass rose) with the nights as thick brass coins along a copper route. A coin rises under your finger, and tapping it opens a card that springs up with the night's stars, pairs, time and twist, and PLAY / Not now.
+- **Level map:** one long parchment scroll, a scene per chapter (the porch, the garden, the woods, the rooftops, the last porch), with the levels as thick brass coins along a copper route. A chapter you haven't opened yet is behind a brass plaque that shows the stars it needs, and beating a boss stamps the chapter complete. A coin rises under your finger, and tapping it opens a card that springs up with the level's stars, pairs, time and twist, and PLAY / Not now.
 - **Round:** an Edison bulb in brass works, with two gears that turn while it burns and a pressure gauge whose needle falls with the time left. A bold gold band follows the glass's outline, open at the neck, and drains clockwise as the time runs out. The seconds sit under it in the bulb's colour, with tenths under ten seconds. The ✕ leaves the round (it asks first), and the pause sign offers Keep playing, Start over and Leave round.
 - **Cards:** ebony tiles in embossed brass frames. Faces are parchment; a found pair leaves an empty, recessed socket.
 - **Signs and buttons:** the main action is always an oak sign with carved lettering. Quieter actions are walnut with painted lettering. Round buttons (back, pause, ✕, settings) are thick 3D brass coins with a milled edge that sink when pressed.
@@ -282,18 +288,19 @@ flowchart LR
 
 | File | What it holds |
 | --- | --- |
-| [`Game.kt`](app/src/main/java/app/porchlight/game/Game.kt) | Round rules: nights, twists, dealing, peek, matching, streaks, timer, pause, scoring, and saving a round. Every move returns a new immutable `Round`. |
+| [`Game.kt`](app/src/main/java/app/porchlight/game/Game.kt) | Round rules: the 50 levels and their chapters, twists, dealing, peek, matching, streaks, timer, pause, scoring, and saving a round. Every move returns a new immutable `Round`. |
 | [`Progress.kt`](app/src/main/java/app/porchlight/game/Progress.kt) | XP, levels, unlocks, stars, mastery, badges, the daily streak, and saving progress. |
 | [`GameScreen.kt`](app/src/main/java/app/porchlight/game/GameScreen.kt) | The session: which screen is up, the player's taps, feedback, pausing and saved state. |
 | [`Porch.kt`](app/src/main/java/app/porchlight/game/Porch.kt), [`RoundScreen.kt`](app/src/main/java/app/porchlight/game/RoundScreen.kt), [`Results.kt`](app/src/main/java/app/porchlight/game/Results.kt) | The lobby, the round and the scorecard. |
 | [`Bulb.kt`](app/src/main/java/app/porchlight/game/Bulb.kt), [`Flock.kt`](app/src/main/java/app/porchlight/game/Flock.kt), [`Scene.kt`](app/src/main/java/app/porchlight/game/Scene.kt) | The bulb that is the timer, the moths that orbit it, and the night wall it lights. |
 | [`Shaders.kt`](app/src/main/java/app/porchlight/game/Shaders.kt), [`Bloom.kt`](app/src/main/java/app/porchlight/game/Bloom.kt), [`Depth.kt`](app/src/main/java/app/porchlight/game/Depth.kt) | The AGSL shaders and what the phone can draw, the bloom layer, and the tilt sensor and frame watch. |
 | [`Cards.kt`](app/src/main/java/app/porchlight/game/Cards.kt), [`Particles.kt`](app/src/main/java/app/porchlight/game/Particles.kt), [`Hud.kt`](app/src/main/java/app/porchlight/game/Hud.kt) | The board, sparks and shockwaves, score pops, and the small pieces of UI. |
-| [`Onboarding.kt`](app/src/main/java/app/porchlight/game/Onboarding.kt) | The first-launch tutorial (a 3 × 2 board) and the one-time night introductions. |
-| [`Menus.kt`](app/src/main/java/app/porchlight/game/Menus.kt) | The screens off the lobby: the night map, the daily porch, lead moths, badges and settings. |
+| [`Onboarding.kt`](app/src/main/java/app/porchlight/game/Onboarding.kt) | The first-launch tutorial (a 3 × 2 board) and the one-time twist introductions. |
+| [`Menus.kt`](app/src/main/java/app/porchlight/game/Menus.kt) | The screens off the lobby: the daily porch, lead moths, badges and settings. |
+| [`LevelMap.kt`](app/src/main/java/app/porchlight/game/LevelMap.kt) | The level map: the five chapter scenes, the coins, star gates and the level card. |
 | [`ShareCard.kt`](app/src/main/java/app/porchlight/game/ShareCard.kt) | The daily share card, its preview window, and rendering it to a PNG to share. |
 | [`Materials.kt`](app/src/main/java/app/porchlight/game/Materials.kt), [`Icons.kt`](app/src/main/java/app/porchlight/game/Icons.kt) | Wood, metal, parchment, velvet, gilded panels, gears, rivets and pipes; and the drawn icon set. |
-| [`Moths.kt`](app/src/main/java/app/porchlight/game/Moths.kt) | Ten moths and a dead leaf, drawn as vector paths on a Compose `Canvas`. |
+| [`Moths.kt`](app/src/main/java/app/porchlight/game/Moths.kt) | Fourteen moths and a dead leaf, drawn as vector paths on a Compose `Canvas`. |
 | [`Sfx.kt`](app/src/main/java/app/porchlight/game/Sfx.kt) | The synthesizer and the mixer. |
 | [`Theme.kt`](app/src/main/java/app/porchlight/game/Theme.kt) | The night palette and the type. |
 
@@ -340,7 +347,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 
 ## Tests
 
-118 unit tests cover the rules, the progression system and the balance between leads. They run on the JVM in a few seconds, with no emulator.
+142 unit tests cover the rules, the progression system, the balance between leads and the difficulty curve. They run on the JVM in a few seconds, with no emulator.
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -348,12 +355,13 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 
 | Suite | Covers |
 | --- | --- |
-| [`GameTest`](app/src/test/java/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, nights, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
-| [`ProgressTest`](app/src/test/java/app/porchlight/game/ProgressTest.kt) | XP curve, levels, unlocks, stars, opening nights, mastery, the daily porch and its streak, the share line, badges |
+| [`GameTest`](app/src/test/java/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, levels, Lookalikes and Blackout, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
+| [`ProgressTest`](app/src/test/java/app/porchlight/game/ProgressTest.kt) | XP curve, levels, unlocks, stars, chapter gates, the Easier bulb, moving old saves over, mastery, the daily porch and its streak, the share line, badges |
 | [`FlightLogTest`](app/src/test/java/app/porchlight/game/FlightLogTest.kt) | The round's flight log: order, multipliers, misses, saving and restoring, and that no card position leaks into it; the daily share card's data and the unchanged share line |
 | [`TallyTest`](app/src/test/java/app/porchlight/game/TallyTest.kt) | The Results tally: its points add up to the score, lines that say nothing are left out, close-loss notes, tips and star hints |
 | [`PeekTest`](app/src/test/java/app/porchlight/game/PeekTest.kt) | The peek countdown shows the whole seconds left, rounded up: 2, 1 for 2 s and 4, 3, 2, 1 for 3.4 s |
 | [`BalanceTest`](app/src/test/java/app/porchlight/game/BalanceTest.kt) | Simulated perfect and typical players with every lead: none may beat the rest by more than 15% on both score and time |
+| [`LevelCurveTest`](app/src/test/java/app/porchlight/game/LevelCurveTest.kt) | A simulated player plays every level 2,000 times at three skills: each level within five points of its target win rate, no sudden spikes, breathers easier and bosses harder. |
 
 CI runs them on every push. A failing test stops the build and uploads the HTML report.
 
