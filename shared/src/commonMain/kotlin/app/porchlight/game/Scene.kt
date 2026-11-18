@@ -202,7 +202,7 @@ internal fun NightScene(
                         val gy = at.y + ty * DEPTH_GLOW
                         if (glowBrush != null) {
                             glowShader.update(gx, gy, radius * 0.62f, clock.seconds, level, warmth(), hue())
-                            drawRect(glowBrush)
+                            drawRect(glowShader.brush)
                         } else {
                             translate(gx, gy) {
                                 scale(radius / 100f, radius / 100f, pivot = Offset.Zero) {

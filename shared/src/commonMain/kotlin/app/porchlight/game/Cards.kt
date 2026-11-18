@@ -182,7 +182,6 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
     val flapPhase = remember { Random.nextFloat() * 6.283f }
     val foil = remember { FoilShader.create() }
     val goldFoil = remember(gold) { if (gold) FoilShader.create() else null }
-    val goldBrush = goldFoil?.brush
 
     // The flip: a spring that overshoots a little, so the card swings past and settles.
     val turn by animateFloatAsState(
@@ -374,7 +373,8 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                     if (!faceUp) {
                         if (foilBrush != null) {
                             foil.update(size.width, size.height, nx, ny, time, gold = true, strength = 0.16f)
-                            drawRect(foilBrush)
+                            // Read after update: on iOS and the web each update makes a new shader.
+                            drawRect(foil.brush)
                         } else {
                             translate(size.width * (0.15f - nx * 0.45f), 0f) { drawRect(band, size = size.copy(width = size.width * 0.7f)) }
                         }
@@ -510,7 +510,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                     val ny = (tiltX.value / 12f + session.tilt.y * 0.5f).coerceIn(-1f, 1f)
                     if (goldFoil != null) {
                         goldFoil.update(size.width, size.height, -nx, ny, if (calm) 0f else session.clock.seconds, gold = true, strength = 0.42f)
-                        drawRect(goldBrush!!, blendMode = BlendMode.SrcAtop)
+                        drawRect(goldFoil.brush, blendMode = BlendMode.SrcAtop)
                     } else {
                         translate(size.width * (-0.5f + nx * 0.5f), 0f) {
                             drawRect(sheen, size = size.copy(width = size.width * 2f), alpha = 0.5f, blendMode = BlendMode.SrcAtop)
