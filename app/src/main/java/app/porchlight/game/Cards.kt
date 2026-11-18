@@ -80,15 +80,17 @@ private val PAPER_EDGE = Color(0xFFE2CFA0)
 private val LEAF_PAPER = Color(0xFFD9C7A2)
 private val SILHOUETTE = Color(0xFF3A3328)
 
-/** A found pair's socket, and the moth engraved in it. */
-private val SOCKET_MIDDLE = Color(0xFF3A2614)
-private val SOCKET_EDGE = Color(0xFF1A100A)
-private val ENGRAVED = Color(0xFF8C6A36)
+/**
+ * A found pair's socket: cool teal slate, the colour found pairs glow, so it can never be taken
+ * for a warm, gold face-down card. Only a faint ghost of the moth stays in it.
+ */
+private val SOCKET_MIDDLE = Color(0xFF173A3A)
+private val SOCKET_EDGE = Color(0xFF0A1A1C)
+private val GHOST = Color(0xFF5FD6C4)
 
 /**
  * The board fills whatever space it is given: cards keep a 3:4 shape and shrink to fit. On a tall
  * board in a short space they square up (down to 1:1) before they get narrower than [MIN_CARD].
- * In a Blackout the board goes dark: the cards still take taps, but nothing face up shows.
  */
 @Composable
 internal fun Board(session: Session, modifier: Modifier) {
@@ -124,27 +126,6 @@ internal fun Board(session: Session, modifier: Modifier) {
                         if (index < count) Card(index, session, cardW, cardH, row, rows)
                     }
                 }
-            }
-        }
-        // The Blackout: the board goes dark over the cards. It takes no taps of its own, so the
-        // cards under it can still be turned.
-        val out by animateFloatAsState(
-            if (session.dark == Dark.Out) 1f else 0f,
-            tween(if (session.calm) 0 else 70),
-            label = "blackout",
-        )
-        if (out > 0.001f) {
-            Canvas(Modifier.matchParentSize().semantics { contentDescription = "The bulb is out" }) {
-                drawRect(Color(0xFF070910), alpha = 0.95f * out)
-                // A dim, cold sign in the middle, so the dark reads as the twist and not a fault.
-                val c = Offset(size.width / 2f, size.height / 2f)
-                val r = size.minDimension * 0.22f
-                drawCircle(
-                    Brush.radialGradient(listOf(Color(0xFF6F86B8).copy(alpha = 0.22f * out), Color.Transparent), c, r * 1.6f),
-                    r * 1.6f,
-                    c,
-                )
-                glyph(Glyph.BulbOff, c, r, Color(0xFF9DB0D8), alpha = 0.55f * out)
             }
         }
     }
@@ -294,7 +275,8 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                 // With only one or two pairs left, the last cards breathe a little so the eye lands on them.
                 val few = round.phase == Phase.Play && !matched && !calm && round.pairCount - round.pairs in 1..2
                 val breathe = if (few) 1f + 0.02f * sin(session.clock.seconds * 2.6f) else 1f
-                val s = press.value * (1f + 0.06f * lift) * breathe
+                // A found pair sinks a little into the board.
+                val s = press.value * (1f + 0.06f * lift) * breathe * (1f - 0.08f * emptied)
                 scaleX = s
                 scaleY = s * squash.value
                 shadowElevation = (1f - emptied) * (2f + 16f * mid + 6f * lift) * density
@@ -414,8 +396,10 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                         }
                     }
 
-                    // The embossed brass frame. An empty socket keeps a dulled trace of it.
-                    drawRoundRect(BrassRule, Offset(half, half), frameSize, corner, alpha = 0.5f + 0.5f * full, style = frame)
+                    // The embossed brass frame. An empty socket keeps only a dull trace of it, and a
+                    // thin teal line inside, the mark of a pair found.
+                    drawRoundRect(BrassRule, Offset(half, half), frameSize, corner, alpha = 0.2f + 0.8f * full, style = frame)
+                    if (emptied > 0f) drawRoundRect(GHOST, Offset(inset, inset), innerSize, innerCorner, alpha = 0.35f * emptied, style = hair)
                     if (!faceUp) {
                         drawRoundRect(Craft.brassDark, Offset(inset, inset), innerSize, innerCorner, style = hair)
                         drawRoundRect(Craft.brassLight, Offset(inset + hair.width, inset + hair.width), Size(innerSize.width - hair.width * 2, innerSize.height - hair.width * 2), innerCorner, alpha = 0.35f, style = hair)
@@ -487,8 +471,8 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
             ) {
                 val c = Offset(size.width / 2, size.height / 2)
                 val cut = 1.2.dp.toPx()
-                moth(id, Offset(c.x, c.y + cut), size.minDimension, 0.85f, flat = Color.Black.copy(alpha = 0.55f))
-                moth(id, c, size.minDimension, 0.85f, flat = ENGRAVED)
+                moth(id, Offset(c.x, c.y + cut), size.minDimension, 0.85f, flat = Color.Black.copy(alpha = 0.3f))
+                moth(id, c, size.minDimension, 0.85f, flat = GHOST.copy(alpha = 0.28f))
             }
         } else {
             val sheen = remember(gold) {

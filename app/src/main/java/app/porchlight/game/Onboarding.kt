@@ -238,11 +238,6 @@ private fun IntroArt(twist: Twist?, moths: List<MothId>) {
             MothArt(MothId.Dot, Modifier.size(76.dp), open = 0.8f + 0.2f * t)
             MothArt(MothId.Domino, Modifier.size(76.dp), open = 1f - 0.2f * t)
         }
-        // The bulb going out: a moth that dims to a silhouette and back.
-        Twist.Blackout -> Box(contentAlignment = Alignment.Center) {
-            MothArt(MothId.Luna, Modifier.size(84.dp))
-            MothArt(MothId.Luna, Modifier.size(84.dp).graphicsLayer { alpha = if (t > 0.5f) 1f else 0f }, flat = Craft.parchmentInk)
-        }
         null -> Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             moths.forEachIndexed { i, moth ->
                 MothArt(moth, Modifier.size(76.dp), open = 0.8f + 0.2f * if (i % 2 == 0) t else 1f - t)

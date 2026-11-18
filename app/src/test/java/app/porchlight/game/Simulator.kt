@@ -20,7 +20,7 @@ data class SimStats(val games: Int, val wins: Int, val stars: Double, val leftMs
  *
  * - During the peek it takes in each card with chance p = clamp(peek per card / 260 ms, 0.15, 0.95),
  *   times its [Skill]. The Shadow moth's cards can't be taken in.
- * - Every card it turns, it sees (unless the bulb is out in a Blackout).
+ * - Every card it turns, it sees.
  * - It forgets 4% of what it knows every second.
  * - A turn takes [FLIP_MS] on average, anywhere from half to one and a half times that, and a wrong
  *   pair shows for the game's own fold-back time before the next card can turn. It always plays a
@@ -53,7 +53,6 @@ object Simulator {
         val n = round.deck.size
         val p = recall(level, skill)
         val lookalikes = Twist.Lookalikes in level
-        val blackout = Twist.Blackout in level
         // What the player believes lies at each place, or null if it doesn't know.
         val memory = arrayOfNulls<MothId>(n)
 
@@ -77,7 +76,7 @@ object Simulator {
             round = round.tick(now)
             if (round.phase != Phase.Play) return
             round = round.flip(i, now)
-            if (!(blackout && blackoutAt(now) == Dark.Out) && (!recallTurned || random.nextDouble() < p)) memory[i] = perceive(round.deck[i])
+            if (!recallTurned || random.nextDouble() < p) memory[i] = perceive(round.deck[i])
         }
 
         fun unknown(except: Int = -1): Int? {

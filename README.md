@@ -53,7 +53,7 @@ Pick a lead moth before each round. Each one bends the rules its own way.
     <td align="center"><sub><b>Scorecard</b><br>Built line by line</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screens/6-levels.png" alt="The level map: chapter 5's brass coins 41 to 50 along a copper route on parchment, the boss coin 50 large with a lamp, and a card below reading Level 50, Last Light, boss, 24 cards, 27 s, Wanderer, Shadow, Blackout" width="100%"></td>
+    <td align="center"><img src="docs/screens/6-levels.png" alt="The level map: chapter 5, the last porch, a plum sky turning gold over a house with its lamp blazing, brass coins 42 to 50 along a copper route with moths and a lantern, and a card below for boss level 50, Last Light: 24 cards, 27 s, Wanderer, Shadow, Lookalikes" width="100%"></td>
     <td align="center"><img src="docs/screens/9-daily.png" alt="Daily porch: a calendar leaf, the week as 3D coins with their stars, your streak and best, your best days, and a big PLAY TODAY sign" width="100%"></td>
     <td align="center"><img src="docs/screens/7-moths.png" alt="Lead moths: each moth beating its wings in a glass jar on velvet, with its strengths as pips" width="100%"></td>
     <td align="center"><img src="docs/screens/8-badges.png" alt="Badges: seventeen medals, each with its own mark, in bronze, silver and gold with tier ribbons; the ones not yet earned are dark outlines" width="100%"></td>
@@ -107,7 +107,7 @@ Fifty levels in five chapters of ten, each on its own stretch of the map. Every 
 | 2 · Wanderers | The garden | 11–20 | 15 ★ | **Wanderer:** after a wrong pair, two face-down cards swap places |
 | 3 · Dead Leaves | The woods | 21–30 | 35 ★ | **Dead leaves:** turning one costs 2 seconds |
 | 4 · Shadows | The rooftops | 31–40 | 55 ★ | **Shadow:** one moth is a silhouette during the peek. **Lookalikes:** two moths are near-twins |
-| 5 · Last Light | The last porch | 41–50 | 80 ★ | **Blackout:** every 8 seconds the bulb cuts out for a moment |
+| 5 · Last Light | The last porch | 41–50 | 80 ★ | The twists in pairs, and all three of Wanderer, Shadow and Lookalikes on the last boss |
 
 Beating a level opens the next; a new chapter also needs its total of stars. Rounds run from 7 seconds on level 1 to 36 on the longest boards, and the peek is set per level. Lose a level three times in a row and an **Easier bulb** retry is offered: 20% more time, for one star at most. Boss wins earn half again as much XP.
 
@@ -170,7 +170,7 @@ The daily porch keeps its own rule: a third of the bulb left, and no wrong pairs
 | Night shift | Play 10 rounds. |
 | Full roster | Win once with every lead. |
 | Wanderers | Win a level where the cards move. |
-| Last light | Win a Blackout level, where the bulb cuts out. |
+| Last light | Win a level with three twists at once. |
 | Regular | Play the daily porch three days running. |
 | Golden wing | Master a moth: three stars with it leading, on level 10 or later. |
 | Gilded porch | Master all six leads. |
@@ -355,7 +355,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 
 | Suite | Covers |
 | --- | --- |
-| [`GameTest`](app/src/test/java/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, levels, Lookalikes and Blackout, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
+| [`GameTest`](app/src/test/java/app/porchlight/game/GameTest.kt) | Dealing and seeded deals, levels, Lookalikes, every lead's perk, peek and clock, matching, streaks, misses, time bonus, burn-out, Second look, the three twists, pause and resume, saving and restoring a round, the tutorial |
 | [`ProgressTest`](app/src/test/java/app/porchlight/game/ProgressTest.kt) | XP curve, levels, unlocks, stars, chapter gates, the Easier bulb, moving old saves over, mastery, the daily porch and its streak, the share line, badges |
 | [`FlightLogTest`](app/src/test/java/app/porchlight/game/FlightLogTest.kt) | The round's flight log: order, multipliers, misses, saving and restoring, and that no card position leaks into it; the daily share card's data and the unchanged share line |
 | [`TallyTest`](app/src/test/java/app/porchlight/game/TallyTest.kt) | The Results tally: its points add up to the score, lines that say nothing are left out, close-loss notes, tips and star hints |

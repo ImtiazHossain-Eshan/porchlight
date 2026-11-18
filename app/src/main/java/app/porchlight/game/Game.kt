@@ -19,7 +19,6 @@ enum class Twist(val title: String, val tip: String) {
     Leaves("Dead leaves", "Some cards are dead leaves. Turning one costs 2 seconds."),
     Shadow("Shadow", "One moth shows only as a silhouette during the peek."),
     Lookalikes("Lookalikes", "Two moths are near-twins. Check the hindwings."),
-    Blackout("Blackout", "Every 8 seconds the bulb cuts out for a moment. Keep turning in the dark."),
 }
 
 /** A normal level, a gentler one to catch your breath, or the chapter's boss. */
@@ -70,7 +69,6 @@ private val WANDERER = Twist.Wanderer
 private val LEAVES = Twist.Leaves
 private val SHADOW = Twist.Shadow
 private val LOOKALIKES = Twist.Lookalikes
-private val BLACKOUT = Twist.Blackout
 
 /** Wrong pairs a three-star win may have, by chapter; a boss allows one fewer. */
 private val THREE_STAR_MISSES = listOf(2, 2, 3, 3, 4)
@@ -140,16 +138,16 @@ val LEVELS: List<Level> = listOf(
     level(39, 12, 0, 35, 2.3, N, SHADOW, WANDERER),
     level(40, 12, 0, 29, 2.2, BOSS, SHADOW, LOOKALIKES),
     // Chapter 5: Last Light, the last porch.
-    level(41, 8, 0, 16, 2.4, N, BLACKOUT),
-    level(42, 10, 0, 23, 2.3, N, BLACKOUT),
+    level(41, 8, 0, 19, 2.4, N, SHADOW, WANDERER),
+    level(42, 10, 0, 28, 2.3, N, LOOKALIKES, WANDERER),
     level(43, 11, 2, 30, 2.3, N, LEAVES),
-    level(44, 12, 0, 30, 2.2, N, BLACKOUT),
+    level(44, 12, 0, 31, 2.2, N, SHADOW, LOOKALIKES),
     level(45, 11, 2, 35, 2.2, N, LEAVES, WANDERER),
-    level(46, 12, 0, 31, 2.1, N, SHADOW, BLACKOUT),
+    level(46, 12, 0, 34, 2.1, N, SHADOW, WANDERER),
     level(47, 10, 0, 22, 2.1, BREATHER),
     level(48, 12, 0, 36, 2.0, N, LOOKALIKES, WANDERER),
-    level(49, 11, 2, 32, 2.0, N, LEAVES, BLACKOUT),
-    level(50, 12, 0, 27, 3.8, BOSS, WANDERER, SHADOW, BLACKOUT),
+    level(49, 11, 2, 30, 2.0, N, LEAVES, SHADOW),
+    level(50, 12, 0, 27, 3.8, BOSS, WANDERER, SHADOW, LOOKALIKES),
 )
 
 /** The level to play by number, kept in range. */
@@ -175,24 +173,6 @@ fun introducedOn(level: Level): Twist? {
     if (level.number < 1) return null
     val seen = LEVELS.take(level.number - 1).flatMap { it.twists }.toSet()
     return level.twists.firstOrNull { it !in seen }
-}
-
-/** Blackout timing: every [BLACKOUT_EVERY_MS] of play the bulb goes out for [BLACKOUT_MS], after a [BLACKOUT_WARN_MS] flicker. */
-const val BLACKOUT_EVERY_MS = 8_000L
-const val BLACKOUT_MS = 800L
-const val BLACKOUT_WARN_MS = 500L
-
-enum class Dark { Lit, Warning, Out }
-
-/** Where a Blackout round is after [playedMs] of play: lit, flickering a warning, or out. */
-fun blackoutAt(playedMs: Long): Dark {
-    if (playedMs < BLACKOUT_EVERY_MS - BLACKOUT_WARN_MS) return Dark.Lit
-    val t = playedMs % BLACKOUT_EVERY_MS
-    return when {
-        playedMs >= BLACKOUT_EVERY_MS && t < BLACKOUT_MS -> Dark.Out
-        t >= BLACKOUT_EVERY_MS - BLACKOUT_WARN_MS -> Dark.Warning
-        else -> Dark.Lit
-    }
 }
 
 /** The "Easier bulb" retry offered after three losses in a row: this much more time, and one star at most. */

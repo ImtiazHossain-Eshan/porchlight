@@ -87,7 +87,6 @@ internal val Twist.glyph: Glyph get() = when (this) {
     Twist.Leaves -> Glyph.DeadLeaf
     Twist.Shadow -> Glyph.Shade
     Twist.Lookalikes -> Glyph.Twins
-    Twist.Blackout -> Glyph.BulbOff
 }
 
 /** The sizes the path is laid out with, from the sheet's width, so it fits any phone or font. */
@@ -478,7 +477,6 @@ private val Twist.accent: Color get() = when (this) {
     Twist.Leaves -> Color(0xFFF0955A)
     Twist.Shadow -> Color(0xFFB9A2FF)
     Twist.Lookalikes -> Color(0xFFF58FB0)
-    Twist.Blackout -> Color(0xFFFFD36B)
 }
 
 /**

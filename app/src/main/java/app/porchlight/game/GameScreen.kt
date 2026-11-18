@@ -108,10 +108,6 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     /** Fraction of the round's time left. Draw code reads it every frame. */
     var timeLeft by mutableFloatStateOf(1f)
 
-    /** On a Blackout level: how long the round has been played, and whether the bulb is out. */
-    var playedMs = 0L
-    var dark by mutableStateOf(Dark.Lit)
-
     /** 1 normally; drops to 0.3 for an instant while the dying bulb flickers. */
     var flicker by mutableFloatStateOf(1f)
 
@@ -440,8 +436,6 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         peekStage = PeekStage.None
         peekPaused = false
         skipIntro = false
-        playedMs = 0L
-        dark = Dark.Lit
     }
 
     /** Opens one of the lobby's screens. */
@@ -527,17 +521,10 @@ fun GameScreen(store: Store, sfx: Sfx) {
                 if (session.peekStage == PeekStage.Go) session.peekStage = PeekStage.None
             }
             Phase.Play -> {
-              var lastFrame = -1L
               while (session.round.phase == Phase.Play) {
-                val frame = withFrameMillis { it }
+                withFrameMillis { it }
                 val current = session.round
                 val t = now()
-                // A Blackout counts the time actually played, so a pause holds it too.
-                if (Twist.Blackout in current.level) {
-                    if (lastFrame >= 0 && !current.paused) session.playedMs += frame - lastFrame
-                    session.dark = if (current.paused) Dark.Lit else blackoutAt(session.playedMs)
-                }
-                lastFrame = frame
                 // The bulb reads smooth time every frame, in drawing only...
                 val left = if (current.paused) current.left else (current.endsAt - t).coerceAtLeast(0)
                 session.timeLeft = (left.toFloat() / current.rules.roundMs).coerceIn(0f, 1f)
@@ -546,7 +533,6 @@ fun GameScreen(store: Store, sfx: Sfx) {
                 val next = current.tick(t)
                 if (next.phase != current.phase || readout(next.left) != readout(current.left)) session.round = next
               }
-              session.dark = Dark.Lit
             }
             Phase.Won, Phase.Lost -> if (session.screen == Screen.Round && session.round.tutorial) {
                 val won = session.round.phase == Phase.Won
@@ -583,36 +569,6 @@ fun GameScreen(store: Store, sfx: Sfx) {
         if (round.miss) {
             delay(round.rules.flipBackMs)
             session.round = session.round.settle()
-        }
-    }
-    // The Blackout: half a second of flicker and a buzz to warn, then the bulb is out for 0.8 s.
-    // With reduce motion the warning is a steady dim instead of a flicker.
-    LaunchedEffect(session.dark) {
-        when (session.dark) {
-            Dark.Warning -> {
-                sfx.play(Sound.Buzz, volume = 0.9f, pitch = 0.85f)
-                session.buzz(HapticFeedbackType.SegmentTick)
-                if (session.calm) {
-                    session.flicker = 0.6f
-                } else {
-                    try {
-                        while (true) {
-                            session.flicker = 0.35f
-                            delay(60)
-                            session.flicker = 1f
-                            delay(90)
-                        }
-                    } finally {
-                        session.flicker = 1f
-                    }
-                }
-            }
-            Dark.Out -> {
-                session.flicker = 0.04f
-                sfx.play(Sound.Pop, volume = 0.35f, pitch = 0.7f)
-                session.buzz(HapticFeedbackType.Reject)
-            }
-            Dark.Lit -> session.flicker = 1f
         }
     }
     LaunchedEffect(round.flashing) {

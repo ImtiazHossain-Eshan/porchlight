@@ -17,7 +17,7 @@ on every build.
 A simulated player (`Simulator.kt`, test code) plays the real round engine, 2,000 seeded games per level per skill:
 
 - From the peek it takes in each card with chance p = clamp(peek per card / 260 ms, 0.15, 0.95), times its skill: casual 0.6, average 1.0, strong 1.3. The Shadow moth's cards can't be taken in.
-- It sees every card it turns, except while a Blackout has the bulb out, and forgets 4% of what it knows per second.
+- It sees every card it turns, and forgets 4% of what it knows per second.
 - It always plays a pair it knows; otherwise it turns an unknown card, then its partner if known, or another unknown card. It avoids dead leaves it knows.
 - A lookalike is taken for its twin 15% of the times it is seen. When the Wanderer swaps two cards, it loses track of both.
 - A turn takes 0.7 s on average (anywhere from half to one and a half times that), and a wrong pair shows for the game's 0.8 s before it folds back.
@@ -71,13 +71,13 @@ Targets for the average player: chapter 1 95 to 85%, chapter 2 85 to 75%, chapte
 | 38 | 24 (12p) | 29 | 2.4 | Shadow | Normal | 3 | 58% | 29.9% | 61.4% | 80.3% | 0.70 | 3.5 s |
 | 39 | 24 (12p) | 35 | 2.3 | Shadow, Wanderer | Normal | 3 | 57% | 35.0% | 57.0% | 74.9% | 0.70 | 5.2 s |
 | 40 | 24 (12p) | 29 | 2.2 | Shadow, Lookalikes | Boss | 2 | 45% | 18.0% | 41.1% | 61.3% | 0.44 | 2.9 s |
-| 41 | 16 (8p) | 16 | 2.4 | Blackout | Normal | 4 | 60% | 24.5% | 60.9% | 83.2% | 0.76 | 2.3 s |
-| 42 | 20 (10p) | 23 | 2.3 | Blackout | Normal | 4 | 58% | 26.4% | 56.4% | 79.4% | 0.73 | 3.1 s |
+| 41 | 16 (8p) | 19 | 2.4 | Shadow, Wanderer | Normal | 4 | 60% | 34.2% | 62.7% | 83.1% | 1.01 | 3.6 s |
+| 42 | 20 (10p) | 28 | 2.3 | Lookalikes, Wanderer | Normal | 4 | 58% | 34.9% | 56.7% | 75.6% | 0.90 | 5.2 s |
 | 43 | 24 (11p+2L) | 30 | 2.3 | Dead leaves | Normal | 4 | 56% | 24.7% | 54.2% | 76.6% | 0.63 | 3.5 s |
-| 44 | 24 (12p) | 30 | 2.2 | Blackout | Normal | 4 | 53% | 20.3% | 48.7% | 68.6% | 0.57 | 3.4 s |
+| 44 | 24 (12p) | 31 | 2.2 | Shadow, Lookalikes | Normal | 4 | 53% | 34.3% | 57.6% | 75.3% | 0.68 | 3.8 s |
 | 45 | 24 (11p+2L) | 35 | 2.2 | Dead leaves, Wanderer | Normal | 4 | 51% | 27.9% | 50.1% | 70.4% | 0.63 | 4.7 s |
-| 46 | 24 (12p) | 31 | 2.1 | Shadow, Blackout | Normal | 4 | 49% | 23.7% | 49.6% | 67.9% | 0.56 | 3.2 s |
+| 46 | 24 (12p) | 34 | 2.1 | Shadow, Wanderer | Normal | 4 | 49% | 23.8% | 46.2% | 62.6% | 0.57 | 4.4 s |
 | 47 | 20 (10p) | 22 | 2.1 | - | Breather | 4 | 57% | 23.5% | 56.9% | 75.6% | 0.68 | 2.7 s |
 | 48 | 24 (12p) | 36 | 2.0 | Lookalikes, Wanderer | Normal | 4 | 44% | 28.5% | 49.3% | 63.4% | 0.63 | 5.1 s |
-| 49 | 24 (11p+2L) | 32 | 2.0 | Dead leaves, Blackout | Normal | 4 | 42% | 17.7% | 41.8% | 61.0% | 0.46 | 3.4 s |
-| 50 | 24 (12p) | 27 | 3.8 | Wanderer, Shadow, Blackout | Boss | 3 | 30% | 5.1% | 27.7% | 55.2% | 0.33 | 3.6 s |
+| 49 | 24 (11p+2L) | 30 | 2.0 | Dead leaves, Shadow | Normal | 4 | 42% | 14.7% | 37.6% | 55.6% | 0.41 | 3.0 s |
+| 50 | 24 (12p) | 27 | 3.8 | Wanderer, Shadow, Lookalikes | Boss | 3 | 30% | 8.0% | 32.5% | 58.2% | 0.40 | 3.5 s |

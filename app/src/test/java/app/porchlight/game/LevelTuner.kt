@@ -145,7 +145,7 @@ class LevelTuner {
             appendLine("A simulated player (`Simulator.kt`, test code) plays the real round engine, ${"%,d".format(2_000)} seeded games per level per skill:")
             appendLine()
             appendLine("- From the peek it takes in each card with chance p = clamp(peek per card / 260 ms, 0.15, 0.95), times its skill: casual 0.6, average 1.0, strong 1.3. The Shadow moth's cards can't be taken in.")
-            appendLine("- It sees every card it turns, except while a Blackout has the bulb out, and forgets 4% of what it knows per second.")
+            appendLine("- It sees every card it turns, and forgets 4% of what it knows per second.")
             appendLine("- It always plays a pair it knows; otherwise it turns an unknown card, then its partner if known, or another unknown card. It avoids dead leaves it knows.")
             appendLine("- A lookalike is taken for its twin 15% of the times it is seen. When the Wanderer swaps two cards, it loses track of both.")
             appendLine("- A turn takes ${Simulator.FLIP_MS / 1000.0} s on average (anywhere from half to one and a half times that), and a wrong pair shows for the game's 0.8 s before it folds back.")

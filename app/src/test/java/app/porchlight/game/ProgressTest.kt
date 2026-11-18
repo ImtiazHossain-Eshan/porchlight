@@ -138,7 +138,7 @@ class ProgressTest {
             assertEquals("$twist arrives with others", setOf(twist), first.twists)
             assertTrue("$twist arrives on a big board", first.cards <= 16)
         }
-        assertEquals(listOf(11, 21, 31, 34, 41), LEVELS.filter { introducedOn(it) != null }.map { it.number })
+        assertEquals(listOf(11, 21, 31, 34), LEVELS.filter { introducedOn(it) != null }.map { it.number })
         assertEquals(null, introducedOn(levelAt(12)))
     }
 
@@ -163,18 +163,6 @@ class ProgressTest {
         val deck = deal(DAILY, kotlin.random.Random(20261114))
         assertTrue(deck.all { it in DAILY_MOTHS })
         assertEquals(10, DAILY_MOTHS.size)
-    }
-
-    @Test fun `a blackout warns, then goes dark for 0_8 s every 8 s`() {
-        assertEquals(Dark.Lit, blackoutAt(0))
-        assertEquals(Dark.Lit, blackoutAt(7_499))
-        assertEquals(Dark.Warning, blackoutAt(7_500))
-        assertEquals(Dark.Out, blackoutAt(8_000))
-        assertEquals(Dark.Out, blackoutAt(8_799))
-        assertEquals(Dark.Lit, blackoutAt(8_800))
-        assertEquals(Dark.Warning, blackoutAt(15_600))
-        assertEquals(Dark.Out, blackoutAt(16_400))
-        assertEquals(Dark.Lit, blackoutAt(400))
     }
 
     @Test fun `any win on your newest level opens the next`() {

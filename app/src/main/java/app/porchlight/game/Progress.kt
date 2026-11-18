@@ -20,7 +20,7 @@ enum class Badge(val title: String, val detail: String, val metal: Metal, val mo
     NightShift("Night shift", "Play 10 rounds.", Metal.Bronze, Mold.Moon),
     FullRoster("Full roster", "Win once with every lead moth.", Metal.Silver, Mold.Moth),
     Wanderers("Wanderers", "Win a level where the cards move.", Metal.Bronze, Mold.Beetle),
-    LastLight("Last light", "Win a Blackout level, where the bulb cuts out.", Metal.Gold, Mold.Trophy),
+    LastLight("Last light", "Win a level with three twists at once.", Metal.Gold, Mold.Trophy),
     Regular("Regular", "Play the daily porch three days running.", Metal.Bronze, Mold.Calendar),
     GoldenWing("Golden wing", "Master a moth: three stars with it leading, on level 10 or later.", Metal.Gold, Mold.Moth),
     GildedPorch("Gilded porch", "Master all six lead moths.", Metal.Gold, Mold.Star),
@@ -296,7 +296,7 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         if (rounds >= 10) add(Badge.NightShift)
         if (LEADS.all { it in winners }) add(Badge.FullRoster)
         if (won && played && Twist.Wanderer in round.level) add(Badge.Wanderers)
-        if (won && played && Twist.Blackout in round.level) add(Badge.LastLight)
+        if (won && played && round.level.twists.size >= 3) add(Badge.LastLight)
         if (dailyStreak >= 3) add(Badge.Regular)
         if (mastered.isNotEmpty()) add(Badge.GoldenWing)
         if (LEADS.all { it in mastered }) add(Badge.GildedPorch)
