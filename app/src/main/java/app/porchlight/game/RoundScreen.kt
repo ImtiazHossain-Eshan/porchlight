@@ -75,7 +75,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import java.util.Locale
 
 /** Play: the bulb and its works on top with score and streak beside it, the board below. Nothing scrolls. */
 @Composable
@@ -219,7 +218,7 @@ private fun Header(session: Session, modifier: Modifier) {
             // The time, in the bulb's own colour: whole seconds, then tenths under ten.
             val seconds = round.left / 1000f
             Text(
-                if (seconds < 10f) String.format(Locale.US, "%.1f", seconds) else "${seconds.toInt()}",
+                if (seconds < 10f) oneDecimal(seconds) else "${seconds.toInt()}",
                 style = Display.copy(shadow = glowOf(glassColour(session.timeLeft, low || round.phase == Phase.Lost), 14f)),
                 fontSize = TypeScale.Title,
                 color = glassColour(session.timeLeft, low || round.phase == Phase.Lost),
@@ -366,7 +365,7 @@ private fun TopUp(count: Int, bonusMs: Long, modifier: Modifier) {
             rise.animateTo(1f, tween(800, easing = FastOutSlowInEasing))
         }
     }
-    val text = String.format(Locale.US, "+%.1fs", bonusMs / 1000f).replace(".0s", "s")
+    val text = "+${oneDecimal(bonusMs / 1000f)}s".replace(".0s", "s")
     Text(
         text,
         style = TextGlow,

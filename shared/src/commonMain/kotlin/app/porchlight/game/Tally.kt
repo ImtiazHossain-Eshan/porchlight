@@ -1,6 +1,5 @@
 package app.porchlight.game
 
-import java.util.Locale
 
 /**
  * What the Results tally says about a round, as plain values: pure, so it can be tested without a
@@ -46,15 +45,15 @@ fun lossNote(round: Round): String? {
     return when (left) {
         1 -> "So close. 1 pair to go."
         2 -> "So close. 2 pairs to go."
-        else -> LOSS_TIPS[Math.floorMod(round.seed, LOSS_TIPS.size.toLong()).toInt()]
+        else -> LOSS_TIPS[round.seed.mod(LOSS_TIPS.size.toLong()).toInt()]
     }
 }
 
 /** What earns star [index] (0, 1, 2), for the hint under an empty one. Mirrors [starsFor]. */
 fun starHint(index: Int, round: Round): String = when (index) {
     0 -> "Find every pair"
-    1 -> if (round.daily) String.format(Locale.US, "%d s left", (round.level.roundMs / 3 + 999) / 1000)
-        else String.format(Locale.US, "%d s left", (round.level.roundMs / 4 + 999) / 1000)
+    1 -> if (round.daily) "${(round.level.roundMs / 3 + 999) / 1000} s left"
+        else "${(round.level.roundMs / 4 + 999) / 1000} s left"
     else -> when {
         round.daily || round.level.maxMissesFor3Stars == 0 -> "No misses"
         round.level.maxMissesFor3Stars == 1 -> "1 miss at most"

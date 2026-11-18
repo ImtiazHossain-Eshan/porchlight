@@ -65,5 +65,7 @@ dependencies {
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.profileinstaller:profileinstaller:1.4.0")
 
+    implementation(project(":shared"))
+
     testImplementation("junit:junit:4.13.2")
 }

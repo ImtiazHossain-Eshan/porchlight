@@ -1,7 +1,8 @@
 package app.porchlight.game
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.math.ceil
+import kotlin.test.Test
 
 class PeekTest {
     /** What the countdown shows at each 100 ms step of a peek of [peekMs]. */
@@ -16,22 +17,22 @@ class PeekTest {
         assertEquals(0, peekNumber(0))
     }
 
-    @Test fun `iris's 3_4 second peek counts 4, 3, 2, 1`() {
+    @Test fun `iris's 3_4 second peek counts 4 - 3 - 2 - 1`() {
         assertEquals(listOf(4, 3, 2, 1), peekCountdown(3_400))
         assertEquals(4, peekNumber(3_400))
         assertEquals(4, peekNumber(3_001))
         assertEquals(3, peekNumber(3_000))
     }
 
-    @Test fun `the number is always the whole seconds left, rounded up`() {
+    @Test fun `the number is always the whole seconds left - rounded up`() {
         for (peek in listOf(2_000L, 3_400L)) {
             for (left in peek downTo 1) {
-                assertEquals("at $left ms", Math.ceil(left / 1000.0).toInt(), peekNumber(left))
+                assertEquals(ceil(left / 1000.0).toInt(), peekNumber(left), "at $left ms")
             }
         }
     }
 
-    @Test fun `the numbers shown through a peek are the countdown, in order, each once`() {
+    @Test fun `the numbers shown through a peek are the countdown - in order - each once`() {
         assertEquals(peekCountdown(2_000), shown(2_000).distinct())
         assertEquals(peekCountdown(3_400), shown(3_400).distinct())
     }
@@ -39,7 +40,7 @@ class PeekTest {
     @Test fun `every lead's peek starts on its own whole seconds`() {
         LEADS.forEach { lead ->
             val peek = rulesFor(lead, CLASSIC).peekMs
-            assertEquals(Math.ceil(peek / 1000.0).toInt(), peekCountdown(peek).first())
+            assertEquals(ceil(peek / 1000.0).toInt(), peekCountdown(peek).first())
         }
     }
 

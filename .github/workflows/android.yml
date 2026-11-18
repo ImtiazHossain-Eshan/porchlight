@@ -45,7 +45,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: test-report
-          path: app/build/reports/tests/testDebugUnitTest/
+          path: |
+            app/build/reports/tests/testDebugUnitTest/
+            shared/build/reports/tests/testAndroidHostTest/
 
       - name: Lint
         run: ./gradlew lintDebug --stacktrace

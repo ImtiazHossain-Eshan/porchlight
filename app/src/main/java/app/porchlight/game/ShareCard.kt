@@ -72,8 +72,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.util.Calendar
-import java.util.Locale
 
 /** The card is laid out 360 units wide; at three pixels a unit it renders 1080 pixels wide. */
 private const val CARD_UNITS = 360
@@ -86,14 +84,6 @@ internal enum class CardShape(val label: String, val heightUnits: Int) {
     Story("Story", 640);
 
     val heightPx get() = heightUnits * UNIT_PX
-}
-
-/** 20261115 -> "Sun 15 Nov". */
-internal fun cardDate(day: Long): String {
-    val c = Calendar.getInstance()
-    c.clear()
-    c.set((day / 10_000).toInt(), (day / 100 % 100).toInt() - 1, (day % 100).toInt())
-    return String.format(Locale.UK, "%ta %<te %<tb", c)
 }
 
 /**

@@ -1,11 +1,11 @@
 package app.porchlight.game
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
+import kotlin.test.Test
 import kotlin.random.Random
 
 class GameTest {
@@ -27,7 +27,7 @@ class GameTest {
 
     @Test fun `deal shuffles`() {
         val decks = List(40) { deal(CLASSIC) }.toSet()
-        assertTrue("40 deals should not all come out the same", decks.size > 1)
+        assertTrue(decks.size > 1, "40 deals should not all come out the same")
     }
 
     // Lead moth perks
@@ -51,7 +51,7 @@ class GameTest {
     @Test fun `sorbet tops up the bulb per pair`() = assertEquals(1_000L, rulesFor(MothId.Sorbet, CLASSIC).pairBonusMs)
 
     @Test fun `every lead bends the rules`() {
-        LEADS.forEach { assertNotEquals("$it should change something", rulesFor(MothId.Moss, CLASSIC), rulesFor(it, CLASSIC)) }
+        LEADS.forEach { assertNotEquals(rulesFor(MothId.Moss, CLASSIC), rulesFor(it, CLASSIC), "$it should change something") }
     }
 
     @Test fun `leads add to the level's own time and peek`() {
@@ -310,7 +310,7 @@ class GameTest {
         assertTrue(shadow.shadow in shadow.deck)
         // The hidden moth follows the seed, not the first card.
         val hidden = (0L until 40L).map { Round.start(MothId.Luna, levelAt(31), Random(1), seed = it).shadow }.toSet()
-        assertTrue("the shadow should vary between rounds", hidden.size > 5)
+        assertTrue(hidden.size > 5, "the shadow should vary between rounds")
     }
 
     // Dot
@@ -327,7 +327,7 @@ class GameTest {
         assertSame(miss, miss.flip(6, 0))
     }
 
-    @Test fun `dot's first miss keeps the streak, the second breaks it`() {
+    @Test fun `dot's first miss keeps the streak - the second breaks it`() {
         var round = playing(MothId.Dot).pair(0).pair(2)
         round = round.flip(4, 0).flip(6, 0).settle()
         assertEquals(2, round.streak)

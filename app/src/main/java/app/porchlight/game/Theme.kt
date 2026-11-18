@@ -27,7 +27,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import java.util.Locale
 
 /** The porch at night. Every colour on screen comes from here or from [Craft]. */
 internal object Dusk {
@@ -160,5 +159,3 @@ internal val TextInk = BodyText
 internal fun glowOf(colour: Color, blur: Float = 22f) = Shadow(colour.copy(alpha = 0.75f), Offset.Zero, blur)
 
 internal fun now() = SystemClock.elapsedRealtime()
-
-internal fun Int.grouped(): String = String.format(Locale.US, "%,d", this)

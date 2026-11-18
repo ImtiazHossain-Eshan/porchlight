@@ -53,7 +53,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Calendar
 import kotlin.random.Random
 
 internal enum class Screen {
@@ -722,13 +721,6 @@ internal fun Modifier.tracksBulb(session: Session) = onGloballyPositioned {
     val bounds = it.boundsInRoot()
     session.bulbAt = Offset(bounds.center.x, bounds.top + bounds.height * BULB_GLASS_Y)
     session.bulbWidth = bounds.width
-}
-
-/** The daily porch's seed for today, or [daysAgo] days before. */
-internal fun todaySeed(daysAgo: Int = 0): Long {
-    val c = Calendar.getInstance()
-    c.add(Calendar.DAY_OF_YEAR, daysAgo)
-    return dailySeed(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
 }
 
 /** The step the time readout shows: whole seconds, or tenths under ten seconds. */

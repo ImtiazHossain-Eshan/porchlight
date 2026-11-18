@@ -1,9 +1,9 @@
 package app.porchlight.game
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class TallyTest {
     /** Pairs side by side: (0,1) Luna, (2,3) Wick, ... */
@@ -24,7 +24,7 @@ class TallyTest {
         }
     }
 
-    @Test fun `a win lists pairs, streak and time, and no misses line when clean`() {
+    @Test fun `a win lists pairs - streak and time - and no misses line when clean`() {
         val round = won()
         assertEquals(Phase.Won, round.phase)
         assertEquals(listOf(TallyKind.Pairs, TallyKind.Streak, TallyKind.Time), tally(round).map { it.kind })
@@ -57,7 +57,7 @@ class TallyTest {
         assertEquals("So close. 2 pairs to go.", lossNote(four))
     }
 
-    @Test fun `a big loss gets a tip, the same one every time for that round`() {
+    @Test fun `a big loss gets a tip - the same one every time for that round`() {
         val lost = playing().copy(seed = 7).tick(Long.MAX_VALUE)
         val note = lossNote(lost)
         assertTrue(note in LOSS_TIPS)

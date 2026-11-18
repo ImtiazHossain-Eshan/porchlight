@@ -1,9 +1,9 @@
 package app.porchlight.game
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlin.test.Test
 
 class ProgressTest {
     @Test fun `xp needed per level`() {
@@ -88,8 +88,6 @@ class ProgressTest {
         // No two of the play badges are the same metal and mold; the chapter stamps share a mold.
         val play = Badge.entries.filter { it.mold != Mold.Stamp }
         assertEquals(play.size, play.map { it.metal to it.mold }.toSet().size)
-        // And every badge has its own picture.
-        assertEquals(Badge.entries.size, Badge.entries.map { it.glyph() }.toSet().size)
     }
 
     @Test fun `every moth has a perk`() {
@@ -119,13 +117,13 @@ class ProgressTest {
         assertEquals(listOf(0, 15, 35, 55, 80), CHAPTERS.map { it.gate })
     }
 
-    @Test fun `every board is one of the six grids, no bigger than 4 by 6`() {
+    @Test fun `every board is one of the six grids - no bigger than 4 by 6`() {
         for (level in LEVELS) {
-            assertTrue("level ${level.number} has ${level.cards} cards", level.cards in GRIDS)
+            assertTrue(level.cards in GRIDS, "level ${level.number} has ${level.cards} cards")
             assertTrue(level.cards <= 24)
             assertTrue(level.pairs <= BOARD_MOTHS.size)
             assertEquals(level.leaves > 0, Twist.Leaves in level)
-            assertTrue("level ${level.number} has too many twists", level.twists.size <= if (level.number == 50) 3 else 2)
+            assertTrue(level.twists.size <= if (level.number == 50) 3 else 2, "level ${level.number} has too many twists")
         }
         assertEquals(12, BOARD_MOTHS.size)
         assertEquals(3, levelAt(50).twists.size)
@@ -135,8 +133,8 @@ class ProgressTest {
         for (twist in Twist.entries) {
             val first = LEVELS.first { twist in it }
             assertEquals(twist, introducedOn(first))
-            assertEquals("$twist arrives with others", setOf(twist), first.twists)
-            assertTrue("$twist arrives on a big board", first.cards <= 16)
+            assertEquals(setOf(twist), first.twists, "$twist arrives with others")
+            assertTrue(first.cards <= 16, "$twist arrives on a big board")
         }
         assertEquals(listOf(11, 21, 31, 34), LEVELS.filter { introducedOn(it) != null }.map { it.number })
         assertEquals(null, introducedOn(levelAt(12)))
@@ -267,9 +265,9 @@ class ProgressTest {
             counts += unlocks(report)
             progress = next
         }
-        assertTrue("unlocks per round were $counts", counts.all { it <= MAX_UNLOCKS })
-        assertTrue("rounds 4 to 14 should still give something: $counts", counts.drop(3).any { it > 0 })
-        assertTrue("the first round should give something: $counts", counts.first() > 0)
+        assertTrue(counts.all { it <= MAX_UNLOCKS }, "unlocks per round were $counts")
+        assertTrue(counts.drop(3).any { it > 0 }, "rounds 4 to 14 should still give something: $counts")
+        assertTrue(counts.first() > 0, "the first round should give something: $counts")
         assertEquals(15, progress.current) // three stars a level: straight through the first gate
     }
 

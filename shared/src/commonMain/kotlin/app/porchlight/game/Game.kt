@@ -311,7 +311,7 @@ data class Round(
         if (Twist.Shadow !in level) return null
         // Picked from the round's seed, not from where the cards lie, so its place can't be learned.
         val moths = deck.filter { it != MothId.Leaf }.distinct().sorted()
-        return moths.getOrNull(Math.floorMod(seed, moths.size.coerceAtLeast(1)))
+        return moths.getOrNull(seed.mod(moths.size.coerceAtLeast(1)))
     }
 
     fun isFaceUp(index: Int) = phase != Phase.Idle &&

@@ -1,11 +1,11 @@
 package app.porchlight.game
 
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
-import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
-import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.test.Test
 import kotlin.random.Random
 
 class FlightLogTest {
@@ -41,7 +41,7 @@ class FlightLogTest {
         assertEquals(6, flightLog(round).size)
     }
 
-    @Test fun `every miss is recorded, forgiven or not`() {
+    @Test fun `every miss is recorded - forgiven or not`() {
         val round = playing(lead = MothId.Dot).pair(0, 2).pair(0, 4).pair(0, 1)
         assertEquals(listOf(LogEntry.Miss, LogEntry.Miss), flightLog(round).take(2))
         assertEquals(2, round.misses)
@@ -80,9 +80,8 @@ class FlightLogTest {
 
     @Test fun `no card index appears in the log or its saved form`() {
         // Entries only hold a moth and a multiplier (1..4); there is no field for a position.
-        LogEntry.Match::class.java.declaredFields.filter { !java.lang.reflect.Modifier.isStatic(it.modifiers) }.forEach {
-            assertTrue("unexpected field ${it.name}", it.name in setOf("moth", "multiplier"))
-        }
+        // A data class prints every property it holds, so this lists them all.
+        assertEquals("Match(moth=Moss, multiplier=3)", LogEntry.Match(MothId.Moss, 3).toString())
         val round = playing().pair(10, 11).pair(8, 9)
         assertEquals("Sorbet*1,Iris*2", encodeLog(flightLog(round)))
     }
@@ -104,7 +103,7 @@ class FlightLogTest {
         return pairs.fold(missed) { r, (a, b) -> r.pair(a, b) }.let { it.copy(left = 12_400) }
     }
 
-    @Test fun `a scored daily porch keeps its card, with the log and the streak`() {
+    @Test fun `a scored daily porch keeps its card - with the log and the streak`() {
         val round = dailyWin()
         val (after, _) = settleRound(Progress(dailyDay = 20261114, dailyStreak = 4), round, MothId.Luna, today = 20261115, yesterday = 20261114)
         val card = after.dailyCard
@@ -116,7 +115,7 @@ class FlightLogTest {
         assertEquals("8/8 pairs · 12.4 s left · 1 miss", card.line)
     }
 
-    @Test fun `a lost card says how many pairs, and no time`() {
+    @Test fun `a lost card says how many pairs - and no time`() {
         val card = DailyCard(1, MothId.Wick, false, 0, 900, 5, 8, 0, 3, 2, 1, emptyList())
         assertEquals("The bulb burned out · 5/8 pairs", card.line)
     }

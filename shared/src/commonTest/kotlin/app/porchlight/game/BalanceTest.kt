@@ -1,7 +1,7 @@
 package app.porchlight.game
 
-import org.junit.Assert.assertFalse
-import org.junit.Test
+import kotlin.test.assertFalse
+import kotlin.test.Test
 import kotlin.random.Random
 
 /**
@@ -64,8 +64,8 @@ class BalanceTest {
             val left = others.map { it.left }.average()
             val wins = mine.score > score * 1.15 && mine.left > left * 1.15
             assertFalse(
-                "$lead leads on both score (${mine.score.toInt()} vs ${score.toInt()}) and time (${mine.left.toInt()} vs ${left.toInt()} ms)",
                 wins,
+                "$lead leads on both score (${mine.score.toInt()} vs ${score.toInt()}) and time (${mine.left.toInt()} vs ${left.toInt()} ms)",
             )
         }
     }
