@@ -69,7 +69,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 // ---------------------------------------------------------------------------------------------
-// Fifty levels: one long parchment path down five chapter scenes, ten coins each.
+// Fifty levels: one long path down five painted chapter scenes, ten coins each.
 
 /** Where each coin sits across its scene, snaking left and right down the sheet. */
 private val SNAKE = listOf(0.22f, 0.5f, 0.78f, 0.5f)
@@ -217,15 +217,15 @@ private fun ChapterScene(
             .fillMaxWidth()
             .height(layout.sceneHeight)
             .padding(horizontal = 6.dp)
-            .shadow(8.dp, RoundedCornerShape(8.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
-            .parchment(8.dp, seed = chapter.number + 2),
+            .shadow(8.dp, RoundedCornerShape(8.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow),
     ) {
+        val look = sceneLook(chapter.number)
         val w = maxWidth
         val stops = List(levels.size) { layout.stop(it, w) }
         val density = LocalDensity.current
         val stopsPx = with(density) { stops.map { Offset(it.x.toPx(), it.y.toPx()) } }
         Canvas(Modifier.fillMaxSize()) {
-            sceneArt(chapter.number, top = layout.header.toPx())
+            sceneBackdrop(chapter.number, top = layout.header.toPx(), corner = 8.dp.toPx(), stops = stopsPx)
             for (i in 0 until stopsPx.size - 1) {
                 val a = stopsPx[i]
                 val b = stopsPx[i + 1]
@@ -238,8 +238,8 @@ private fun ChapterScene(
                 } else {
                     drawPath(
                         run,
-                        Craft.parchmentInkSoft,
-                        alpha = 0.55f,
+                        look.ink,
+                        alpha = 0.6f,
                         style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 12f))),
                     )
                 }
@@ -255,11 +255,11 @@ private fun ChapterScene(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text("CHAPTER ${roman(chapter.number)} · ${chapter.scene.uppercase()}", style = Label, color = Craft.parchmentInkSoft, maxLines = 1)
-                Text(chapter.name, style = Display, fontSize = TypeScale.Heading, color = Craft.parchmentInk, maxLines = 1)
+                Text("CHAPTER ${roman(chapter.number)} · ${chapter.scene.uppercase()}", style = Label, color = look.ink.copy(alpha = 0.8f), maxLines = 1)
+                Text(chapter.name, style = Display, fontSize = TypeScale.Heading, color = Dusk.ink, maxLines = 1)
             }
             Star(earned > 0, shown = true, instant = true, modifier = Modifier.size(18.dp))
-            Text(" $earned/${levels.size * 3}", style = Label, color = Craft.parchmentInk)
+            Text(" $earned/${levels.size * 3}", style = Label, color = Dusk.ink)
         }
         levels.forEachIndexed { i, level ->
             LevelCoin(level, stops[i], layout, session, open, onPick, onLocked)
@@ -361,7 +361,14 @@ private fun LevelCoin(
             }
         }
         if (open) {
-            Row(Modifier.padding(top = 1.dp), horizontalArrangement = Arrangement.spacedBy((-2).dp)) {
+            // The stars sit on a small parchment tag, so they read on every scene.
+            Row(
+                Modifier
+                    .padding(top = 1.dp)
+                    .background(Craft.parchment.copy(alpha = 0.9f), RoundedCornerShape(50))
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                horizontalArrangement = Arrangement.spacedBy((-2).dp),
+            ) {
                 repeat(3) { star -> Star(star < stars, shown = true, instant = true, modifier = Modifier.size(layout.star)) }
             }
         }
@@ -541,136 +548,6 @@ private fun LevelConfirm(level: Level, progress: Progress, session: Session, onC
             }
             Spacer(Modifier.height(8.dp))
             SecondaryButton("Not now", Modifier.fillMaxWidth(), onClick = onClose)
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------------------------
-// The five scenes, inked lightly on the parchment behind the coins.
-
-private fun DrawScope.sceneArt(chapter: Int, top: Float) {
-    val w = size.width
-    val h = size.height
-    val ink = Craft.parchmentInkSoft
-    val line = Stroke(1.4f * density, cap = StrokeCap.Round, join = StrokeJoin.Round)
-    fun at(x: Float, y: Float) = Offset(w * x, top + (h - top) * y)
-
-    // Soft stains, so the sheet looks handled, and a rule under the chapter's name.
-    for ((x, y, r) in listOf(Triple(0.7f, 0.15f, 0.2f), Triple(0.2f, 0.6f, 0.22f), Triple(0.8f, 0.85f, 0.18f))) {
-        val c = at(x, y)
-        drawCircle(Brush.radialGradient(listOf(Craft.parchmentShade.copy(alpha = 0.35f), Color.Transparent), c, w * r), w * r, c)
-    }
-    drawLine(ink, Offset(w * 0.05f, top), Offset(w * 0.95f, top), line.width, alpha = 0.35f)
-
-    fun house(x: Float, y: Float, s: Float, lit: Boolean) {
-        val body = Path().apply {
-            moveTo(w * (x - 0.07f * s), at(0f, y).y)
-            lineTo(w * (x - 0.07f * s), at(0f, y - 0.05f * s).y)
-            lineTo(w * x, at(0f, y - 0.09f * s).y)
-            lineTo(w * (x + 0.07f * s), at(0f, y - 0.05f * s).y)
-            lineTo(w * (x + 0.07f * s), at(0f, y).y)
-            close()
-        }
-        drawPath(body, Craft.parchmentShade.copy(alpha = 0.5f))
-        drawPath(body, ink, alpha = 0.6f, style = line)
-        if (lit) {
-            val lamp = at(x, y - 0.03f * s)
-            drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.8f), Color.Transparent), lamp, w * 0.06f * s), w * 0.06f * s, lamp)
-        }
-    }
-    fun pine(x: Float, y: Float, s: Float) {
-        val tree = Path().apply {
-            moveTo(w * x, at(0f, y - 0.06f * s).y)
-            lineTo(w * (x - 0.035f * s), at(0f, y).y)
-            lineTo(w * (x + 0.035f * s), at(0f, y).y)
-            close()
-        }
-        drawPath(tree, Craft.bioDeep.copy(alpha = 0.12f))
-        drawPath(tree, ink, alpha = 0.5f, style = line)
-        drawLine(ink, at(x, y), at(x, y + 0.015f * s), line.width, StrokeCap.Round, alpha = 0.5f)
-    }
-    fun flower(x: Float, y: Float, s: Float) {
-        val c = at(x, y)
-        val r = w * 0.012f * s
-        drawLine(ink, c, Offset(c.x, c.y + r * 4), line.width, StrokeCap.Round, alpha = 0.45f)
-        for (k in 0 until 5) {
-            val a = Math.toRadians(k * 72.0)
-            drawCircle(Color(0xFFC4607A).copy(alpha = 0.35f), r, Offset(c.x + (r * 1.3f * kotlin.math.cos(a)).toFloat(), c.y + (r * 1.3f * kotlin.math.sin(a)).toFloat()))
-        }
-        drawCircle(Dusk.glowDeep.copy(alpha = 0.6f), r * 0.7f, c)
-    }
-    fun leaf(x: Float, y: Float, deg: Float) {
-        glyph(Glyph.DeadLeaf, at(x, y), w * 0.05f, Color(0xFF8A5A2B), alpha = 0.45f)
-        if (deg > 0f) Unit
-    }
-    fun moon(x: Float, y: Float) {
-        val c = at(x, y)
-        drawCircle(Dusk.glow.copy(alpha = 0.35f), w * 0.05f, c)
-        drawCircle(Craft.parchment, w * 0.045f, Offset(c.x + w * 0.024f, c.y - w * 0.014f))
-        drawCircle(ink, w * 0.05f, c, alpha = 0.4f, style = line)
-    }
-    fun twinkle(x: Float, y: Float) {
-        val c = at(x, y)
-        val r = w * 0.012f
-        drawLine(ink, Offset(c.x - r, c.y), Offset(c.x + r, c.y), line.width * 0.8f, StrokeCap.Round, alpha = 0.45f)
-        drawLine(ink, Offset(c.x, c.y - r), Offset(c.x, c.y + r), line.width * 0.8f, StrokeCap.Round, alpha = 0.45f)
-    }
-
-    when (chapter) {
-        // The porch: the house the path starts from, its steps and lamp, and a rail.
-        1 -> {
-            house(0.12f, 0.12f, 1.2f, lit = true)
-            for (k in 0 until 3) drawLine(ink, at(0.04f + k * 0.01f, 0.14f + k * 0.02f), at(0.2f - k * 0.01f, 0.14f + k * 0.02f), line.width, alpha = 0.4f)
-            for (k in 0 until 7) drawLine(ink, at(0.86f + k * 0.015f, 0.55f), at(0.86f + k * 0.015f, 0.62f), line.width, alpha = 0.35f)
-            drawLine(ink, at(0.85f, 0.55f), at(0.97f, 0.55f), line.width, alpha = 0.4f)
-            moon(0.88f, 0.08f)
-            for ((x, y) in listOf(0.06f to 0.5f, 0.92f to 0.9f, 0.1f to 0.86f)) glyph(Glyph.Moth, at(x, y), w * 0.05f, ink, alpha = 0.35f)
-        }
-        // The garden: a picket fence, flower beds and a sundial.
-        2 -> {
-            for (k in 0 until 9) {
-                val x = 0.03f + k * 0.022f
-                drawLine(ink, at(x, 0.3f), at(x, 0.37f), line.width * 1.4f, StrokeCap.Round, alpha = 0.35f)
-            }
-            drawLine(ink, at(0.02f, 0.33f), at(0.22f, 0.33f), line.width, alpha = 0.35f)
-            for ((x, y) in listOf(0.08f to 0.62f, 0.12f to 0.66f, 0.9f to 0.2f, 0.94f to 0.25f, 0.88f to 0.7f, 0.93f to 0.75f, 0.05f to 0.92f)) flower(x, y, 1f)
-            val dial = at(0.92f, 0.48f)
-            drawCircle(ink, w * 0.035f, dial, alpha = 0.4f, style = line)
-            drawLine(ink, dial, Offset(dial.x + w * 0.025f, dial.y - w * 0.02f), line.width, alpha = 0.5f)
-        }
-        // The woods: stands of pines, and leaves on the ground.
-        3 -> {
-            for ((x, y, s) in listOf(Triple(0.07f, 0.15f, 1.2f), Triple(0.13f, 0.2f, 0.9f), Triple(0.9f, 0.3f, 1.1f), Triple(0.95f, 0.36f, 0.8f),
-                Triple(0.06f, 0.6f, 1f), Triple(0.12f, 0.66f, 1.2f), Triple(0.9f, 0.78f, 1f), Triple(0.94f, 0.84f, 0.8f))) pine(x, y, s)
-            for ((x, y) in listOf(0.2f to 0.45f, 0.82f to 0.58f, 0.15f to 0.92f, 0.86f to 0.08f)) leaf(x, y, 0f)
-        }
-        // The rooftops: a row of roofs and chimneys under the moon.
-        4 -> {
-            val roofs = Path().apply {
-                moveTo(0f, at(0f, 0.2f).y)
-                lineTo(w * 0.06f, at(0f, 0.14f).y); lineTo(w * 0.12f, at(0f, 0.2f).y)
-                lineTo(w * 0.12f, at(0f, 0.16f).y); lineTo(w * 0.2f, at(0f, 0.1f).y); lineTo(w * 0.26f, at(0f, 0.16f).y)
-            }
-            drawPath(roofs, ink, alpha = 0.45f, style = line)
-            drawRect(ink.copy(alpha = 0.35f), at(0.16f, 0.08f), Size(w * 0.018f, (h - top) * 0.03f))
-            val far = Path().apply {
-                moveTo(w * 0.78f, at(0f, 0.72f).y)
-                lineTo(w * 0.84f, at(0f, 0.66f).y); lineTo(w * 0.9f, at(0f, 0.72f).y); lineTo(w * 0.94f, at(0f, 0.68f).y); lineTo(w, at(0f, 0.72f).y)
-            }
-            drawPath(far, ink, alpha = 0.45f, style = line)
-            moon(0.88f, 0.15f)
-            for ((x, y) in listOf(0.7f to 0.06f, 0.96f to 0.4f, 0.06f to 0.5f, 0.1f to 0.85f)) twinkle(x, y)
-        }
-        // The last porch: the house again, its lamp burning bright, rays reaching across the sheet.
-        else -> {
-            house(0.86f, 0.95f, 1.4f, lit = true)
-            val lamp = at(0.86f, 0.91f)
-            for (k in 0 until 7) {
-                val a = Math.toRadians(180.0 + k * 15.0)
-                drawLine(Dusk.glowDeep, lamp, Offset(lamp.x + (w * 0.5f * kotlin.math.cos(a)).toFloat(), lamp.y + (w * 0.5f * kotlin.math.sin(a)).toFloat()), line.width, alpha = 0.18f)
-            }
-            for ((x, y) in listOf(0.08f to 0.2f, 0.92f to 0.3f, 0.1f to 0.6f, 0.7f to 0.8f, 0.05f to 0.9f)) glyph(Glyph.Moth, at(x, y), w * 0.05f, ink, alpha = 0.4f)
-            moon(0.1f, 0.05f)
         }
     }
 }
