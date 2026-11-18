@@ -385,8 +385,8 @@ class GameTest {
     // Saved state
 
     @Test fun `a round in play survives being saved and comes back paused`() {
-        val round = Round.start(MothId.Sorbet, levelAt(21), Random(3), seed = 3).go(0).tick(12_000)
-        val played = round.flip(round.deck.indexOfFirst { it != MothId.Leaf }, 12_000)
+        val round = Round.start(MothId.Sorbet, levelAt(21), Random(3), seed = 3).go(0).tick(4_000)
+        val played = round.flip(round.deck.indexOfFirst { it != MothId.Leaf }, 4_000)
         val (back, lead) = restoreRound(played.saved(MothId.Sorbet))!!
         assertEquals(MothId.Sorbet, lead)
         assertTrue(back.paused)

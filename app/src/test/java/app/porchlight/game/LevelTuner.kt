@@ -151,7 +151,7 @@ class LevelTuner {
             appendLine("- A turn takes ${Simulator.FLIP_MS / 1000.0} s on average (anywhere from half to one and a half times that), and a wrong pair shows for the game's 0.8 s before it folds back.")
             appendLine("- The lead has no perk, so the numbers are the level's own. Luna, the first lead, adds 5 s; Iris adds 1.4 s of peek.")
             appendLine()
-            appendLine("The spec's 0.7 s turn made every round of the starting table a near-certain win, and tuning to the targets at that pace gave 5 to 30 second rounds. The turn time is the one calibration constant, set to a human pace so the tuned seconds stay near the starting table.")
+            appendLine("The turn time is the spec's 0.7 s. At that pace the simulated player clears a board quickly, so the tuned rounds are short: 7 to 36 seconds.")
             appendLine()
             appendLine("Targets for the average player: chapter 1 95 to 85%, chapter 2 85 to 75%, chapter 3 78 to 65%, chapter 4 70 to 55%, chapter 5 60 to 40%; breathers 10 points easier, bosses 10 harder. Levels 1 to 5 also need a casual player to win 90%, and level 50 needs a strong player to win 50 to 70%. That is why levels 1 to 5 have short peeks and level 50 a long one.")
             appendLine()

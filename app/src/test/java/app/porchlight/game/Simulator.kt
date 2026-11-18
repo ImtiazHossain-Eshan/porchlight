@@ -27,10 +27,8 @@ data class SimStats(val games: Int, val wins: Int, val stars: Double, val leftMs
  *   pair it knows; otherwise it turns a card it doesn't know, then that card's partner if it knows
  *   it, or another unknown card.
  *
- * The spec's 0.7 s turn wins nearly every round of a sensible table, and tuning to the targets at
- * that pace gives 5 to 30 second rounds; the turn time is the one calibration constant, set to a
- * human 1.3 s. PORCH_FLIP_MS and PORCH_RECALL_TURNED (remember turned cards only with chance p)
- * override it for experiments.
+ * The turn time is the spec's 0.7 s. PORCH_FLIP_MS and PORCH_RECALL_TURNED (remember turned
+ * cards only with chance p) override it for experiments.
  * - It steers clear of dead leaves it knows about.
  * - A Lookalike is taken for its twin 15% of the times it is seen.
  * - When the Wanderer swaps two cards, it loses track of both.
@@ -38,7 +36,7 @@ data class SimStats(val games: Int, val wins: Int, val stars: Double, val leftMs
  * The lead is a moth without a perk, so the level's own numbers are what is measured.
  */
 object Simulator {
-    val FLIP_MS = System.getenv("PORCH_FLIP_MS")?.toLongOrNull() ?: 1_300L
+    val FLIP_MS = System.getenv("PORCH_FLIP_MS")?.toLongOrNull() ?: 700L
     private val recallTurned = System.getenv("PORCH_RECALL_TURNED") == "1"
     const val CARD_MS = 260.0
     const val FORGET_PER_SECOND = 0.04
