@@ -35,11 +35,12 @@ Everything is in `Theme.kt`. Nothing is set outside the scale, and no card or pa
 - **Scale (`TypeScale`):** Hero 56 (the score, the peek count), Title 28 (headlines, screen signs), Heading 18, Body 15, Label 11 (capitals, +1.5 sp tracking), Micro 9 (the share card only).
 - **Treatments, one per surface:**
   - `TextCarved`: painted on wood (screen signs, plank buttons). Dark ink with a light edge below; amber paint with a dark cut above on dark walnut.
-  - `TextGlow`: lit by the bulb (the score, OVERDRIVE, the Results headline, PORCHLIGHT). Amber gradient #FFE08A → #F2A93B with a soft glow, never a black shadow. Pass no colour with it. `glowOf(colour)` lights another colour the same way.
+  - `TextGlow`: lit by the bulb (the score, OVERDRIVE, the Results headline). Amber gradient #FFE08A → #F2A93B with a soft glow, never a black shadow. Pass no colour with it. `glowOf(colour)` lights another colour the same way.
   - `TextEngraved`: cut in metal (the level number, badge text, seals). A light edge below; the emblem also cuts a dark edge above.
   - `TextInk`: on paper. Plain ink.
   - `FitText`: one line that steps down only as far as it must (a big font scale on a narrow phone). Signs and plank buttons.
 - **Copy:** sentence case for sentences, capitals for labels. Numbers grouped ("3,240"). Never "none", "+0" or "0 of 0": hide the line. Say what's next ("172 XP to level 12", "2 badges to go", "312 short of your best").
+- **The name (`TitleSigns.kt`):** PORCHLIGHT is cut into a dark board and gilded, hung on two chains, swinging gently with a glint; two small moths (Sulphur and Rose) loop round it and now and then perch on its top edge. Still under Reduce motion.
 - **Motion (`TextMotion.kt`):** `CountUp` (odometer digits), `PunchIn` (scale 1.3 → 1), `NeonOn` / `NeonOff` (letters light up; a loss flickers and cools to ember), `Stamp` (1.6 → 1 with a 3 dp shake). All fall back to a plain fade with reduce motion.
 
 ## Materials (`Materials.kt`)

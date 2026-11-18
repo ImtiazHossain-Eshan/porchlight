@@ -160,21 +160,9 @@ private fun TopRow(session: Session) {
     }
 }
 
-/** The name lights letter by letter like a neon sign, once each time the app starts. */
-private var logoLit = false
-
+/** The porch's name, gold leaf on a hanging board, with moths for company (see [CarvedTitle]). */
 @Composable
-private fun Logo(calm: Boolean) {
-    val first = remember { !logoLit }
-    LaunchedEffect(Unit) { logoLit = true }
-    NeonOn(
-        "PORCHLIGHT",
-        TextGlow.copy(letterSpacing = 2.sp),
-        TypeScale.Title,
-        instant = !first,
-        calm = calm,
-    )
-}
+private fun Logo(calm: Boolean) = CarvedTitle(calm)
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
