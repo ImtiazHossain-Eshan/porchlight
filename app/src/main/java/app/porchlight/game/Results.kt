@@ -1,5 +1,16 @@
 package app.porchlight.game
 
+import androidx.compose.ui.semantics.contentDescription
+import kotlin.math.exp
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.BlendMode
 import kotlin.math.abs
 import kotlin.math.PI
 import androidx.compose.ui.semantics.Role
@@ -330,6 +341,7 @@ internal fun Results(session: Session, report: Report) {
                             modifier = Modifier
                                 .background(accent.copy(alpha = 0.12f), RoundedCornerShape(50))
                                 .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(50))
+                                .glint({ t }, calm, every = 4f)
                                 .padding(horizontal = 12.dp, vertical = 4.dp),
                         )
                         Spacer(Modifier.height(14.dp))
@@ -370,20 +382,16 @@ internal fun Results(session: Session, report: Report) {
                         }
 
                         // The headline, then a word on a loss: how close, or a tip.
-                        Reveal(headline, skipped) {
-                            Text(
-                                if (won) "Every pair found!" else "The bulb burned out",
-                                style = Display,
-                                fontSize = 30.sp,
-                                lineHeight = 34.sp,
-                                color = Color.White,
-                                textAlign = TextAlign.Center,
-                            )
-                        }
+                        HeroTitle(
+                            if (won) "Every pair found!" else "The bulb burned out",
+                            won = won,
+                            shown = headline,
+                            instant = skipped,
+                            calm = calm,
+                            t = { t },
+                        )
                         if (note != null) {
-                            Reveal(headline, skipped) {
-                                Text(note, style = BodyText, color = MUTED, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
-                            }
+                            TypeText(note, shown = headline, instant = skipped || calm, modifier = Modifier.padding(top = 6.dp))
                         }
                         report.chapterDone?.let { chapter ->
                             Reveal(headline, skipped, stamp = !calm) {
@@ -421,7 +429,7 @@ internal fun Results(session: Session, report: Report) {
                         // Three numbers: pairs, score, and time left (a win) or your best (a loss).
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             StatTile("PAIRS", Glyph.Moth, accent, headline, skipped, 0, Modifier.weight(1f)) {
-                                Text("${round.pairs}/${round.pairCount}", style = Display, fontSize = 22.sp, color = Color.White, maxLines = 1)
+                                Text("${round.pairs}/${round.pairCount}", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
                             }
                             StatTile(
                                 "SCORE",
@@ -438,15 +446,15 @@ internal fun Results(session: Session, report: Report) {
                                         scaleY = punch.value
                                     },
                             ) {
-                                CountUp(scoreShown, Display.copy(color = Color.White), 22.sp, durationMs = 300, instant = skipped, calm = calm)
+                                CountUp(scoreShown, numberStyle(accent), 24.sp, durationMs = 300, instant = skipped, calm = calm)
                             }
                             if (won) {
                                 StatTile("TIME LEFT", Glyph.Clock, accent, headline, skipped, 2, Modifier.weight(1f)) {
-                                    Text("${(round.left + 999) / 1000} s", style = Display, fontSize = 22.sp, color = Color.White, maxLines = 1)
+                                    Text("${(round.left + 999) / 1000} s", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
                                 }
                             } else {
                                 StatTile("BEST", Glyph.Trophy, accent, headline, skipped, 2, Modifier.weight(1f)) {
-                                    Text(progress.best.grouped(), style = Display, fontSize = 22.sp, color = Color.White, maxLines = 1)
+                                    Text(progress.best.grouped(), style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
                                 }
                             }
                         }
@@ -1053,7 +1061,7 @@ private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, modifier: Mo
                 Text(caption, style = Label, color = MUTED, maxLines = 1)
             }
             if (line.points > 0) {
-                Text("+${line.points.grouped()}", style = Display, fontSize = 18.sp, color = accent, textAlign = TextAlign.End, modifier = modifier)
+                Text("+${line.points.grouped()}", style = numberStyle(accent, strong = true), fontSize = 19.sp, textAlign = TextAlign.End, modifier = modifier)
             } else {
                 Spacer(modifier)
             }
@@ -1155,7 +1163,7 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("LEVEL ${report.levelAfter}", style = Display, fontSize = 17.sp, color = Color.White)
+                Text("LEVEL ${report.levelAfter}", style = numberStyle(WIN), fontSize = 18.sp)
                 if (up) {
                     Spacer(Modifier.width(6.dp))
                     Text(
@@ -1289,16 +1297,166 @@ private fun GameButton(text: String, sub: String?, glyph: Glyph, primary: Boolea
         ) {
             Box(
                 Modifier
-                    .size(34.dp)
+                    .size(30.dp)
                     .background(if (primary) Color.White.copy(alpha = 0.35f) else accent.copy(alpha = 0.16f), RoundedCornerShape(50))
                     .border(1.dp, if (primary) Color.White.copy(alpha = 0.5f) else accent.copy(alpha = 0.4f), RoundedCornerShape(50)),
                 contentAlignment = Alignment.Center,
             ) { GlyphArt(glyph, if (primary) ink else accent, Modifier.size(18.dp)) }
-            Spacer(Modifier.width(10.dp))
+            Spacer(Modifier.width(8.dp))
             Column {
-                Text(text.uppercase(), style = Display, fontSize = 19.sp, color = ink, maxLines = 1)
+                Text(
+                    text.uppercase(),
+                    style = Display.copy(
+                        letterSpacing = 0.5.sp,
+                        shadow = androidx.compose.ui.graphics.Shadow(if (primary) Color.White.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.6f), Offset(0f, 2f), 0f),
+                    ),
+                    fontSize = 18.sp,
+                    color = ink,
+                    maxLines = 1,
+                    softWrap = false,
+                )
                 if (sub != null) Text(sub, style = Label, color = ink.copy(alpha = 0.7f), maxLines = 1)
             }
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Type that moves
+
+/** Big numbers: white melting into the result's colour toward the bottom, with a soft glow. */
+private fun numberStyle(accent: Color, strong: Boolean = false) = Display.copy(
+    brush = Brush.verticalGradient(
+        if (strong) listOf(lerp(Color.White, accent, 0.35f), accent)
+        else listOf(Color.White, Color.White, lerp(Color.White, accent, 0.6f)),
+    ),
+    shadow = androidx.compose.ui.graphics.Shadow(accent.copy(alpha = 0.45f), Offset(0f, 0f), 14f),
+)
+
+/** A band of light that passes over whatever this is drawn on, every [every] seconds, only where it has paint. */
+private fun Modifier.glint(t: () -> Float, calm: Boolean, every: Float = 3.5f, strength: Float = 0.55f): Modifier =
+    if (calm) this
+    else this
+        .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithContent {
+            drawContent()
+            val run = (t() % every) / 1.1f
+            if (run < 1f) {
+                val x = -size.width * 0.3f + run * size.width * 1.6f
+                drawRect(
+                    Brush.linearGradient(
+                        listOf(Color.Transparent, Color.White.copy(alpha = strength), Color.Transparent),
+                        Offset(x - size.height * 1.2f, 0f),
+                        Offset(x, size.height),
+                    ),
+                    blendMode = BlendMode.SrcAtop,
+                )
+            }
+        }
+
+/**
+ * The headline as a moment: each letter drops in on its own, flipping over in 3D, one after
+ * another; then the words ride a slow wave. The letters are cast metal, light at the top and the
+ * result's colour at the bottom, glowing, with a glint passing through now and then. A loss's
+ * letters stutter like a sign failing before they settle, dimmer.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun HeroTitle(text: String, won: Boolean, shown: Boolean, instant: Boolean, calm: Boolean, t: () -> Float) {
+    val letters = text.length
+    val drops = remember(text) { List(letters) { Animatable(if (calm) 1f else 0f) } }
+    val landedAt = remember(text) { mutableFloatStateOf(-1f) }
+    LaunchedEffect(shown, instant) {
+        if (!shown) return@LaunchedEffect
+        if (instant || calm) {
+            drops.forEach { it.snapTo(1f) }
+            landedAt.floatValue = -10f
+            return@LaunchedEffect
+        }
+        landedAt.floatValue = t()
+        drops.forEachIndexed { i, d ->
+            launch {
+                delay(i * 32L)
+                d.animateTo(1f, spring(dampingRatio = 0.48f, stiffness = Spring.StiffnessMediumLow))
+            }
+        }
+    }
+    val accent = if (won) WIN else LOSS
+    val top = if (won) Color(0xFFFFF8DA) else Color(0xFFFFE6DC)
+    val bottom = if (won) Color(0xFFFFB83A) else Color(0xFFFF6A4D)
+    val style = Display.copy(
+        fontSize = 32.sp,
+        lineHeight = 38.sp,
+        brush = Brush.verticalGradient(listOf(top, top, bottom)),
+        shadow = androidx.compose.ui.graphics.Shadow(accent.copy(alpha = 0.75f), Offset(0f, 0f), 26f),
+    )
+    FlowRow(
+        Modifier
+            .fillMaxWidth()
+            .glint(t, calm, every = 3.2f, strength = 0.7f)
+            .semantics(mergeDescendants = true) {},
+        horizontalArrangement = Arrangement.Center,
+    ) {
+        var index = 0
+        val words = text.split(" ")
+        words.forEachIndexed { w, word ->
+            Row {
+                for (ch in word) {
+                    val i = index++
+                    val drop = drops[i]
+                    Text(
+                        "$ch",
+                        style = style,
+                        modifier = Modifier.graphicsLayer {
+                            val d = drop.value
+                            cameraDistance = 8f * density
+                            rotationX = (1f - d) * -110f
+                            translationY = -(1f - d) * 34.dp.toPx() + if (calm) 0f else sin(t() * 2.2f - i * 0.42f) * 2.5.dp.toPx()
+                            val sc = 1f + (1f - d) * 0.6f
+                            scaleX = sc
+                            scaleY = sc
+                            var a = d.coerceIn(0f, 1f)
+                            if (!won && !calm && landedAt.floatValue >= 0f) {
+                                // A failing sign: a few letters stutter for a moment after they land.
+                                val since = t() - landedAt.floatValue - i * 0.032f
+                                if (since in 0.3f..1.3f && (i * 7) % 3 == 0) {
+                                    a *= if (sin(since * 47f + i) > 0.2f) 1f else 0.25f
+                                }
+                            }
+                            alpha = a
+                        },
+                    )
+                }
+            }
+            if (w < words.lastIndex) {
+                index++
+                Text(" ", style = style)
+            }
+        }
+    }
+}
+
+/** A line that types itself out, letter by letter, holding its full size from the start. */
+@Composable
+private fun TypeText(text: String, shown: Boolean, instant: Boolean, modifier: Modifier = Modifier) {
+    val typed = remember(text) { Animatable(if (instant) text.length.toFloat() else 0f) }
+    LaunchedEffect(shown, instant) {
+        if (!shown) return@LaunchedEffect
+        if (instant) typed.snapTo(text.length.toFloat())
+        else {
+            delay(450)
+            typed.animateTo(text.length.toFloat(), tween(text.length * 28, easing = LinearEasing))
+        }
+    }
+    val n = typed.value.toInt().coerceIn(0, text.length)
+    Text(
+        buildAnnotatedString {
+            append(text.substring(0, n))
+            withStyle(SpanStyle(color = Color.Transparent)) { append(text.substring(n)) }
+        },
+        style = BodyText.copy(letterSpacing = 0.3.sp),
+        color = Color(0xFFC9CFDD),
+        textAlign = TextAlign.Center,
+        modifier = modifier.semantics { contentDescription = text },
+    )
 }
