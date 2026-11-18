@@ -1,5 +1,9 @@
 package app.porchlight.game
 
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.graphics.graphicsLayer
@@ -350,6 +354,11 @@ private fun Stage(session: Session, modifier: Modifier) {
         )
 
         val fly = spring<Dp>(dampingRatio = 0.62f, stiffness = Spring.StiffnessLow)
+        // Where the light is, in the stage: everything below leans toward it, and its shadows fall away from it.
+        val lampX = w / 2
+        val lampY = 14.dp + jarH * 0.55f
+        // The moths that may take a turn flying round the lamp: met, and not the one leading.
+        val flyers = LEADS.indices.filter { progress.unlocked(LEADS[it]) && LEADS[it] != session.lead }
         LEADS.forEachIndexed { i, id ->
             val chosen = id == session.lead
             val open = progress.unlocked(id)
@@ -363,12 +372,53 @@ private fun Stage(session: Session, modifier: Modifier) {
                 fly,
                 label = "size",
             )
+            // Resting, a moth turns its head toward the light, as far as a moth on a wall would.
+            val toward = Math.toDegrees(kotlin.math.atan2((lampX - x).value.toDouble(), (y - lampY).value.toDouble())).toFloat().coerceIn(-32f, 32f)
             Box(
                 Modifier
                     .offset { IntOffset((x - size / 2).roundToPx(), (y - size / 2).roundToPx()) }
                     // Each moth flies off to its own jar on the Moths screen, and back.
                     .flies("moth-${id.name}", Fly.Arc)
                     .size(size)
+                    .graphicsLayer {
+                        val t = session.clock.seconds
+                        val calm = session.calm
+                        cameraDistance = 10f * density
+                        rotationZ = if (chosen) 0f else toward
+                        if (calm) return@graphicsLayer
+                        // Depth: the phone's tilt slides the hovering lead further than the moths on the wall.
+                        val lean = (if (chosen) 10.dp else 4.dp).toPx()
+                        translationX = -session.tilt.x * lean
+                        translationY = -session.tilt.y * lean
+                        if (chosen) {
+                            // The lead hovers: a slow bob and a drift, turning a little in 3D as it holds the air.
+                            translationY += sin(t * 1.6f) * 5.dp.toPx()
+                            translationX += sin(t * 0.9f) * 3.dp.toPx()
+                            rotationY = sin(t * 1.1f) * 14f
+                            rotationX = sin(t * 0.8f + 1f) * 8f
+                            return@graphicsLayer
+                        }
+                        // On the wall: a slight rock in 3D, each moth in its own time.
+                        rotationX = sin(t * 0.7f + i * 1.3f) * 7f
+                        rotationY = sin(t * 0.5f + i * 2.1f) * 9f
+                        // Now and then one takes off, circles the lamp on a tilted ring, and lands again.
+                        val p = flight(i, t, flyers)
+                        if (p != null) {
+                            val bell = sin(p * PI.toFloat()).let { it * it }
+                            val a = -PI.toFloat() / 2f + p * 2f * PI.toFloat() * 1.25f + i
+                            val ringX = (lampX + (w * 0.34f) * cos(a)).toPx()
+                            val ringY = (lampY + (jarH * 0.18f) * sin(a)).toPx()
+                            translationX += (ringX - x.toPx()) * bell
+                            translationY += (ringY - y.toPx()) * bell
+                            val depth = sin(a) * bell
+                            val sc = 1f + 0.18f * depth - 0.12f * bell
+                            scaleX = sc
+                            scaleY = sc
+                            rotationZ = toward * (1f - bell) + Math.toDegrees(atan2(cos(a).toDouble(), -sin(a).toDouble())).toFloat() * bell * 0.6f
+                            // Passing behind the jar it dims, as if in its shadow.
+                            alpha = 1f - 0.4f * (-depth).coerceAtLeast(0f)
+                        }
+                    }
                     .drawBehind {
                         // The lead hovers in a soft halo of the lamp's light.
                         if (chosen) drawCircle(Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.34f), Color.Transparent)))
@@ -393,14 +443,35 @@ private fun Stage(session: Session, modifier: Modifier) {
                         // When the light is switched, every moth starts up at once, then settles.
                         val since = t - session.stirAt
                         val stir = if (since in 0f..1.1f && !session.calm) kotlin.math.abs(kotlin.math.sin(since * 21f + i)) * (1f - since / 1.1f) else 0f
-                        val flutter = maxOf(own, stir)
-                        // The lead keeps a slow wingbeat of its own as it hovers.
-                        val hover = if (chosen && !session.calm) 0.08f * (0.5f + 0.5f * kotlin.math.sin(t * 3.2f)) else 0f
+                        // In flight the wings beat hard; resting, they breathe open and shut a little.
+                        val inFlight = !session.calm && !chosen && flight(i, t, flyers) != null
+                        val beating = if (inFlight) kotlin.math.abs(kotlin.math.sin(t * 24f + i)) else 0f
+                        val breathe = if (session.calm || chosen) 0f else 0.1f * (0.5f + 0.5f * kotlin.math.sin(t * 0.9f + i * 1.7f))
+                        val flutter = maxOf(own, stir, beating)
+                        // The lead keeps a steady wingbeat of its own as it hovers.
+                        val hover = if (chosen && !session.calm) 0.18f * (0.5f + 0.5f * kotlin.math.sin(t * 6.4f)) else breathe
                         // `size` here is the canvas, not the moth's dp size above.
                         val canvas = this.size
                         // In the dark the moths are only shapes; with the light back they glow again.
                         val lift = if (stir > 0f) -canvas.height * 0.06f * stir else 0f
                         val shown = if (session.porchDark) 0.35f else 1f
+                        // Its shadow on the boards, thrown away from the lamp: close under a moth on the wall,
+                        // further down and softer under the hovering lead, gone in flight and in the dark.
+                        if (!session.porchDark && !inFlight) {
+                            // The moth's layer is turned toward the light, so turn the shadow's direction back.
+                            val turned = Math.toRadians((if (chosen) 0f else -toward).toDouble())
+                            val away = Offset((x - lampX).toPx(), (y - lampY).toPx()).let { d ->
+                                val len = d.getDistance().coerceAtLeast(1f)
+                                val ux = d.x / len
+                                val uy = d.y / len
+                                Offset((ux * cos(turned) - uy * sin(turned)).toFloat(), (ux * sin(turned) + uy * cos(turned)).toFloat())
+                            }
+                            val reach = canvas.minDimension * (if (chosen) 0.2f else 0.07f)
+                            val drop = canvas.minDimension * (if (chosen) 0.16f else 0.04f)
+                            val c = Offset(canvas.width / 2f + away.x * reach, canvas.height / 2f + away.y * reach + drop)
+                            val scale = if (chosen) 0.8f else 1f
+                            moth(id, c, canvas.minDimension * (if (chosen) 0.86f else 1f) * scale, 1f - 0.6f * flutter - hover, flat = Color.Black.copy(alpha = if (chosen) 0.16f else 0.28f))
+                        }
                         drawContext.canvas.saveLayer(androidx.compose.ui.geometry.Rect(Offset.Zero, canvas), androidx.compose.ui.graphics.Paint().apply { alpha = shown })
                         moth(id, Offset(canvas.width / 2f, canvas.height / 2f + lift), canvas.minDimension * (if (chosen) 0.86f else 1f), 1f - 0.6f * flutter - hover, gold = gold)
                         drawContext.canvas.restore()
@@ -444,3 +515,18 @@ private fun Fact(glyph: Glyph, text: String) {
         Text(text, style = Label, color = Dusk.inkSoft.copy(alpha = 0.85f), maxLines = 1)
     }
 }
+
+/**
+ * Where a resting moth is in its flight round the lamp, 0 to 1, or null when it is resting. One moth
+ * at a time flies, taking turns every [FLIGHT_EVERY] seconds, for [FLIGHT_FOR] seconds.
+ */
+private fun flight(i: Int, t: Float, flyers: List<Int>): Float? {
+    if (flyers.isEmpty()) return null
+    val k = (t / FLIGHT_EVERY).toInt()
+    if (flyers[k % flyers.size] != i) return null
+    val since = t - k * FLIGHT_EVERY - 1.2f
+    return if (since in 0f..FLIGHT_FOR) since / FLIGHT_FOR else null
+}
+
+private const val FLIGHT_EVERY = 6.5f
+private const val FLIGHT_FOR = 2.8f
