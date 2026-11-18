@@ -5,6 +5,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.window.ComposeUIViewController
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import platform.UIKit.UIViewController
 import kotlin.experimental.ExperimentalNativeApi
 
@@ -22,12 +23,13 @@ private const val MAX_FONT_SCALE = 2f
 fun MainViewController(arguments: List<String>, onImmersive: (Boolean) -> Unit): UIViewController {
     val platform = IosPlatform(onImmersive)
     val debug = if (kotlin.native.Platform.isDebugBinary) debugLaunch(arguments) else null
+    val lifecycle = AppLifecycle()
     return ComposeUIViewController {
         val density = LocalDensity.current
         val capped = remember(density) {
             Density(density.density, density.fontScale.coerceAtMost(MAX_FONT_SCALE))
         }
-        CompositionLocalProvider(LocalDensity provides capped) {
+        CompositionLocalProvider(LocalDensity provides capped, LocalLifecycleOwner provides lifecycle) {
             PorchlightApp(platform, debug)
         }
     }

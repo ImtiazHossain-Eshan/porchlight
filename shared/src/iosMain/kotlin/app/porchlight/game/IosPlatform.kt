@@ -218,6 +218,10 @@ private class UIKitHaptics : HapticFeedback {
     private val notify = UINotificationFeedbackGenerator()
     private val select = UISelectionFeedbackGenerator()
 
+    init {
+        prepare()
+    }
+
     override fun performHapticFeedback(hapticFeedbackType: HapticFeedbackType) {
         when (hapticFeedbackType) {
             HapticFeedbackType.Confirm -> notify.notificationOccurred(UINotificationFeedbackType.UINotificationFeedbackTypeSuccess)
@@ -227,5 +231,15 @@ private class UIKitHaptics : HapticFeedback {
             HapticFeedbackType.TextHandleMove -> select.selectionChanged()
             else -> medium.impactOccurred()
         }
+        // Ready for the next one: a prepared generator answers without the Taptic Engine's warm-up delay.
+        prepare()
+    }
+
+    private fun prepare() {
+        light.prepare()
+        heavy.prepare()
+        medium.prepare()
+        notify.prepare()
+        select.prepare()
     }
 }
