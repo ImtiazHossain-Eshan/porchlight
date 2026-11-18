@@ -341,10 +341,12 @@ internal fun Results(session: Session, report: Report) {
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
                 val landscape = maxWidth > maxHeight * 1.15f
                 val compact = maxHeight < 660.dp || landscape
+                // Below this the tally drops its small captions.
+                val dense = maxHeight < 760.dp || landscape
                 val heroPart: @Composable () -> Unit = {
                         // The hero: the pairs found as a ring round a lit (or burnt-out) bulb.
                         HeroLamp(
-                            scale = if (maxHeight < 560.dp) 0.6f else if (compact) 0.72f else 1f,
+                            scale = if (maxHeight < 560.dp) 0.6f else if (compact) 0.72f else if (dense) 0.84f else 1f,
                             session = session,
                             moths = remember(report) { round.deck.filter { it != MothId.Leaf }.distinct().take(4) },
                             won = won,
@@ -470,7 +472,7 @@ internal fun Results(session: Session, report: Report) {
                             ) {
                                 lines.forEachIndexed { i, line ->
                                     SlideIn(linesIn > i, skipped || calm) {
-                                        TallyRow(line, accent, last = i == lines.lastIndex, modifier = Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
+                                        TallyRow(line, accent, last = i == lines.lastIndex, dense = dense, modifier = Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
                                     }
                                 }
                                 if (won && round.misses == 0) {
@@ -549,28 +551,23 @@ internal fun Results(session: Session, report: Report) {
                             // Three losses running on this level: a gentler try, offered and never pushed.
                             val easier = !round.daily && !won && progress.easierOffered && progress.current == round.level.number
                             when {
-                                goOn && landscape -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    PlayButton("Next level", calm, Modifier.weight(1.3f), sub = "Level $nextLevel") { play(nextLevel) }
-                                    SecondaryButton("Again", Modifier.weight(1f)) { replay() }
+                                // Side by side, so the screen keeps its room for the result: replay small on
+                                // the left, the next level big on the right where the thumb lands.
+                                goOn -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    SecondaryButton("Again", Modifier.weight(1f), glyph = Glyph.Replay) { replay() }
+                                    PlayButton("Next level", calm, Modifier.weight(1.9f), sub = "Level $nextLevel", glyph = Glyph.Next) { play(nextLevel) }
                                 }
-                                goOn -> {
-                                    PlayButton("Next level", calm, Modifier.fillMaxWidth(), sub = "Level $nextLevel") { play(nextLevel) }
-                                    SecondaryButton("Again", Modifier.fillMaxWidth()) { replay() }
-                                }
-                                easier && landscape -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    PlayButton("Try again", calm, Modifier.weight(1.3f)) { replay() }
-                                    SecondaryButton("Easier bulb", Modifier.weight(1f)) { session.start(daily = false, easy = true) }
-                                }
-                                else -> {
-                                    PlayButton(if (won) "Again" else "Try again", calm, Modifier.fillMaxWidth()) { replay() }
-                                    if (easier) {
-                                        SecondaryButton("Easier bulb", Modifier.fillMaxWidth()) { session.start(daily = false, easy = true) }
-                                        if (!compact) Text("A fifth more time. One star at most.", style = BodyText, color = MUTED, textAlign = TextAlign.Center)
+                                easier -> {
+                                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        SecondaryButton("Easier", Modifier.weight(1f), glyph = Glyph.Bulb) { session.start(daily = false, easy = true) }
+                                        PlayButton("Try again", calm, Modifier.weight(1.6f), glyph = Glyph.Replay) { replay() }
                                     }
+                                    if (!compact) Text("Easier bulb: a fifth more time, one star at most.", style = BodyText, color = MUTED, textAlign = TextAlign.Center)
                                 }
+                                else -> PlayButton(if (won) "Again" else "Try again", calm, Modifier.fillMaxWidth(), glyph = Glyph.Replay) { replay() }
                             }
                             if (round.daily && !report.practice) {
-                            SecondaryButton("Share", Modifier.fillMaxWidth()) {
+                            SecondaryButton("Share", Modifier.fillMaxWidth(), glyph = Glyph.Share) {
                                 val card = session.store.progress.dailyCard
                                 if (card != null) session.sharing = card
                                 else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
@@ -590,24 +587,25 @@ internal fun Results(session: Session, report: Report) {
                 if (landscape) {
                     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(24.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-                            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally) { heroPart() }
+                            FitHeight { Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) { heroPart() } }
                         }
                         Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(Modifier.weight(1f).widthIn(max = 480.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                val scroll = rememberScrollState()
-                                Column(Modifier.fadeEnd(scroll).fillMaxWidth().verticalScroll(scroll), horizontalAlignment = Alignment.CenterHorizontally) { detailsPart() }
+                                FitHeight { Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) { detailsPart() } }
                             }
                             actionsPart(Modifier.widthIn(max = 480.dp).fillMaxWidth())
                         }
                     }
                 } else {
                     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        // The whole result on one page: if it is taller than the room, it shrinks to fit.
                         Box(Modifier.weight(1f).widthIn(max = 480.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            val scroll = rememberScrollState()
-                            Column(Modifier.fadeEnd(scroll).fillMaxWidth().verticalScroll(scroll), horizontalAlignment = Alignment.CenterHorizontally) {
-                                heroPart()
-                                Spacer(Modifier.height(if (compact) 8.dp else 16.dp))
-                                detailsPart()
+                            FitHeight {
+                                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    heroPart()
+                                    Spacer(Modifier.height(if (compact) 4.dp else 10.dp))
+                                    detailsPart()
+                                }
                             }
                         }
                         actionsPart(Modifier.widthIn(max = 480.dp).fillMaxWidth())
@@ -1054,7 +1052,7 @@ private fun MedalStar(filled: Boolean, turn: Boolean, instant: Boolean, calm: Bo
 
 /** One line of the tally: an icon on a tinted tile, what it was and a word about it, and its points. */
 @Composable
-private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, modifier: Modifier = Modifier) {
+private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, dense: Boolean = false, modifier: Modifier = Modifier) {
     val (icon, caption) = when (line.kind) {
         TallyKind.Pairs -> Glyph.Moth to "Matched"
         TallyKind.Streak -> Glyph.Flame to "Best chain"
@@ -1062,10 +1060,10 @@ private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, modifier: Mo
         TallyKind.Misses -> Glyph.Close to "Wrong pairs"
     }
     Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(vertical = if (dense) 4.dp else 7.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier
-                    .size(34.dp)
+                    .size(if (dense) 28.dp else 34.dp)
                     .shadow(3.dp, RoundedCornerShape(50), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
                     .metal(corner = 17.dp, copper = line.kind == TallyKind.Streak || line.kind == TallyKind.Misses),
                 contentAlignment = Alignment.Center,
@@ -1073,7 +1071,7 @@ private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, modifier: Mo
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(line.text, style = BodyText, fontWeight = FontWeight.Bold, color = Dusk.ink, maxLines = 1)
-                Text(caption, style = Label, color = MUTED, maxLines = 1)
+                if (!dense) Text(caption, style = Label, color = MUTED, maxLines = 1)
             }
             if (line.points > 0) {
                 Text("+${line.points.grouped()}", style = numberStyle(accent, strong = true), fontSize = 19.sp, textAlign = TextAlign.End, modifier = modifier)
@@ -1419,3 +1417,24 @@ private fun Modifier.fadeEnd(scroll: androidx.compose.foundation.ScrollState): M
             blendMode = BlendMode.DstIn,
         )
     }
+
+/**
+ * Lays out [content] at its natural height and, if that is taller than the room there is, scales it
+ * down evenly (from its top centre) so it all fits on one page instead of scrolling.
+ */
+@Composable
+private fun FitHeight(content: @Composable () -> Unit) {
+    androidx.compose.ui.layout.Layout(content) { measurables, constraints ->
+        val placeable = measurables.first().measure(constraints.copy(minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
+        val room = if (constraints.hasBoundedHeight) constraints.maxHeight else placeable.height
+        val scale = (room.toFloat() / placeable.height.coerceAtLeast(1)).coerceAtMost(1f)
+        val shown = (placeable.height * scale).toInt()
+        layout(placeable.width, shown) {
+            placeable.placeWithLayer(0, 0) {
+                scaleX = scale
+                scaleY = scale
+                transformOrigin = TransformOrigin(0.5f, 0f)
+            }
+        }
+    }
+}

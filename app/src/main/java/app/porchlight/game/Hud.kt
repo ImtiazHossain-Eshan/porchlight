@@ -320,18 +320,18 @@ internal fun Star(filled: Boolean, shown: Boolean, modifier: Modifier = Modifier
 
 /** The main action: an oak sign with carved lettering, held on by two brass rivets. */
 @Composable
-internal fun PrimaryButton(text: String, modifier: Modifier = Modifier, busy: Boolean = false, onClick: () -> Unit) {
-    SignButton(text, Wood.Oak, Dusk.paperInk, signOnOak, modifier, onClick, busy)
+internal fun PrimaryButton(text: String, modifier: Modifier = Modifier, busy: Boolean = false, glyph: Glyph? = null, onClick: () -> Unit) {
+    SignButton(text, Wood.Oak, Dusk.paperInk, signOnOak, modifier, onClick, busy, glyph)
 }
 
 /** A quieter action: a walnut sign with gilt lettering. */
 @Composable
-internal fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    SignButton(text, Wood.Walnut, Dusk.amber, signOnWalnut, modifier, onClick)
+internal fun SecondaryButton(text: String, modifier: Modifier = Modifier, glyph: Glyph? = null, onClick: () -> Unit) {
+    SignButton(text, Wood.Walnut, Dusk.amber, signOnWalnut, modifier, onClick, glyph = glyph)
 }
 
 @Composable
-private fun SignButton(text: String, wood: Wood, ink: Color, style: TextStyle, modifier: Modifier, onClick: () -> Unit, busy: Boolean = false) {
+private fun SignButton(text: String, wood: Wood, ink: Color, style: TextStyle, modifier: Modifier, onClick: () -> Unit, busy: Boolean = false, glyph: Glyph? = null) {
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     // A sign gives under the finger with a spring, and sinks a little toward the wall.
@@ -351,7 +351,7 @@ private fun SignButton(text: String, wood: Wood, ink: Color, style: TextStyle, m
                 rivet(Offset(size.width - 14.dp.toPx(), size.height / 2), 3.5.dp.toPx())
             }
             .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 26.dp),
+            .padding(horizontal = if (glyph != null) 20.dp else 26.dp),
         contentAlignment = Alignment.Center,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -362,6 +362,10 @@ private fun SignButton(text: String, wood: Wood, ink: Color, style: TextStyle, m
                     strokeWidth = 2.dp,
                     modifier = Modifier.padding(end = 10.dp).size(16.dp),
                 )
+            }
+            if (glyph != null) {
+                // The icon is painted on the board like the word beside it.
+                GlyphArt(glyph, ink, Modifier.padding(end = 8.dp).size(20.dp))
             }
             FitText(text.uppercase(), style, TypeScale.Heading, ink)
         }
@@ -437,7 +441,7 @@ private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpa
  * few seconds. It sinks under the finger like the other signs. [calm] keeps it still.
  */
 @Composable
-internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifier, sub: String? = null, onClick: () -> Unit) {
+internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifier, sub: String? = null, glyph: Glyph? = null, onClick: () -> Unit) {
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     val squeeze by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "squeeze")
@@ -475,23 +479,29 @@ internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifi
                 }
             }
             .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 34.dp),
+            .padding(horizontal = if (glyph != null) 28.dp else 34.dp),
         contentAlignment = Alignment.Center,
     ) {
-        if (sub == null) {
-            FitText(text.uppercase(), TextCarved.copy(letterSpacing = 4.sp), TypeScale.Title, Dusk.paperInk)
-        } else {
-            // A second, smaller line carved under the word: who is leading and what they bring.
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                FitText(text.uppercase(), TextCarved.copy(letterSpacing = 4.sp), TypeScale.Title, Dusk.paperInk)
-                Text(
-                    sub,
-                    style = BodyText.copy(fontWeight = FontWeight.SemiBold, shadow = TextCarved.shadow),
-                    fontSize = 13.sp,
-                    color = Dusk.paperInk.copy(alpha = 0.8f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            // An icon carved into the board before the words: what pressing it will do.
+            if (glyph != null) GlyphArt(glyph, Dusk.paperInk, Modifier.padding(end = 10.dp).size(26.dp))
+            Box(Modifier.weight(1f, fill = false)) {
+                if (sub == null) {
+                    FitText(text.uppercase(), TextCarved.copy(letterSpacing = 4.sp), TypeScale.Title, Dusk.paperInk)
+                } else {
+                    // A second, smaller line carved under the word: who is leading and what they bring.
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        FitText(text.uppercase(), TextCarved.copy(letterSpacing = 4.sp), TypeScale.Title, Dusk.paperInk)
+                        Text(
+                            sub,
+                            style = BodyText.copy(fontWeight = FontWeight.SemiBold, shadow = TextCarved.shadow),
+                            fontSize = 13.sp,
+                            color = Dusk.paperInk.copy(alpha = 0.8f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         }
     }
