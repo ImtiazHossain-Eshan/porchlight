@@ -49,3 +49,4 @@ dependencyResolutionManagement {
 rootProject.name = "Porchlight"
 include(":app")
 include(":shared")
+include(":webApp")

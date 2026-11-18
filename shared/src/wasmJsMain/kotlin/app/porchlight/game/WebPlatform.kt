@@ -11,9 +11,12 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 class WebPlatform : Platform {
     override val storage: Storage = LocalStorage("porchlight:")
 
-    /** Skia on WebGL runs SkSL runtime shaders and blur. */
-    override val shaders = true
-    override val blur = true
+    /**
+     * Skia on WebGL runs SkSL runtime shaders and blur. `?noshaders` or `?noblur` in the address
+     * switches them off, to check the fallbacks (like Android's `pretendApi` debug extra).
+     */
+    override val shaders = !pageQueryHas("noshaders")
+    override val blur = !pageQueryHas("noblur")
 
     override fun startAudio(engine: AudioEngine): AudioOutput? {
         val handle = webAudioStart(
@@ -133,6 +136,8 @@ private class OrientationTilt : TiltSensor {
 
 // JavaScript glue. Each function is one small piece of browser API.
 
+private fun pageQueryHas(flag: String): Boolean = js("new URLSearchParams(window.location.search).has(flag)")
+
 private fun storageGet(key: String): String? =
     js("(function(){ try { return window.localStorage.getItem(key); } catch (e) { return null; } })()")
 
@@ -171,7 +176,9 @@ private fun webAudioStart(rate: Int, frames: Int, fill: () -> Boolean, sample: (
         };
         document.addEventListener('visibilitychange', visible);
         window.addEventListener('pageshow', visible);
-        return { ctx: ctx, node: node, unlock: unlock, visible: visible };
+        var handle = { ctx: ctx, node: node, unlock: unlock, visible: visible };
+        window.porchlightAudio = handle; // for checking its state from the console
+        return handle;
     })()""",
 )
 

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Drawn from app/src/main/res/drawable/ic_launcher_{background,foreground}.xml: same paths, same transforms. -->
+<!-- The full 108-unit adaptive canvas, for maskable web icons. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="1024" height="1024">
+  <path fill="#0E1A24" d="M0,0h108v108h-108z"/>
+  <path fill="#16283A" d="M0,54h108v54h-108z"/>
+  <path fill="#1C3346" d="M0,27h108v1h-108z M0,54h108v1h-108z M0,81h108v1h-108z"/>
+  <defs>
+    <radialGradient id="halo" gradientUnits="userSpaceOnUse" cx="50" cy="54" r="32">
+      <stop offset="0" stop-color="#FFD27A" stop-opacity="0.702"/>
+      <stop offset="0.5" stop-color="#FF9F43" stop-opacity="0.251"/>
+      <stop offset="1" stop-color="#FF9F43" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="54" cy="54" r="32" fill="url(#halo)"/>
+  <g transform="translate(-4,2) translate(58,52) scale(1.28) translate(-58,-52)">
+    <path fill="#8A6A3A" stroke="#4E3A1E" stroke-width="1.2" d="M45,26h10v8h-10z"/>
+    <path fill="#4E3A1E" d="M45,28.6h10v0.9h-10z M45,31.2h10v0.9h-10z"/>
+    <path fill="#FFF3C4" stroke="#3A2A14" stroke-width="1.4" d="M46.5,34 C46.5,40 37,44 37,54 A13,13 0,0 0,63 54 C63,44 53.5,40 53.5,34 Z"/>
+    <path fill="none" stroke="#FF9F43" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" d="M45,54 L47,49.5 L49,54 L51,49.5 L53,54 L55,49.5"/>
+    <g transform="translate(56,54) rotate(18) scale(0.22)">
+      <path fill="#C8EEC2" stroke="#15181A" stroke-width="2.6" d="M64,46 C74,26 98,14 114,20 C113,38 100,54 82,60 C73,62 66,58 64,54 Z M56,46 C46,26 22,14 6,20 C7,38 20,54 38,60 C47,62 54,58 56,54 Z"/>
+      <path fill="#C8EEC2" stroke="#15181A" stroke-width="2.6" d="M64,54 C78,56 94,62 95,76 C95,86 88,92 85,102 C79,112 78,103 74,95 C68,85 64,70 64,54 Z M56,54 C42,56 26,62 25,76 C25,86 32,92 35,102 C41,112 42,103 46,95 C52,85 56,70 56,54 Z"/>
+      <path fill="#F8F3E6" stroke="#15181A" stroke-width="2.6" d="M53.5,56 Q60,52 66.5,56 Q67.5,78 60,94 Q52.5,78 53.5,56 Z M60,39 a8,9.5 0,1 1,-0.01 0 Z"/>
+      <path fill="none" stroke="#C9862A" stroke-width="3" stroke-linecap="round" d="M62.6,32.4 C66,24 71,18 77.5,14.5 M57.4,32.4 C54,24 49,18 42.5,14.5"/>
+    </g>
+  </g>
+</svg>
