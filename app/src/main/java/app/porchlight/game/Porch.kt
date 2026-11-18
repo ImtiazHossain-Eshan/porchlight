@@ -389,7 +389,8 @@ private fun Stage(session: Session, modifier: Modifier) {
             val rate = 70f
             val newest = kotlin.math.floor(head * rate).toInt()
             val oldest = kotlin.math.floor((head - SPARKLE_LIFE).coerceAtLeast(0f) * rate).toInt()
-            for (n in newest downTo oldest) {
+            // At the lowest quality step the sparkles go and only the ribbon stays.
+            if (Gpu.quality < 2) for (n in newest downTo oldest) {
                 val q = n / rate
                 val age = (raw - q) / SPARKLE_LIFE
                 if (age !in 0f..1f) continue
@@ -504,7 +505,7 @@ private fun Stage(session: Session, modifier: Modifier) {
                                 }
                                 prev = pt
                             }
-                            for (n in 0 until 14) {
+                            if (Gpu.quality < 2) for (n in 0 until 14) {
                                 val q = (head - n * 0.022f).coerceAtLeast(0f)
                                 val g = (1f - n / 14f) * (0.55f + 0.45f * sin(session.clock.seconds * 12f + n * 1.9f))
                                 val h1 = ((n * 92821 + i * 31) % 1000) / 1000f

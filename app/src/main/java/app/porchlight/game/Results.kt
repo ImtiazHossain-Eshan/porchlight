@@ -754,7 +754,8 @@ private fun DrawScope.resultBackdrop(won: Boolean, t: Float, appear: Float, calm
     if (calm) return
     if (won) {
         // Confetti, each piece tumbling over in 3D as it falls.
-        for (k in 0 until 46) {
+        // At the lowest quality step, half the confetti and embers.
+        for (k in 0 until (if (Gpu.quality >= 2) 23 else 46)) {
             val seed = (k * 0.6180339f) % 1f
             val speed = 0.09f + ((k * 7) % 11) * 0.012f
             val y = (((t * speed + seed) % 1.15f) - 0.08f) * h
@@ -768,7 +769,7 @@ private fun DrawScope.resultBackdrop(won: Boolean, t: Float, appear: Float, calm
         }
     } else {
         // Embers drifting up off the burnt bulb.
-        for (k in 0 until 34) {
+        for (k in 0 until (if (Gpu.quality >= 2) 17 else 34)) {
             val seed = (k * 0.6180339f) % 1f
             val p = (t * (0.06f + (k % 6) * 0.01f) + seed) % 1f
             val y = h * (1.05f - p * 1.1f)
@@ -939,8 +940,8 @@ private fun HeroLamp(scale: Float, session: Session, moths: List<MothId>, won: B
         // Moths circling the light on a tilted ring: smaller and dimmer behind, bigger in front.
         if (won) {
             moths.forEachIndexed { k, moth ->
-                MothArt(
-                    moth,
+                // Drawn, not composed, each frame: the wings beat in the draw step only.
+                Canvas(
                     Modifier
                         .size(34.dp)
                         .graphicsLayer {
@@ -954,8 +955,7 @@ private fun HeroLamp(scale: Float, session: Session, moths: List<MothId>, won: B
                             alpha = 0.55f + 0.45f * (depth + 1f) / 2f
                             rotationZ = cos(a) * 25f
                         },
-                    open = 0.55f + 0.45f * abs(sin(t() * 12f + k)),
-                )
+                ) { moth(moth, Offset(size.width / 2f, size.height / 2f), size.minDimension, 0.55f + 0.45f * abs(sin(t() * 12f + k))) }
             }
         }
     }

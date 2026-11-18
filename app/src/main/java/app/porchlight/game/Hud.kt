@@ -201,8 +201,8 @@ internal fun LevelPlate(xp: Int, modifier: Modifier = Modifier, still: Boolean =
         if (still) shown.snapTo(fill) else shown.animateTo(fill, tween(900, delayMillis = 250, easing = FastOutSlowInEasing))
     }
     val loop = rememberInfiniteTransition(label = "plate")
-    val sway by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(5_200, easing = LinearEasing), RepeatMode.Restart), label = "sway")
-    val wave = kotlin.math.sin(sway * 2f * Math.PI.toFloat())
+    // Read only while drawing, so the sway redraws the plate without rebuilding it every frame.
+    val sway = loop.animateFloat(0f, 1f, infiniteRepeatable(tween(5_200, easing = LinearEasing), RepeatMode.Restart), label = "sway")
     Box(
         modifier
             .height(68.dp)
@@ -235,7 +235,7 @@ internal fun LevelPlate(xp: Int, modifier: Modifier = Modifier, still: Boolean =
                         cornerRadius = r,
                     )
                     if (!still) {
-                        val run = ((sway * 2f) % 1f) * size.width * 1.6f - size.width * 0.3f
+                        val run = ((sway.value * 2f) % 1f) * size.width * 1.6f - size.width * 0.3f
                         drawRect(
                             Brush.horizontalGradient(listOf(Color.Transparent, Color.White.copy(alpha = 0.55f), Color.Transparent), run - 24.dp.toPx(), run),
                             size = androidx.compose.ui.geometry.Size(w, size.height),
@@ -259,8 +259,8 @@ internal fun LevelPlate(xp: Int, modifier: Modifier = Modifier, still: Boolean =
                 .graphicsLayer {
                     if (!still) {
                         cameraDistance = 10f * density
-                        rotationY = wave * 16f
-                        rotationX = kotlin.math.cos(sway * 2f * Math.PI.toFloat()) * 6f
+                        rotationY = kotlin.math.sin(sway.value * 2f * Math.PI.toFloat()) * 16f
+                        rotationX = kotlin.math.cos(sway.value * 2f * Math.PI.toFloat()) * 6f
                     }
                 },
             xp = fill,

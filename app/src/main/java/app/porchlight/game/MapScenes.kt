@@ -267,7 +267,8 @@ internal fun DrawScope.sceneLife(chapter: Int, t: Float, top: Float, stops: List
             }
         }
         2 -> {
-            fireflies(look, spots, r, t, random, 30)
+            // At the lowest quality step, half the fireflies, leaves and stars.
+            fireflies(look, spots, r, t, random, if (Gpu.quality >= 2) 15 else 30)
             for (k in 0 until 3) {
                 // Moths wandering the garden on long, lazy loops.
                 val a = t * 0.18f + k * 2.1f
@@ -279,12 +280,12 @@ internal fun DrawScope.sceneLife(chapter: Int, t: Float, top: Float, stops: List
         }
         3 -> {
             fog(look, t, top)
-            leaves(look, t, top, random, 16)
-            fireflies(look, emptyList(), r, t, random, 8)
+            leaves(look, t, top, random, if (Gpu.quality >= 2) 8 else 16)
+            fireflies(look, emptyList(), r, t, random, if (Gpu.quality >= 2) 4 else 8)
         }
         4 -> {
             // Stars that twinkle, a shooting star now and then, clouds crossing the moon.
-            repeat(14) {
+            repeat(if (Gpu.quality >= 2) 7 else 14) {
                 val c = Offset(w * (0.04f + random.nextFloat() * 0.92f), top + random.nextFloat() * (h - top))
                 val p = random.nextFloat() * 6.28f
                 val glint = 0.5f + 0.5f * sin(t * (1.5f + random.nextFloat() * 2f) + p)

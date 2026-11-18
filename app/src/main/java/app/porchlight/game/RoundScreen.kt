@@ -460,7 +460,7 @@ private fun Paused(session: Session) {
                     Offset(size.width / 2f, size.height * 0.42f),
                 )
                 if (!calm) {
-                    for (k in 0 until 26) {
+                    for (k in 0 until (if (Gpu.quality >= 2) 13 else 26)) {
                         val seed = k * 37.17f
                         val p = ((t * (0.025f + (k % 5) * 0.006f) + (seed % 1f)) % 1f)
                         val y = size.height * (0.75f - p * 0.75f)

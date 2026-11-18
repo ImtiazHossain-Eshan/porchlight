@@ -130,8 +130,8 @@ internal fun CarvedTitle(calm: Boolean) {
 
         // The moths, drawn over the sign; they dim as their loop takes them behind it.
         SIGN_MOTHS.forEachIndexed { k, (moth, perchAt) ->
-            MothArt(
-                moth,
+            // Drawn, not composed, each frame: the wings beat in the draw step only.
+            Canvas(
                 Modifier
                     .size(24.dp)
                     .graphicsLayer {
@@ -151,8 +151,7 @@ internal fun CarvedTitle(calm: Boolean) {
                         // In the air it leans the way it is going; on the board it sits upright.
                         rotationZ = Math.toDegrees(atan2(-m.loop.y.toDouble(), m.loop.x.toDouble())).toFloat() * m.air * 0.4f
                     },
-                open = signMoth(k, t(), calm).wings,
-            )
+            ) { moth(moth, Offset(size.width / 2f, size.height / 2f), size.minDimension, signMoth(k, t(), calm).wings) }
         }
     }
 }
