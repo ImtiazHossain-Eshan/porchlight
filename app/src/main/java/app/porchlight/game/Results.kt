@@ -536,25 +536,37 @@ internal fun Results(session: Session, report: Report) {
                         },
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            val next = !round.daily && progress.current != round.level.number
-                            val again = when {
-                                next -> "Next level"
-                                won -> "Again"
-                                else -> "Try again"
+                            // After a win, the next level comes first whenever it is open, whether this win
+                            // opened it or it was open already; Again replays the level just played.
+                            val thisLevel = round.level.number
+                            val nextLevel = thisLevel + 1
+                            val goOn = won && !round.daily && nextLevel <= LEVELS.size && progress.isOpen(nextLevel)
+                            val play: (Int) -> Unit = { n ->
+                                if (session.store.progress.current != n) session.store.change { it.copy(current = n) }
+                                session.start(daily = false)
                             }
+                            val replay: () -> Unit = { if (round.daily) session.start() else play(thisLevel) }
                             // Three losses running on this level: a gentler try, offered and never pushed.
                             val easier = !round.daily && !won && progress.easierOffered && progress.current == round.level.number
-                            if (landscape && easier) {
-                                // Wide and short: the two signs side by side.
-                                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    PlayButton(again, calm, Modifier.weight(1.3f)) { session.start() }
+                            when {
+                                goOn && landscape -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    PlayButton("Next level", calm, Modifier.weight(1.3f), sub = "Level $nextLevel") { play(nextLevel) }
+                                    SecondaryButton("Again", Modifier.weight(1f)) { replay() }
+                                }
+                                goOn -> {
+                                    PlayButton("Next level", calm, Modifier.fillMaxWidth(), sub = "Level $nextLevel") { play(nextLevel) }
+                                    SecondaryButton("Again", Modifier.fillMaxWidth()) { replay() }
+                                }
+                                easier && landscape -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    PlayButton("Try again", calm, Modifier.weight(1.3f)) { replay() }
                                     SecondaryButton("Easier bulb", Modifier.weight(1f)) { session.start(daily = false, easy = true) }
                                 }
-                            } else {
-                                PlayButton(again, calm, Modifier.fillMaxWidth()) { session.start() }
-                                if (easier) {
-                                    SecondaryButton("Easier bulb", Modifier.fillMaxWidth()) { session.start(daily = false, easy = true) }
-                                    if (!compact) Text("A fifth more time. One star at most.", style = BodyText, color = MUTED, textAlign = TextAlign.Center)
+                                else -> {
+                                    PlayButton(if (won) "Again" else "Try again", calm, Modifier.fillMaxWidth()) { replay() }
+                                    if (easier) {
+                                        SecondaryButton("Easier bulb", Modifier.fillMaxWidth()) { session.start(daily = false, easy = true) }
+                                        if (!compact) Text("A fifth more time. One star at most.", style = BodyText, color = MUTED, textAlign = TextAlign.Center)
+                                    }
                                 }
                             }
                             if (round.daily && !report.practice) {
