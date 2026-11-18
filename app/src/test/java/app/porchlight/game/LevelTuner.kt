@@ -86,7 +86,7 @@ class LevelTuner {
                 // the average player within reach of the target.
                 level.number <= 5 -> {
                     var peek = level.peekMs
-                    while (peek >= 500) {
+                    while (peek >= 2_000) { // never less than two seconds to look
                         val tryLevel = level.copy(peekMs = peek)
                         val s = secondsFor(tryLevel, 90.5, Skill.Casual)
                         if (rate(tryLevel, s) <= target + 4.5) {
@@ -153,7 +153,7 @@ class LevelTuner {
             appendLine()
             appendLine("The turn time is 1.0 s. The spec's 0.7 s made rounds too strict for real players (7 to 36 seconds), so the owner asked for an easier pace; at 1.0 s the tuned rounds run 10 to 55 seconds.")
             appendLine()
-            appendLine("Targets for the average player: chapter 1 97 to 90%, chapter 2 90 to 82%, chapter 3 85 to 74%, chapter 4 80 to 67%, chapter 5 72 to 56%; breathers 8 points easier (at most 99%), bosses 10 harder. Levels 1 to 5 also need a casual player to win 90%, and level 50 needs a strong player to win 50 to 70%. That is why levels 1 to 5 have short peeks and level 50 a long one.")
+            appendLine("Targets for the average player: chapter 1 97 to 90%, chapter 2 90 to 82%, chapter 3 85 to 74%, chapter 4 80 to 67%, chapter 5 72 to 56%; breathers 8 points easier (at most 99%), bosses 10 harder. Levels 1 to 5 also need a casual player to win 90%, and level 50 needs a strong player to win 50 to 70%. Every level gives at least two seconds to look; levels 1 to 5 may come out easier than their targets because of it, and level 50 has a long look so a strong player has a real chance.")
             appendLine()
             appendLine("## The table")
             appendLine()

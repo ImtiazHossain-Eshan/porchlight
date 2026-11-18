@@ -25,17 +25,17 @@ A simulated player (`Simulator.kt`, test code) plays the real round engine, 2,00
 
 The turn time is 1.0 s. The spec's 0.7 s made rounds too strict for real players (7 to 36 seconds), so the owner asked for an easier pace; at 1.0 s the tuned rounds run 10 to 55 seconds.
 
-Targets for the average player: chapter 1 97 to 90%, chapter 2 90 to 82%, chapter 3 85 to 74%, chapter 4 80 to 67%, chapter 5 72 to 56%; breathers 8 points easier (at most 99%), bosses 10 harder. Levels 1 to 5 also need a casual player to win 90%, and level 50 needs a strong player to win 50 to 70%. That is why levels 1 to 5 have short peeks and level 50 a long one.
+Targets for the average player: chapter 1 97 to 90%, chapter 2 90 to 82%, chapter 3 85 to 74%, chapter 4 80 to 67%, chapter 5 72 to 56%; breathers 8 points easier (at most 99%), bosses 10 harder. Levels 1 to 5 also need a casual player to win 90%, and level 50 needs a strong player to win 50 to 70%. Every level gives at least two seconds to look; levels 1 to 5 may come out easier than their targets because of it, and level 50 has a long look so a strong player has a real chance.
 
 ## The table
 
 | Level | Cards | Seconds | Peek | Twists | Kind | 3★ misses | Target | Casual | Average | Strong | Avg stars | Avg time left |
 |---:|---:|---:|---:|---|---|---:|---:|---:|---:|---:|---:|---:|
-| 1 | 6 (3p) | 10 | 1.2 | - | Normal | 2 | 97% | 94.7% | 99.3% | 100.0% | 2.84 | 3.8 s |
-| 2 | 8 (4p) | 15 | 0.9 | - | Normal | 2 | 96% | 91.3% | 97.0% | 98.7% | 2.40 | 5.0 s |
-| 3 | 8 (4p) | 16 | 0.8 | - | Normal | 2 | 95% | 93.7% | 97.9% | 99.3% | 2.49 | 5.5 s |
-| 4 | 12 (6p) | 25 | 0.7 | - | Normal | 2 | 95% | 91.1% | 94.9% | 97.3% | 1.87 | 6.2 s |
-| 5 | 12 (6p) | 26 | 0.6 | - | Normal | 2 | 94% | 94.1% | 96.4% | 97.4% | 1.86 | 6.6 s |
+| 1 | 6 (3p) | 10 | 2.0 | - | Normal | 2 | 97% | 96.7% | 99.9% | 100.0% | 2.96 | 4.0 s |
+| 2 | 8 (4p) | 13 | 2.0 | - | Normal | 2 | 96% | 94.2% | 99.9% | 99.9% | 2.92 | 4.9 s |
+| 3 | 8 (4p) | 12 | 2.0 | - | Normal | 2 | 95% | 90.9% | 99.6% | 99.9% | 2.73 | 4.0 s |
+| 4 | 12 (6p) | 22 | 2.0 | - | Normal | 2 | 95% | 92.5% | 99.4% | 99.9% | 2.62 | 7.7 s |
+| 5 | 12 (6p) | 22 | 2.0 | - | Normal | 2 | 94% | 93.5% | 99.6% | 100.0% | 2.59 | 7.6 s |
 | 6 | 12 (6p) | 15 | 3.2 | - | Normal | 2 | 93% | 54.0% | 92.1% | 94.3% | 1.33 | 2.8 s |
 | 7 | 12 (6p) | 17 | 3.3 | - | Breather | 2 | 99% | 76.5% | 99.0% | 99.4% | 2.33 | 4.6 s |
 | 8 | 16 (8p) | 22 | 3.5 | - | Normal | 2 | 92% | 51.8% | 91.8% | 98.0% | 1.54 | 4.4 s |
