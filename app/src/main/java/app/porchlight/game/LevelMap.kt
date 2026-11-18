@@ -43,6 +43,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -65,6 +68,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.sin
+import kotlin.math.cos
+import kotlin.math.PI
+import androidx.compose.ui.graphics.drawscope.rotate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -106,6 +113,13 @@ internal fun LevelsScreen(session: Session) {
     var asking by remember { mutableStateOf<Level?>(null) }
     val scroll = rememberScrollState()
     val scope = rememberCoroutineScope()
+    // The scenes' clock, in seconds. It stands still under Reduce motion, and so do the scenes.
+    val clock = remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(session.calm) {
+        if (session.calm) return@LaunchedEffect
+        val start = withFrameNanos { it } - (clock.floatValue * 1e9f).toLong()
+        while (true) withFrameNanos { clock.floatValue = (it - start) / 1e9f }
+    }
     Box(Modifier.fillMaxSize()) {
         MenuFrame("Levels", session, flight = "plaque-Levels", scroll = false, maxContentWidth = 980.dp) {
             BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
@@ -143,9 +157,16 @@ internal fun LevelsScreen(session: Session) {
                         mapModifier.verticalScroll(scroll),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        for (chapter in CHAPTERS) {
+                        val sceneStep = with(density) { (layout.sceneHeight + layout.gap).toPx() }
+                        val sceneHeight = with(density) { layout.sceneHeight.toPx() }
+                        val viewportPx = with(density) { viewport.toPx() }
+                        for ((index, chapter) in CHAPTERS.withIndex()) {
                             ChapterScene(
                                 chapter, layout, session,
+                                // How far this scene's middle sits below the middle of the view.
+                                depth = { index * sceneStep + sceneHeight / 2 - scroll.value - viewportPx / 2 },
+                                onScreen = { kotlin.math.abs(index * sceneStep + sceneHeight / 2 - scroll.value - viewportPx / 2) < (sceneHeight + viewportPx) / 2 },
+                                time = { clock.floatValue },
                                 onPick = { level ->
                                     lockedHint = null
                                     session.sfx.play(Sound.Flip, vary = 0.06f)
@@ -162,7 +183,7 @@ internal fun LevelsScreen(session: Session) {
                         }
                     }
                 }
-                val details: @Composable () -> Unit = { LevelCard(picked, progress, lockedHint) }
+                val details: @Composable () -> Unit = { LevelCard(picked, progress, lockedHint, time = { clock.floatValue }, calm = session.calm) }
                 if (side) {
                     Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                         map(Modifier.width(mapWidth).fillMaxHeight())
@@ -204,6 +225,9 @@ private fun ChapterScene(
     chapter: Chapter,
     layout: PathLayout,
     session: Session,
+    depth: () -> Float,
+    onScreen: () -> Boolean,
+    time: () -> Float,
     onPick: (Level) -> Unit,
     onLocked: (Level) -> Unit,
     onReplay: (Int) -> Unit,
@@ -217,15 +241,34 @@ private fun ChapterScene(
             .fillMaxWidth()
             .height(layout.sceneHeight)
             .padding(horizontal = 6.dp)
-            .shadow(8.dp, RoundedCornerShape(8.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow),
+            .shadow(8.dp, RoundedCornerShape(8.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+            .clip(RoundedCornerShape(8.dp)),
     ) {
         val look = sceneLook(chapter.number)
         val w = maxWidth
         val stops = List(levels.size) { layout.stop(it, w) }
         val density = LocalDensity.current
         val stopsPx = with(density) { stops.map { Offset(it.x.toPx(), it.y.toPx()) } }
+        val top = with(density) { layout.header.toPx() }
+        val calm = session.calm
+        val reach = with(density) { 60.dp.toPx() }
+        val lean = with(density) { 14.dp.toPx() }
+        // One layer of the scene: it lags the coins by [scroll] of the way the map moves, and leans
+        // with the phone by [tilt], so the far scenery seems further back than the near.
+        fun Modifier.depthLayer(scroll: Float, tilt: Float) = graphicsLayer {
+            if (!calm) {
+                translationY = (depth() * scroll).coerceIn(-reach * scroll * 15f, reach * scroll * 15f) - session.tilt.y * lean * tilt
+                translationX = -session.tilt.x * lean * tilt
+            }
+        }
+        Canvas(Modifier.fillMaxSize()) { sceneSky(chapter.number) }
+        Canvas(Modifier.fillMaxSize().depthLayer(FAR_SCROLL, 0.4f)) { sceneFar(chapter.number, top, stopsPx) }
+        Canvas(Modifier.fillMaxSize().depthLayer(NEAR_SCROLL, 1f)) { sceneNear(chapter.number, top, stopsPx) }
+        Canvas(Modifier.fillMaxSize().depthLayer(LIFE_SCROLL, 0.7f)) {
+            if (onScreen()) sceneLife(chapter.number, time(), top, stopsPx)
+        }
         Canvas(Modifier.fillMaxSize()) {
-            sceneBackdrop(chapter.number, top = layout.header.toPx(), corner = 8.dp.toPx(), stops = stopsPx)
+            sceneFrame(chapter.number, top, 8.dp.toPx())
             for (i in 0 until stopsPx.size - 1) {
                 val a = stopsPx[i]
                 val b = stopsPx[i + 1]
@@ -429,54 +472,171 @@ private fun GatePlaque(chapter: Chapter, progress: Progress, modifier: Modifier,
     }
 }
 
-/** The picked level, under the map: its number and chapter, cards, seconds, twists and best stars. */
+/** Each twist's own colour on the level card. */
+private val Twist.accent: Color get() = when (this) {
+    Twist.Wanderer -> Color(0xFF7CC6FF)
+    Twist.Leaves -> Color(0xFFF0955A)
+    Twist.Shadow -> Color(0xFFB9A2FF)
+    Twist.Lookalikes -> Color(0xFFF58FB0)
+    Twist.Blackout -> Color(0xFFFFD36B)
+}
+
+/**
+ * The picked level, under the map: a brass medallion with its number (gold with a turning halo
+ * for a boss), its chapter, a boss or breather badge, its best stars, and chips for its cards,
+ * seconds and each twist in that twist's colour. It springs in when a new level is picked, and a
+ * band of light passes across it now and then.
+ */
 @Composable
-private fun LevelCard(level: Level, progress: Progress, hint: String?) {
-    Column(
+private fun LevelCard(level: Level, progress: Progress, hint: String?, time: () -> Float, calm: Boolean) {
+    val look = sceneLook(level.chapter)
+    val pop = remember { Animatable(1f) }
+    LaunchedEffect(level.number) {
+        if (calm) return@LaunchedEffect
+        pop.snapTo(0f)
+        pop.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
+    }
+    val shape = RoundedCornerShape(14.dp)
+    Row(
         Modifier
             .fillMaxWidth()
-            .plank(Wood.Walnut, seed = 5)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .semantics(mergeDescendants = true) {},
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Level ${level.number}", style = BodyText, fontWeight = FontWeight.Bold, fontSize = TypeScale.Heading, color = Dusk.amber)
-            Text(
-                "  ${chapterOf(level).name}" + when (level.kind) {
-                    Kind.Boss -> " · boss"
-                    Kind.Breather -> " · breather"
-                    Kind.Normal -> ""
-                },
-                style = BodyText,
-                color = Dusk.inkSoft,
-                maxLines = 1,
-                modifier = Modifier.weight(1f),
-            )
-            val stars = progress.levelStars[level.number - 1]
-            Row(horizontalArrangement = Arrangement.spacedBy((-2).dp)) {
-                repeat(3) { Star(it < stars, shown = true, instant = true, modifier = Modifier.size(18.dp)) }
+            .graphicsLayer {
+                val p = pop.value
+                alpha = 0.4f + 0.6f * p.coerceIn(0f, 1f)
+                translationY = (1f - p) * 18.dp.toPx()
+                scaleX = 0.96f + 0.04f * p
+                scaleY = 0.96f + 0.04f * p
             }
+            .shadow(10.dp, shape, ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+            .plank(Wood.Walnut, corner = 14.dp, elevation = 0.dp, seed = 5)
+            .drawBehind {
+                // The chapter's light pooling on the left, behind the medallion.
+                val c = Offset(size.height * 0.55f, size.height / 2f)
+                drawCircle(Brush.radialGradient(listOf(look.light.copy(alpha = 0.35f), Color.Transparent), c, size.height * 1.1f), size.height * 1.1f, c)
+                // A band of light sweeping across every few seconds.
+                if (!calm) {
+                    val run = (time() % 4.5f) / 1.4f
+                    if (run < 1f) {
+                        val x = -size.width * 0.3f + run * size.width * 1.6f
+                        drawRect(
+                            Brush.linearGradient(
+                                listOf(Color.Transparent, Color.White.copy(alpha = 0.12f), Color.Transparent),
+                                Offset(x - size.height, 0f),
+                                Offset(x, size.height),
+                            ),
+                        )
+                    }
+                }
+            }
+            .border(1.5.dp, BrassRule, shape)
+            .padding(start = 10.dp, end = 14.dp, top = 10.dp, bottom = 10.dp)
+            .semantics(mergeDescendants = true) {},
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // The medallion.
+        Box(
+            Modifier
+                .size(66.dp)
+                .graphicsLayer {
+                    if (!calm) {
+                        rotationY = sin(time() * 0.9f) * 12f
+                        cameraDistance = 10f * density
+                    }
+                }
+                .drawBehind {
+                    val (c, rr) = coinFace(size)
+                    if (level.boss) {
+                        val t = if (calm) 0f else time()
+                        val pulse = 0.5f + 0.5f * sin(t * 2.4f)
+                        drawCircle(Brush.radialGradient(listOf(Dusk.ember.copy(alpha = 0.35f + 0.25f * pulse), Color.Transparent), c, rr * 1.6f), rr * 1.6f, c)
+                        rotate(t * 25f, c) {
+                            for (k in 0 until 12) {
+                                val a = k * PI.toFloat() / 6f
+                                drawLine(
+                                    Craft.gold.copy(alpha = 0.55f),
+                                    Offset(c.x + cos(a) * rr * 1.08f, c.y + sin(a) * rr * 1.08f),
+                                    Offset(c.x + cos(a) * rr * 1.4f, c.y + sin(a) * rr * 1.4f),
+                                    2.dp.toPx(),
+                                    StrokeCap.Round,
+                                )
+                            }
+                        }
+                    }
+                    coin(c, rr, gold = level.boss)
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            FitText("${level.number}", TextEngraved, TypeScale.Title, Color(0xFF3E2810), Modifier.width(40.dp).offset(y = (-3).dp))
         }
-        Spacer(Modifier.height(4.dp))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CardFact(Glyph.Moth, "${level.cards} cards")
-            CardFact(Glyph.Clock, "${level.roundMs / 1000} s")
-            for (twist in level.twists) CardFact(twist.glyph, if (level.twists.size > 1) "" else twist.title)
-        }
-        Spacer(Modifier.height(2.dp))
-        when {
-            hint != null -> Text(hint, color = Dusk.amber, fontSize = TypeScale.Body)
-            level.twists.isNotEmpty() -> Text(level.twists.joinToString(" · ") { it.title }, color = Dusk.inkSoft, fontSize = TypeScale.Body, maxLines = 1)
-            else -> Text("No twists. Just the moths.", color = Dusk.inkSoft, fontSize = TypeScale.Body)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("LEVEL ${level.number} · ${roman(level.chapter)}", style = Label, color = look.light, maxLines = 1)
+                Spacer(Modifier.width(6.dp))
+                when (level.kind) {
+                    Kind.Boss -> KindBadge("BOSS", Glyph.Lamp, Dusk.ember)
+                    Kind.Breather -> KindBadge("BREATHER", Glyph.Sprig, Color(0xFF6FBF4A))
+                    Kind.Normal -> Unit
+                }
+                Spacer(Modifier.weight(1f))
+                val stars = progress.levelStars[level.number - 1]
+                Row(
+                    Modifier
+                        .background(Craft.parchment.copy(alpha = 0.92f), RoundedCornerShape(50))
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                    horizontalArrangement = Arrangement.spacedBy((-3).dp),
+                ) {
+                    repeat(3) { Star(it < stars, shown = true, instant = true, modifier = Modifier.size(18.dp)) }
+                }
+            }
+            Text(chapterOf(level).name, style = Display, fontSize = TypeScale.Heading, color = Dusk.ink, maxLines = 1)
+            Spacer(Modifier.height(5.dp))
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                FactChip(Glyph.Moth, "${level.cards} cards", Dusk.ink)
+                FactChip(Glyph.Clock, "${level.roundMs / 1000} s", Dusk.ink)
+                for (twist in level.twists) FactChip(twist.glyph, twist.title, twist.accent)
+                if (level.twists.isEmpty()) FactChip(Glyph.Moth, "No twists", Dusk.inkSoft)
+            }
+            if (hint != null) {
+                Spacer(Modifier.height(4.dp))
+                Text(hint, color = Dusk.amber, fontSize = TypeScale.Body, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
 
+/** A small badge beside the level's number: BOSS or BREATHER. */
 @Composable
-private fun CardFact(glyph: Glyph, text: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        GlyphArt(glyph, Dusk.ink, Modifier.size(16.dp))
-        if (text.isNotEmpty()) Text(text, color = Dusk.ink, fontSize = TypeScale.Body, maxLines = 1)
+private fun KindBadge(text: String, glyph: Glyph, tint: Color) {
+    Row(
+        Modifier
+            .background(tint.copy(alpha = 0.22f), RoundedCornerShape(50))
+            .border(1.dp, tint.copy(alpha = 0.8f), RoundedCornerShape(50))
+            .padding(horizontal = 7.dp, vertical = 1.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        GlyphArt(glyph, tint, Modifier.size(11.dp))
+        Text(text, style = Label, color = tint, maxLines = 1)
+    }
+}
+
+/** One fact about the level on a dark chip: an icon and a few words, in [tint]. */
+@Composable
+private fun FactChip(glyph: Glyph, text: String, tint: Color) {
+    Row(
+        Modifier
+            .background(Color.Black.copy(alpha = 0.32f), RoundedCornerShape(50))
+            .border(1.dp, tint.copy(alpha = 0.45f), RoundedCornerShape(50))
+            .padding(horizontal = 8.dp, vertical = 3.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        GlyphArt(glyph, tint, Modifier.size(14.dp))
+        Text(text, color = tint, fontSize = TypeScale.Body, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
