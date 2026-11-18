@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VERSION_CODE: ${{ github.run_number }}
-      VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.6.1-build.{0}', github.run_number) }}
+      VERSION_NAME: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || format('0.6.2-build.{0}', github.run_number) }}
       HAS_KEYSTORE: ${{ secrets.PORCHLIGHT_KEYSTORE_BASE64 != '' }}
 
     steps:
