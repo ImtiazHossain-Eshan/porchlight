@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.draw.drawWithContent
@@ -372,7 +373,7 @@ private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpa
  * few seconds. It sinks under the finger like the other signs. [calm] keeps it still.
  */
 @Composable
-internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifier, sub: String? = null, onClick: () -> Unit) {
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     val squeeze by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "squeeze")
@@ -380,7 +381,7 @@ internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifi
     val sweep by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(3_200, easing = LinearEasing), RepeatMode.Restart), label = "sweep")
     Box(
         modifier
-            .height(72.dp)
+            .height(if (sub != null) 80.dp else 72.dp)
             .graphicsLayer {
                 scaleX = squeeze
                 scaleY = squeeze
@@ -413,6 +414,21 @@ internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifi
             .padding(horizontal = 34.dp),
         contentAlignment = Alignment.Center,
     ) {
-        FitText(text.uppercase(), TextCarved.copy(letterSpacing = 4.sp), TypeScale.Title, Dusk.paperInk)
+        if (sub == null) {
+            FitText(text.uppercase(), TextCarved.copy(letterSpacing = 4.sp), TypeScale.Title, Dusk.paperInk)
+        } else {
+            // A second, smaller line carved under the word: who is leading and what they bring.
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                FitText(text.uppercase(), TextCarved.copy(letterSpacing = 4.sp), TypeScale.Title, Dusk.paperInk)
+                Text(
+                    sub,
+                    style = BodyText.copy(fontWeight = FontWeight.SemiBold, shadow = TextCarved.shadow),
+                    fontSize = 13.sp,
+                    color = Dusk.paperInk.copy(alpha = 0.8f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }

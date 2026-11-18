@@ -1,5 +1,7 @@
 package app.porchlight.game
 
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.graphics.graphicsLayer
 
 import androidx.compose.animation.core.animateFloatAsState
@@ -172,34 +174,37 @@ private fun Controls(session: Session, tight: Boolean = false) {
     val lead = session.lead
     // On a tablet the sign and tiles keep to a comfortable width instead of spanning the screen.
     Column(Modifier.widthIn(max = 560.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        // Who leads, on a small brass-edged tag: the moth, its name, what it does. Tap for the full
-        // sentence; tapping a locked moth explains here how to meet it.
+        // A note for a moment, on a slip of parchment above the sign: what a tapped locked moth needs.
         val notice = session.notice
-        Row(
-            Modifier
-                .shadow(4.dp, RoundedCornerShape(20.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
-                .clip(RoundedCornerShape(20.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xFF2A1C12), Color(0xFF17100A))))
-                .border(1.dp, BrassRule, RoundedCornerShape(20.dp))
-                .clickable(role = Role.Button) {
+        if (notice != null) {
+            LaunchedEffect(notice) {
+                delay(3_500)
+                if (session.notice == notice) {
+                    session.notice = null
                     session.noticeMoth = null
-                    session.notice = if (session.notice == null) "${lead.perkName}: ${lead.perk}" else null
                 }
-                .padding(start = 6.dp, end = 14.dp, top = 4.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            MothArt(session.noticeMoth ?: lead, Modifier.size(28.dp), flat = if (session.noticeMoth != null) Dusk.locked else null)
-            if (notice != null) {
-                Text(notice, style = BodyText, color = Dusk.amber, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            } else {
-                Text(lead.label.uppercase(), style = Label, color = Dusk.amber, maxLines = 1)
-                Text(brief(lead), style = BodyText, color = Dusk.ink, maxLines = 1)
             }
         }
-        // Room to breathe between the tag, the sign and the tiles.
-        Spacer(Modifier.height(if (tight) 8.dp else 16.dp))
-        PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
+        Spacer(Modifier.height(if (tight) 6.dp else 10.dp))
+        Box(contentAlignment = Alignment.TopCenter) {
+            // The lead rides on the sign itself, carved small under PLAY: who leads, and what they bring.
+            PlayButton("Play", session.calm, Modifier.fillMaxWidth(), sub = "with ${lead.label} · ${brief(lead)}") { session.start(daily = false) }
+            if (notice != null) {
+                Row(
+                    Modifier
+                        .offset(y = (-46).dp)
+                        .shadow(6.dp, RoundedCornerShape(6.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                        .parchment(6.dp)
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    MothArt(session.noticeMoth ?: lead, Modifier.size(24.dp), flat = if (session.noticeMoth != null) Dusk.locked else null)
+                    Text(notice, style = TextInk, color = Craft.parchmentInk, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
         Spacer(Modifier.height(if (tight) 8.dp else 18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             MenuTile(Glyph.Map, "Levels", 0, session, Modifier.weight(1f)) { session.open(Screen.Levels) }
