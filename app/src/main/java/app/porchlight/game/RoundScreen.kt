@@ -1,5 +1,15 @@
 package app.porchlight.game
 
+import androidx.compose.ui.graphics.drawscope.scale
+import kotlin.math.sin
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TransformOrigin
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.lerp
@@ -382,54 +392,198 @@ private fun Hush(description: String, onTap: () -> Unit, content: @Composable ()
     ) { content() }
 }
 
-/** The round is frozen: an oak sign swings down on two chains. Tap anywhere to light the porch again. */
+/**
+ * The round is frozen: an oak sign drops in on two chains under a shaft of moonlight. It swings
+ * like a pendulum and rocks toward the player as it settles, then keeps swaying gently and leans
+ * with the phone. Its boards flip down one after another, each hinged at the top, and a glint of
+ * light passes over PAUSED. Keep playing, or a tap anywhere, swings the sign back up before play
+ * resumes. Under Reduce motion it simply fades in and out.
+ */
 @Composable
 private fun Paused(session: Session) {
-    val drop = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { drop.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow)) }
-    Hush("Paused. Tap to continue.", onTap = session::resume) {
+    val calm = session.calm
+    val scope = rememberCoroutineScope()
+    val drop = remember { Animatable(if (calm) 1f else 0f) }
+    val shown = remember { Animatable(0f) }
+    val boards = remember { List(3) { Animatable(if (calm) 1f else 0f) } }
+    var t by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(Unit) {
+        launch { shown.animateTo(1f, tween(if (calm) 150 else 260)) }
+        if (calm) return@LaunchedEffect
+        launch { drop.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = Spring.StiffnessLow)) }
+        boards.forEachIndexed { i, board ->
+            launch {
+                delay(260L + i * 110L)
+                board.animateTo(1f, spring(dampingRatio = 0.38f, stiffness = Spring.StiffnessMediumLow))
+            }
+        }
+        val start = withFrameNanos { it }
+        while (true) withFrameNanos { t = (it - start) / 1e9f }
+    }
+    var leaving by remember { mutableStateOf(false) }
+    // Swing the sign back up, then carry on.
+    val away: (() -> Unit) -> Unit = { then ->
+        if (calm) then()
+        else if (!leaving) {
+            leaving = true
+            scope.launch {
+                launch { shown.animateTo(0f, tween(240)) }
+                drop.animateTo(0f, tween(240, easing = FastOutSlowInEasing))
+                then()
+            }
+        }
+    }
+    val resume = { away { session.resume() } }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer { alpha = shown.value }
+            .drawBehind {
+                drawRect(Color.Black.copy(alpha = 0.72f))
+                // A shaft of moonlight down onto the sign, and dust turning in it.
+                val top = Offset(size.width / 2f, 0f)
+                val beam = Path().apply {
+                    moveTo(size.width * 0.38f, 0f)
+                    lineTo(size.width * 0.62f, 0f)
+                    lineTo(size.width * 0.95f, size.height * 0.75f)
+                    lineTo(size.width * 0.05f, size.height * 0.75f)
+                    close()
+                }
+                drawPath(
+                    beam,
+                    Brush.verticalGradient(listOf(Color(0xFFBFD3FF).copy(alpha = 0.16f), Color.Transparent), 0f, size.height * 0.75f),
+                )
+                drawCircle(
+                    Brush.radialGradient(listOf(Dusk.glow.copy(alpha = 0.16f), Color.Transparent), Offset(size.width / 2f, size.height * 0.42f), size.width * 0.7f),
+                    size.width * 0.7f,
+                    Offset(size.width / 2f, size.height * 0.42f),
+                )
+                if (!calm) {
+                    for (k in 0 until 26) {
+                        val seed = k * 37.17f
+                        val p = ((t * (0.025f + (k % 5) * 0.006f) + (seed % 1f)) % 1f)
+                        val y = size.height * (0.75f - p * 0.75f)
+                        val spread = (y / (size.height * 0.75f)).coerceIn(0f, 1f)
+                        val x = top.x + size.width * (((k * 0.618f) % 1f) - 0.5f) * (0.25f + 0.85f * spread) + sin(t * 0.7f + k) * 10.dp.toPx()
+                        val a = 0.55f * sin(p * Math.PI.toFloat())
+                        drawCircle(Color(0xFFE8EEFF).copy(alpha = a), (1f + (k % 3) * 0.6f).dp.toPx(), Offset(x, y))
+                    }
+                    // Three moths drawn to the light, circling the sign on slow tilted rings.
+                    for (k in 0 until 3) {
+                        val a = t * (0.5f + k * 0.12f) + k * 2.1f
+                        val depth = sin(a)
+                        val c = Offset(
+                            size.width / 2f + kotlin.math.cos(a) * size.width * (0.36f + k * 0.04f),
+                            size.height * (0.3f + k * 0.07f) + depth * size.height * 0.05f,
+                        )
+                        val w = (22f + 8f * depth).dp.toPx()
+                        val flap = 0.35f + 0.65f * kotlin.math.abs(sin(t * 14f + k))
+                        scale(flap, 1f, c) { glyph(Glyph.Moth, c, w, Color(0xFFE9DCC4), alpha = 0.45f + 0.3f * depth) }
+                    }
+                }
+            }
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { resume() }
+            .semantics { contentDescription = "Paused. Tap to continue." },
+        contentAlignment = Alignment.Center,
+    ) {
         Column(
             Modifier
                 .widthIn(max = 320.dp)
                 .padding(horizontal = 32.dp)
                 .graphicsLayer {
-                    translationY = (drop.value - 1f) * 160.dp.toPx()
-                    rotationZ = if (session.calm) 0f else (1f - drop.value) * 6f
-                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+                    val d = drop.value
+                    transformOrigin = TransformOrigin(0.5f, 0f)
+                    cameraDistance = 14f * density
+                    translationY = (d - 1f) * 420.dp.toPx()
+                    if (!calm) {
+                        // The swing it drops in with dies away into a slow sway; the phone's tilt leans it.
+                        val settle = (1f - d).coerceIn(-1f, 1f)
+                        rotationZ = settle * 14f + sin(t * 1.1f) * 1.6f + session.tilt.x * 6f
+                        rotationX = settle * -24f + sin(t * 0.8f + 1f) * 5f - session.tilt.y * 8f
+                        rotationY = sin(t * 0.6f) * 4f + session.tilt.x * 10f
+                    }
                 },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            // The chains.
+            // The chains, with a glint running down them.
             Canvas(Modifier.fillMaxWidth().height(46.dp)) {
                 for (x in listOf(size.width * 0.22f, size.width * 0.78f)) {
                     var y = 0f
+                    var link = 0
                     while (y < size.height) {
+                        val glint = if (calm) 0f else (sin(t * 3f - link * 0.8f) * 0.5f + 0.5f)
                         drawLine(Craft.brassDark, Offset(x, y), Offset(x, y + 9.dp.toPx()), 5.dp.toPx(), StrokeCap.Round)
-                        drawLine(Craft.brassLight, Offset(x, y + 2.dp.toPx()), Offset(x, y + 7.dp.toPx()), 1.5.dp.toPx(), StrokeCap.Round)
+                        drawLine(lerp(Craft.brassLight, Color.White, glint * 0.6f), Offset(x, y + 2.dp.toPx()), Offset(x, y + 7.dp.toPx()), 1.5.dp.toPx(), StrokeCap.Round)
                         y += 12.dp.toPx()
+                        link++
                     }
                 }
             }
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .plank(Wood.Oak, corner = 12.dp, elevation = 12.dp, seed = 21)
+                    .shadow(18.dp, RoundedCornerShape(12.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                    .plank(Wood.Oak, corner = 12.dp, elevation = 0.dp, seed = 21)
+                    .drawWithContent {
+                        drawContent()
+                        // A band of light passing over the carving now and then.
+                        if (!calm) {
+                            val run = (t % 3.6f) / 1.1f
+                            if (run < 1f) {
+                                val x = -size.width * 0.4f + run * size.width * 1.8f
+                                drawRect(
+                                    Brush.linearGradient(
+                                        listOf(Color.Transparent, Color.White.copy(alpha = 0.28f), Color.Transparent),
+                                        Offset(x - size.height, 0f),
+                                        Offset(x, size.height),
+                                    ),
+                                )
+                            }
+                        }
+                    }
                     .border(1.5.dp, BrassRule, RoundedCornerShape(12.dp))
                     .padding(vertical = 18.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("PAUSED", style = TextCarved, fontSize = TypeScale.Title, color = Dusk.paperInk)
-                Text("Tap to continue", style = BodyText, color = Color(0xFF3A2612))
+                Text(
+                    "PAUSED",
+                    style = TextCarved,
+                    fontSize = TypeScale.Title,
+                    color = Dusk.paperInk,
+                    modifier = Modifier.graphicsLayer {
+                        if (!calm) {
+                            val breathe = 1f + 0.025f * sin(t * 2f)
+                            scaleX = breathe
+                            scaleY = breathe
+                        }
+                    },
+                )
+                Text("Tap to continue", style = BodyText, color = Color(0xFF3A2612), modifier = Modifier.graphicsLayer { alpha = if (calm) 1f else 0.65f + 0.35f * (0.5f + 0.5f * sin(t * 2.4f)) })
             }
             Spacer(Modifier.height(22.dp))
-            PrimaryButton("Keep playing", Modifier.fillMaxWidth()) { session.resume() }
+            // Each board flips down on its hinge in turn, then sways a little out of step with the others.
+            @Composable
+            fun Board(i: Int, content: @Composable () -> Unit) {
+                Box(
+                    Modifier.graphicsLayer {
+                        val b = boards[i].value
+                        transformOrigin = TransformOrigin(0.5f, 0f)
+                        cameraDistance = 12f * density
+                        rotationX = (1f - b) * -100f + if (calm) 0f else sin(t * 1.3f + i * 1.7f) * 4f
+                        rotationZ = if (calm) 0f else sin(t * 0.9f + i * 2.3f) * 1.2f
+                        alpha = b.coerceIn(0f, 1f)
+                    },
+                ) { content() }
+            }
+            Board(0) { PrimaryButton("Keep playing", Modifier.fillMaxWidth()) { resume() } }
             // A daily porch can't be started over: it has one scored try.
             if (!session.round.daily) {
                 Spacer(Modifier.height(8.dp))
-                SecondaryButton("Start over", Modifier.fillMaxWidth()) { session.start(daily = false) }
+                Board(1) { SecondaryButton("Start over", Modifier.fillMaxWidth()) { session.start(daily = false) } }
             }
             Spacer(Modifier.height(8.dp))
-            SecondaryButton("Leave round", Modifier.fillMaxWidth()) { session.leaving = true }
+            Board(2) { SecondaryButton("Leave round", Modifier.fillMaxWidth()) { session.leaving = true } }
         }
     }
 }
