@@ -160,9 +160,10 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHand() {
     drawPath(hand, Dusk.paperInk, style = Stroke(2.2f * s, join = StrokeJoin.Round))
 }
 
-/** A night's one-line introduction: the moths that join, or the twist, then the button to begin. */
+/** A level's one-line introduction: the twist it brings, or the moths that join, then the button to begin. */
 @Composable
-internal fun NightIntro(night: Night, session: Session) {
+internal fun LevelIntro(night: Level, session: Session) {
+    val twist = introducedOn(night)
     val rise = remember(night) { Animatable(0f) }
     LaunchedEffect(night) { rise.animateTo(1f, spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessLow)) }
     val moths = newOn(night)
@@ -186,18 +187,18 @@ internal fun NightIntro(night: Night, session: Session) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                if (night.twist != Twist.None) "Night ${night.number}: ${night.twist.title}" else "Night ${night.number}: new moths",
+                if (twist != null) "Level ${night.number}: ${twist.title}" else "Level ${night.number}: new moths",
                 style = Display,
                 fontSize = TypeScale.Title,
                 color = Craft.parchmentInk,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(14.dp))
-            IntroArt(night, moths)
+            IntroArt(twist, moths)
             Spacer(Modifier.height(14.dp))
             Text(
-                if (night.twist != Twist.None) night.twist.tip
-                else "${moths.joinToString(" and ") { it.label }} join the porch. ${night.pairs} pairs tonight.",
+                if (twist != null) twist.tip
+                else "${moths.joinToString(" and ") { it.label }} join the porch. ${night.pairs} pairs on this level.",
                 style = TextInk,
                 color = Craft.parchmentInk,
                 lineHeight = 21.sp,
@@ -210,10 +211,10 @@ internal fun NightIntro(night: Night, session: Session) {
 }
 
 @Composable
-private fun IntroArt(night: Night, moths: List<MothId>) {
+private fun IntroArt(twist: Twist?, moths: List<MothId>) {
     val loop = rememberInfiniteTransition(label = "intro")
     val t by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(1_600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "t")
-    when (night.twist) {
+    when (twist) {
         Twist.Wanderer -> Box(Modifier.size(150.dp, 84.dp)) {
             // Two card backs trade places.
             for (side in 0..1) {
@@ -232,7 +233,17 @@ private fun IntroArt(night: Night, moths: List<MothId>) {
         }
         Twist.Leaves -> MothArt(MothId.Leaf, Modifier.size(84.dp).graphicsLayer { rotationZ = -12f + 24f * t })
         Twist.Shadow -> MothArt(MothId.Iris, Modifier.size(84.dp), flat = Craft.parchmentInk)
-        Twist.None -> Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        // The near-twins side by side: the same moth, but for the hindwings.
+        Twist.Lookalikes -> Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            MothArt(MothId.Dot, Modifier.size(76.dp), open = 0.8f + 0.2f * t)
+            MothArt(MothId.Domino, Modifier.size(76.dp), open = 1f - 0.2f * t)
+        }
+        // The bulb going out: a moth that dims to a silhouette and back.
+        Twist.Blackout -> Box(contentAlignment = Alignment.Center) {
+            MothArt(MothId.Luna, Modifier.size(84.dp))
+            MothArt(MothId.Luna, Modifier.size(84.dp).graphicsLayer { alpha = if (t > 0.5f) 1f else 0f }, flat = Craft.parchmentInk)
+        }
+        null -> Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             moths.forEachIndexed { i, moth ->
                 MothArt(moth, Modifier.size(76.dp), open = 0.8f + 0.2f * if (i % 2 == 0) t else 1f - t)
             }

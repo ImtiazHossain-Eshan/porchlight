@@ -100,9 +100,12 @@ internal fun RoundScreen(session: Session) {
                     Board(session, Modifier.fillMaxHeight().weight(0.6f))
                 }
             } else {
+                // A tall board (five or six rows) takes a little more of the screen from the bulb.
+                val rows = (round.deck.size + boardColumns(round.deck.size) - 1) / boardColumns(round.deck.size)
+                val header = if (rows >= 6) 0.25f else if (rows >= 5) 0.28f else 0.31f
                 Column {
-                    Header(session, Modifier.fillMaxWidth().weight(0.31f))
-                    Board(session, Modifier.fillMaxWidth().weight(0.69f))
+                    Header(session, Modifier.fillMaxWidth().weight(header))
+                    Board(session, Modifier.fillMaxWidth().weight(1f - header))
                 }
             }
 
@@ -131,7 +134,7 @@ internal fun RoundScreen(session: Session) {
             )
         }
         if (round.paused || session.peekPaused) Paused(session)
-        session.intro?.let { NightIntro(it, session) }
+        session.intro?.let { LevelIntro(it, session) }
     }
 }
 
@@ -153,7 +156,10 @@ private fun Header(session: Session, modifier: Modifier) {
         // Beside the board (landscape, tablets) the header is a tall column: the lamp grows to fill
         // it and the plates and the band gather under it, instead of sitting at the far bottom.
         val tall = maxHeight > maxWidth
-        val bulbH = if (tall) min(maxHeight * 0.46f, maxWidth * 0.62f / 0.7f) else min(maxHeight * 0.66f, maxWidth * 0.42f / 0.7f)
+        // Above the board, the bulb leaves room under it for the time and the band, so on a short
+        // header (a tall board on a small phone) the three never overlap.
+        val bulbH = if (tall) min(maxHeight * 0.46f, maxWidth * 0.62f / 0.7f)
+        else min(min(maxHeight * 0.66f, maxWidth * 0.42f / 0.7f), (maxHeight - 84.dp).coerceAtLeast(48.dp))
         val plateRow = if (tall) 0.62f else 1f
         // Each plate keeps to its own side of the bulb and its brass works: with a big font or a
         // narrow phone it shrinks to fit rather than running into the gauge or the gears.
@@ -193,7 +199,7 @@ private fun Header(session: Session, modifier: Modifier) {
                     smoke = { low },
                     still = session.calm,
                     modifier = Modifier
-                        // The porch jar (or the picked night's coin) grows into this bulb.
+                        // The porch jar (or the picked level's coin) grows into this bulb.
                         .flies("lamp")
                         .size(bulbH * 0.7f, bulbH)
                         .tracksBulb(session)

@@ -19,8 +19,9 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.PathParser
 
 /**
- * Every card face. The first six can lead a round, and each bends its rules; the next four only join
- * the board on later nights. [Leaf] is the dead leaf, the dud card.
+ * Every card face. The first six can lead a round, and each bends its rules; the next six only join
+ * the board on later levels. [Leaf] is the dead leaf, the dud card; [Domino] and [Lilac] are the
+ * near-twins of Dot and Iris that a Lookalikes level slips in.
  */
 enum class MothId(
     val label: String,
@@ -28,6 +29,8 @@ enum class MothId(
     val perkName: String = "",
     val perk: String = "",
     val isLead: Boolean = true,
+    /** In [BOARD_MOTHS], the moths every board is dealt from, in order. */
+    val board: Boolean = true,
 ) {
     Luna("Luna", "The night owl", "Long-life bulb", "The round starts with 5 extra seconds."),
     Wick("Wick", "The sprinter", "Hot streak", "Streaks start at ×2, but the bulb is 3 seconds shorter."),
@@ -39,7 +42,11 @@ enum class MothId(
     Rose("Rose", isLead = false),
     Midnight("Midnight", isLead = false),
     Moss("Moss", isLead = false),
-    Leaf("Dead leaf", isLead = false),
+    Ash("Ash", isLead = false),
+    Tide("Tide", isLead = false),
+    Leaf("Dead leaf", isLead = false, board = false),
+    Domino("Domino", isLead = false, board = false),
+    Lilac("Lilac", isLead = false, board = false),
 }
 
 /** The six moths that can lead a round. */
@@ -61,7 +68,7 @@ private sealed interface Mark {
     data class Shape(override val on: Wing, val d: String, val fill: Color) : Mark
 }
 
-private class Spec(
+private data class Spec(
     val fore: String,
     val hind: String,
     val foreFill: Color,
@@ -77,6 +84,35 @@ private class Spec(
     val foreMarks = marks.filter { it.on == Wing.Fore }
     val hindMarks = marks.filter { it.on == Wing.Hind }
 }
+
+private val DOT = Spec(
+    fore = "M64 46 C73 29 94 21 108 25 C112 41 102 56 86 62 C75 65 67 60 64 54 Z",
+    hind = "M64 54 C75 56 92 62 94 76 C92 88 78 92 70 84 C65 78 64 66 64 54 Z",
+    foreFill = Color(0xFFFBF6E8), hindFill = Color(0xFFFBF6E8),
+    marks = listOf(
+        Mark.Dot(Wing.Fore, 80f, 38f, 3.4f, INK),
+        Mark.Dot(Wing.Fore, 93f, 32f, 2.8f, INK),
+        Mark.Dot(Wing.Fore, 98f, 44f, 3.2f, INK),
+        Mark.Dot(Wing.Fore, 85f, 51f, 2.8f, INK),
+        Mark.Dot(Wing.Fore, 73f, 49f, 2.2f, INK),
+        Mark.Dot(Wing.Hind, 79f, 70f, 3.4f, INK),
+        Mark.Dot(Wing.Hind, 86f, 80f, 2.6f, INK),
+    ),
+    body = Color(0xFFE4DCC8), antenna = INK, stripes = true,
+)
+
+private val IRIS = Spec(
+    fore = "M64 45 C75 25 100 17 114 25 C116 43 104 58 86 64 C75 66 67 60 64 54 Z",
+    hind = "M64 54 C79 56 100 62 102 80 C100 96 82 102 71 92 C65 84 64 68 64 54 Z",
+    foreFill = Color(0xFFB7A6EA), hindFill = Color(0xFFB7A6EA),
+    marks = listOf(
+        Mark.Line(Wing.Fore, "M114 25 C116 43 104 58 86 64", Color(0xFF6D58B3), 9f),
+        Mark.Line(Wing.Hind, "M102 80 C100 96 82 102 71 92", Color(0xFF6D58B3), 9f),
+        Mark.Eye(Wing.Fore, 91f, 41f, 8f, Color(0xFF2F6FDC)),
+        Mark.Eye(Wing.Hind, 83f, 77f, 9f, Color(0xFF2F6FDC)),
+    ),
+    body = Color(0xFF8F7FD0), antenna = Color(0xFF6D58B3), feathery = true,
+)
 
 private val SPECS: Map<MothId, Spec> = mapOf(
     MothId.Luna to Spec(
@@ -113,33 +149,8 @@ private val SPECS: Map<MothId, Spec> = mapOf(
         ),
         body = Color(0xFFB4552F), antenna = Color(0xFF6F2D19), feathery = true, collar = Color(0xFFF8E9C9),
     ),
-    MothId.Dot to Spec(
-        fore = "M64 46 C73 29 94 21 108 25 C112 41 102 56 86 62 C75 65 67 60 64 54 Z",
-        hind = "M64 54 C75 56 92 62 94 76 C92 88 78 92 70 84 C65 78 64 66 64 54 Z",
-        foreFill = Color(0xFFFBF6E8), hindFill = Color(0xFFFBF6E8),
-        marks = listOf(
-            Mark.Dot(Wing.Fore, 80f, 38f, 3.4f, INK),
-            Mark.Dot(Wing.Fore, 93f, 32f, 2.8f, INK),
-            Mark.Dot(Wing.Fore, 98f, 44f, 3.2f, INK),
-            Mark.Dot(Wing.Fore, 85f, 51f, 2.8f, INK),
-            Mark.Dot(Wing.Fore, 73f, 49f, 2.2f, INK),
-            Mark.Dot(Wing.Hind, 79f, 70f, 3.4f, INK),
-            Mark.Dot(Wing.Hind, 86f, 80f, 2.6f, INK),
-        ),
-        body = Color(0xFFE4DCC8), antenna = INK, stripes = true,
-    ),
-    MothId.Iris to Spec(
-        fore = "M64 45 C75 25 100 17 114 25 C116 43 104 58 86 64 C75 66 67 60 64 54 Z",
-        hind = "M64 54 C79 56 100 62 102 80 C100 96 82 102 71 92 C65 84 64 68 64 54 Z",
-        foreFill = Color(0xFFB7A6EA), hindFill = Color(0xFFB7A6EA),
-        marks = listOf(
-            Mark.Line(Wing.Fore, "M114 25 C116 43 104 58 86 64", Color(0xFF6D58B3), 9f),
-            Mark.Line(Wing.Hind, "M102 80 C100 96 82 102 71 92", Color(0xFF6D58B3), 9f),
-            Mark.Eye(Wing.Fore, 91f, 41f, 8f, Color(0xFF2F6FDC)),
-            Mark.Eye(Wing.Hind, 83f, 77f, 9f, Color(0xFF2F6FDC)),
-        ),
-        body = Color(0xFF8F7FD0), antenna = Color(0xFF6D58B3), feathery = true,
-    ),
+    MothId.Dot to DOT,
+    MothId.Iris to IRIS,
     MothId.Sorbet to Spec(
         fore = "M64 47 C71 33 88 27 101 31 C103 44 95 56 82 60 C73 62 67 58 64 54 Z",
         hind = "M64 54 C73 56 86 60 88 72 C86 82 76 86 69 80 C65 74 64 64 64 54 Z",
@@ -188,6 +199,38 @@ private val SPECS: Map<MothId, Spec> = mapOf(
         ),
         body = Color(0xFF2F7A3A), antenna = INK,
     ),
+    // An underwing: ash-grey forewings with charcoal chevrons over warm orange hindwings.
+    MothId.Ash to Spec(
+        fore = "M64 46 C72 27 95 16 112 21 C115 36 106 52 88 59 C76 63 67 59 64 54 Z",
+        hind = "M64 54 C76 55 92 60 95 72 C94 84 80 89 71 83 C65 77 64 66 64 54 Z",
+        foreFill = Color(0xFFB9BEC6), hindFill = Color(0xFFF2994A),
+        marks = listOf(
+            Mark.Line(Wing.Fore, "M70 50 L80 40 L88 48 L98 34 L108 40", Color(0xFF3A3F47), 5f),
+            Mark.Line(Wing.Fore, "M74 57 L84 50 L92 55 L104 46", Color(0xFF3A3F47), 3.5f),
+            Mark.Line(Wing.Hind, "M68 76 C76 82 86 82 94 74", Color(0xFF3A3F47), 6f),
+        ),
+        body = Color(0xFF8E949C), antenna = Color(0xFF3A3F47), feathery = true,
+    ),
+    // A sea moth: teal wings edged in deep teal, a cream wave across each.
+    MothId.Tide to Spec(
+        fore = "M64 47 C74 31 96 21 112 27 C112 42 102 56 86 61 C75 64 67 59 64 54 Z",
+        hind = "M64 54 C76 56 94 61 97 73 C96 80 90 83 88 90 C86 96 84 100 80 101 C74 96 72 88 69 82 C65 74 64 64 64 54 Z",
+        foreFill = Color(0xFF1FA59C), hindFill = Color(0xFF1FA59C),
+        marks = listOf(
+            Mark.Line(Wing.Fore, "M112 27 C112 42 102 56 86 61", Color(0xFF0D5A55), 8f),
+            Mark.Line(Wing.Fore, "M70 50 Q78 40 86 46 Q94 52 102 38", Color(0xFFF6EFD2), 4f),
+            Mark.Line(Wing.Hind, "M68 66 Q76 60 84 68 Q90 74 96 70", Color(0xFFF6EFD2), 4f),
+        ),
+        body = Color(0xFF0D5A55), antenna = INK, stripes = true,
+    ),
+    // Dot's twin: the same moth, but its hindwings carry two ink stripes instead of spots.
+    MothId.Domino to DOT.copy(marks = DOT.marks.filter { it.on == Wing.Fore } + listOf(
+        Mark.Line(Wing.Hind, "M70 66 L92 72", INK, 3.2f),
+        Mark.Line(Wing.Hind, "M70 76 L88 84", INK, 3.2f),
+    )),
+    // Iris's twin: the same moth, but its hindwing eye is a plain dark spot.
+    MothId.Lilac to IRIS.copy(marks = IRIS.marks.filterNot { it is Mark.Eye && it.on == Wing.Hind } +
+        Mark.Dot(Wing.Hind, 83f, 77f, 6f, Color(0xFF6D58B3))),
 )
 
 private val GOLD_LINE = Color(0xFFC98A12)

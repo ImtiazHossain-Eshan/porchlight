@@ -83,9 +83,9 @@ private fun brief(lead: MothId): String = when (lead) {
     else -> ""
 }
 
-/** "8 pairs · 40 s · Wanderer" */
-internal fun nightLine(night: Night): String =
-    "${night.pairs} pairs · ${night.roundMs / 1000} s" + if (night.twist != Twist.None) " · ${night.twist.title}" else ""
+/** "16 cards · 40 s · Wanderer" */
+internal fun levelLine(level: Level): String =
+    "${level.cards} cards · ${level.roundMs / 1000} s" + level.twists.joinToString("") { " · ${it.title}" }
 
 /**
  * The lobby. The logo, a lit mason jar hanging in the middle with the moths resting round it, an
@@ -168,7 +168,6 @@ private fun Logo(calm: Boolean) {
 private fun Controls(session: Session) {
     val progress = session.store.progress
     val lead = session.lead
-    val night = NIGHTS[progress.night - 1]
     // On a tablet the sign and tiles keep to a comfortable width instead of spanning the screen.
     Column(Modifier.widthIn(max = 560.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         // Who leads, on a small brass-edged tag: the moth, its name, what it does. Tap for the full
@@ -201,7 +200,7 @@ private fun Controls(session: Session) {
         PlayButton("Play", session.calm, Modifier.fillMaxWidth()) { session.start(daily = false) }
         Spacer(Modifier.height(18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            MenuTile(Glyph.Map, "Nights", 0, session, Modifier.weight(1f)) { session.open(Screen.Nights) }
+            MenuTile(Glyph.Map, "Levels", 0, session, Modifier.weight(1f)) { session.open(Screen.Levels) }
             MenuTile(Glyph.Calendar, "Daily", 1, session, Modifier.weight(1f)) { session.open(Screen.Daily) }
             MenuTile(Glyph.Moth, "Moths", 2, session, Modifier.weight(1f)) { session.open(Screen.Moths) }
             MenuTile(Glyph.Trophy, "Badges", 3, session, Modifier.weight(1f)) { session.open(Screen.Badges) }
@@ -410,21 +409,21 @@ private fun Stage(session: Session, modifier: Modifier) {
 }
 
 /**
- * Tonight, quietly, under the title: the night, its pairs and time, and the best score, each with
+ * Tonight, quietly, under the title: the level and its chapter, its cards and time, and the best score, each with
  * a small mark. Plain faint lettering: it informs without competing with the play sign.
  */
 @Composable
 private fun Tonight(session: Session) {
     val progress = session.store.progress
-    val night = NIGHTS[progress.night - 1]
+    val level = levelAt(progress.current)
     Row(
         Modifier.padding(top = 2.dp).semantics(mergeDescendants = true) {},
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Fact(Glyph.Map, "NIGHT ${night.number}")
-        Fact(Glyph.Moth, "${night.pairs} PAIRS")
-        Fact(Glyph.Clock, "${night.roundMs / 1000} S")
+        Fact(Glyph.Map, "LEVEL ${level.number} · ${chapterOf(level).name.uppercase()}")
+        Fact(Glyph.Moth, "${level.cards}")
+        Fact(Glyph.Clock, "${level.roundMs / 1000} S")
         if (progress.best > 0) Fact(Glyph.Trophy, progress.best.grouped())
     }
 }

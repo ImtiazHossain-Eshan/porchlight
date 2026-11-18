@@ -38,13 +38,13 @@ class PeekTest {
 
     @Test fun `every lead's peek starts on its own whole seconds`() {
         LEADS.forEach { lead ->
-            val peek = rulesFor(lead).peekMs
+            val peek = rulesFor(lead, CLASSIC).peekMs
             assertEquals(Math.ceil(peek / 1000.0).toInt(), peekCountdown(peek).first())
         }
     }
 
     @Test fun `the opening is screen timing only and leaves the round's rules alone`() {
-        val round = Round.start(MothId.Iris)
+        val round = Round.start(MothId.Iris, CLASSIC)
         assertEquals(Phase.Peek, round.phase)
         assertEquals(3_400L, round.rules.peekMs)
         assertEquals(round.rules.roundMs, round.left)

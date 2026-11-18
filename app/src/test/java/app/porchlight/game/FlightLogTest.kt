@@ -13,7 +13,7 @@ class FlightLogTest {
     private val sorted = LEADS.flatMap { listOf(it, it) }
 
     private fun playing(deck: List<MothId> = sorted, lead: MothId = MothId.Luna) =
-        Round.start(lead).copy(deck = deck).go(0)
+        Round.start(lead, CLASSIC).copy(deck = deck).go(0)
 
     private fun Round.pair(a: Int, b: Int) = flip(a, 0).flip(b, 0).settle()
 

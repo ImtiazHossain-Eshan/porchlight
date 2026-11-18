@@ -277,6 +277,11 @@ internal fun Badge.glyph(): Glyph = when (this) {
     Badge.Regular -> Glyph.Calendar
     Badge.GoldenWing -> Glyph.Wing
     Badge.GildedPorch -> Glyph.Crown
+    Badge.Chapter1 -> Glyph.Porch
+    Badge.Chapter2 -> Glyph.Flower
+    Badge.Chapter3 -> Glyph.Pine
+    Badge.Chapter4 -> Glyph.Roofs
+    Badge.Chapter5 -> Glyph.Lamp
 }
 
 private val BRONZE = listOf(Color(0xFFF0B07A), Color(0xFFB8673A), Color(0xFF5C2E15))

@@ -53,6 +53,11 @@ fun lossNote(round: Round): String? {
 /** What earns star [index] (0, 1, 2), for the hint under an empty one. Mirrors [starsFor]. */
 fun starHint(index: Int, round: Round): String = when (index) {
     0 -> "Find every pair"
-    1 -> String.format(Locale.US, "%d s left", (round.night.roundMs / 3 + 999) / 1000)
-    else -> "No misses"
+    1 -> if (round.daily) String.format(Locale.US, "%d s left", (round.level.roundMs / 3 + 999) / 1000)
+        else String.format(Locale.US, "%d s left", (round.level.roundMs / 4 + 999) / 1000)
+    else -> when {
+        round.daily || round.level.maxMissesFor3Stars == 0 -> "No misses"
+        round.level.maxMissesFor3Stars == 1 -> "1 miss at most"
+        else -> "${round.level.maxMissesFor3Stars} misses at most"
+    }
 }

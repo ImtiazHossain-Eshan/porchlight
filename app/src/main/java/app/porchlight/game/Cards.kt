@@ -64,14 +64,27 @@ internal const val BOARD_COLUMNS = 4
 
 /** Three columns for a small board, four otherwise. */
 internal fun boardColumns(count: Int) = if (count <= 6) 3 else BOARD_COLUMNS
-private val GAP = 8.dp
+
+/** The gap between cards: tighter on the tall boards, so the cards keep their size. */
+private fun gapFor(rows: Int) = when {
+    rows >= 6 -> 4.dp
+    rows >= 5 -> 6.dp
+    else -> 8.dp
+}
+
+/** Cards narrower than this are hard to read and hit: a crowded board squares them up first. */
+private val MIN_CARD = 64.dp
 private val CARD_SHAPE = RoundedCornerShape(16.dp)
 private val WRONG = Color(0xFFFF8A75)
 private val PAPER_EDGE = Color(0xFFE2CFA0)
 private val LEAF_PAPER = Color(0xFFD9C7A2)
 private val SILHOUETTE = Color(0xFF3A3328)
 
-/** The board fills whatever space it is given: cards keep a 3:4 shape and shrink to fit. */
+/**
+ * The board fills whatever space it is given: cards keep a 3:4 shape and shrink to fit. On a tall
+ * board in a short space they square up (down to 1:1) before they get narrower than [MIN_CARD].
+ * In a Blackout the board goes dark: the cards still take taps, but nothing face up shows.
+ */
 @Composable
 internal fun Board(session: Session, modifier: Modifier) {
     val round = session.round
@@ -89,18 +102,35 @@ internal fun Board(session: Session, modifier: Modifier) {
         },
         contentAlignment = Alignment.Center,
     ) {
-        val byWidth = (maxWidth - GAP * (columns - 1)) / columns
-        val byHeight = (maxHeight - GAP * (rows - 1)) / rows * 0.75f
-        val cardW = min(byWidth, byHeight)
-        val cardH = cardW / 0.75f
-        Column(verticalArrangement = Arrangement.spacedBy(GAP), horizontalAlignment = Alignment.CenterHorizontally) {
+        val gap = gapFor(rows)
+        val byWidth = (maxWidth - gap * (columns - 1)) / columns
+        val rowHeight = (maxHeight - gap * (rows - 1)) / rows
+        var cardW = min(byWidth, rowHeight * 0.75f)
+        var cardH = cardW / 0.75f
+        if (cardW < MIN_CARD) {
+            cardW = min(byWidth, min(MIN_CARD, rowHeight))
+            cardH = min(rowHeight, cardW / 0.75f)
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(gap), horizontalAlignment = Alignment.CenterHorizontally) {
             for (row in 0 until rows) {
-                Row(horizontalArrangement = Arrangement.spacedBy(GAP)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                     for (col in 0 until columns) {
                         val index = row * columns + col
                         if (index < count) Card(index, session, cardW, cardH, row, rows)
                     }
                 }
+            }
+        }
+        // The Blackout: the board goes dark over the cards. It takes no taps of its own, so the
+        // cards under it can still be turned.
+        val out by animateFloatAsState(
+            if (session.dark == Dark.Out) 1f else 0f,
+            tween(if (session.calm) 0 else 70),
+            label = "blackout",
+        )
+        if (out > 0.001f) {
+            Canvas(Modifier.matchParentSize().semantics { contentDescription = "The bulb is out" }) {
+                drawRect(Color(0xFF05070A), alpha = 0.96f * out)
             }
         }
     }
@@ -439,7 +469,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
             ) {
                 // An idle moth flaps gently, each card out of step with the others.
                 val flap = if (lost || leaf || calm) 1f else 0.95f + 0.05f * sin(session.clock.seconds * 5.236f + flapPhase)
-                // On a Shadow night one moth is only a silhouette during the peek.
+                // On a Shadow level one moth is only a silhouette during the peek.
                 val silhouette = if (round.phase == Phase.Peek && id == round.shadow) SILHOUETTE else null
                 moth(
                     id,

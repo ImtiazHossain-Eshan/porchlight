@@ -8,9 +8,9 @@ import androidx.compose.runtime.setValue
 /** What a badge is cast in, and the shape pressed into it. */
 enum class Metal { Bronze, Silver, Gold }
 
-enum class Mold { Moth, Beetle, Trophy, Star, Flame, Moon, Calendar, Clock, Check }
+enum class Mold { Moth, Beetle, Trophy, Star, Flame, Moon, Calendar, Clock, Check, Stamp }
 
-/** Twelve badges. Each is its own pairing of metal and mold. */
+/** Seventeen badges: twelve for how you play, five for the chapters. */
 enum class Badge(val title: String, val detail: String, val metal: Metal, val mold: Mold) {
     FirstLight("First light", "Finish a round.", Metal.Bronze, Mold.Flame),
     CleanSweep("Clean sweep", "Win without a single wrong pair.", Metal.Silver, Mold.Check),
@@ -19,11 +19,29 @@ enum class Badge(val title: String, val detail: String, val metal: Metal, val mo
     Melody("Melody", "Find six pairs in a row on a board of 8 pairs or more.", Metal.Silver, Mold.Beetle),
     NightShift("Night shift", "Play 10 rounds.", Metal.Bronze, Mold.Moon),
     FullRoster("Full roster", "Win once with every lead moth.", Metal.Silver, Mold.Moth),
-    Wanderers("Wanderers", "Beat night 4, where the cards move.", Metal.Bronze, Mold.Beetle),
-    LastLight("Last light", "Beat night 6.", Metal.Gold, Mold.Trophy),
+    Wanderers("Wanderers", "Win a level where the cards move.", Metal.Bronze, Mold.Beetle),
+    LastLight("Last light", "Win a Blackout level, where the bulb cuts out.", Metal.Gold, Mold.Trophy),
     Regular("Regular", "Play the daily porch three days running.", Metal.Bronze, Mold.Calendar),
-    GoldenWing("Golden wing", "Master a moth: three stars with it leading, on night 3 or later.", Metal.Gold, Mold.Moth),
+    GoldenWing("Golden wing", "Master a moth: three stars with it leading, on level 10 or later.", Metal.Gold, Mold.Moth),
     GildedPorch("Gilded porch", "Master all six lead moths.", Metal.Gold, Mold.Star),
+    Chapter1("The porch", "Finish chapter 1, First Light: beat level 10.", Metal.Bronze, Mold.Stamp),
+    Chapter2("The garden", "Finish chapter 2, Wanderers: beat level 20.", Metal.Bronze, Mold.Stamp),
+    Chapter3("The woods", "Finish chapter 3, Dead Leaves: beat level 30.", Metal.Silver, Mold.Stamp),
+    Chapter4("The rooftops", "Finish chapter 4, Shadows: beat level 40.", Metal.Silver, Mold.Stamp),
+    Chapter5("The last porch", "Finish chapter 5, Last Light: beat level 50.", Metal.Gold, Mold.Stamp),
+    ;
+
+    companion object {
+        /** The badge stamped for finishing [chapter]. */
+        fun forChapter(chapter: Int): Badge? = when (chapter) {
+            1 -> Chapter1
+            2 -> Chapter2
+            3 -> Chapter3
+            4 -> Chapter4
+            5 -> Chapter5
+            else -> null
+        }
+    }
 }
 
 /** One day's daily porch: the date seed, and how it went. */
@@ -108,11 +126,16 @@ data class Progress(
     /** Earned but not yet handed over: they arrive in later rounds, at most [MAX_UNLOCKS] a round. */
     val owedBadges: Set<Badge> = emptySet(),
     val owedMastery: Set<MothId> = emptySet(),
-    /** The highest night unlocked, and the one picked on the porch. */
-    val nights: Int = 1,
-    val night: Int = 1,
-    /** The best stars earned on each night, night 1 first. */
-    val nightStars: List<Int> = List(NIGHTS.size) { 0 },
+    /** The furthest level a win has opened, and the one picked on the porch. */
+    val reached: Int = 1,
+    val current: Int = 1,
+    /** The best stars earned on each level, level 1 first. */
+    val levelStars: List<Int> = List(LEVELS.size) { 0 },
+    /** The highest chapter opened. Once open a chapter stays open. */
+    val chapters: Int = 1,
+    /** Losses in a row on [lossLevel]: three offer the "Easier bulb". */
+    val lossLevel: Int = 0,
+    val losses: Int = 0,
     /** The player's own daily porches, newest last; the last 14 are kept. */
     val dailyLog: List<DailyEntry> = emptyList(),
     val dailyDay: Long = 0,
@@ -132,6 +155,33 @@ data class Progress(
     val level get() = levelFor(xp)
     fun unlocked(id: MothId) = level >= id.unlockLevel
     fun playedDaily(today: Long) = dailyDay == today
+
+    val totalStars get() = levelStars.sum()
+
+    /** A chapter is open once it has been opened, or once the player holds enough stars for it. */
+    fun chapterOpen(chapter: Int) = chapter <= chapters || chapter in 1..CHAPTERS.size && totalStars >= CHAPTERS[chapter - 1].gate
+
+    /** A level is open once a win has reached it and its chapter is open. */
+    fun isOpen(number: Int) = number in 1..reached && chapterOpen(levelAt(number).chapter)
+
+    /** Stars still to find before [chapter] opens; zero once it is open. */
+    fun starsTo(chapter: Int) = if (chapterOpen(chapter)) 0 else CHAPTERS[chapter - 1].gate - totalStars
+
+    /** The chapter the player has reached but can't enter yet for want of stars, if any. */
+    val waitingChapter: Int? get() {
+        val next = levelAt(reached)
+        return if (!chapterOpen(next.chapter)) next.chapter else null
+    }
+
+    /**
+     * The open levels most worth replaying for stars: the fewest stars first, and of those the
+     * latest, since its stars are the hardest won and the player has the knack of it.
+     */
+    val replays: List<Int> get() = (1..reached).filter { isOpen(it) && levelStars[it - 1] < 3 && it != reached }
+        .sortedWith(compareBy<Int> { levelStars[it - 1] }.thenByDescending { it })
+
+    /** Three losses in a row on the picked level: the gentle retry is on offer. */
+    val easierOffered get() = losses >= 3 && lossLevel == current
 }
 
 /** What one round earned, shown on the results. */
@@ -143,7 +193,12 @@ data class Report(
     val newBadges: List<Badge>,
     val newMoths: List<MothId>,
     val newBest: Boolean,
-    val newNight: Int? = null,
+    /** The level a win just opened. */
+    val newLevel: Int? = null,
+    /** A boss beaten for the first time: the chapter it finishes. */
+    val chapterDone: Int? = null,
+    /** A chapter whose star gate this round's stars opened. */
+    val newChapter: Int? = null,
     val newMastery: MothId? = null,
     /** A daily porch that was already played today: it shows a score but earns nothing. */
     val practice: Boolean = false,
@@ -153,10 +208,24 @@ data class Report(
 /** The most things one round may unlock, so rewards arrive a few at a time. */
 const val MAX_UNLOCKS = 2
 
-/** One star for winning, one for a third of the bulb left, one for no wrong pairs. */
-fun starsFor(round: Round): Int =
-    if (round.phase != Phase.Won) 0
-    else 1 + (if (round.left * 3 >= round.night.roundMs) 1 else 0) + (if (round.misses == 0) 1 else 0)
+/**
+ * One star for winning; two for winning with a quarter of the bulb left; three for that and no more
+ * wrong pairs than the level allows. The "Easier bulb" retry earns one star at most. The daily porch
+ * keeps its own rule: one for winning, one for a third of the bulb left, one for no wrong pairs.
+ */
+fun starsFor(round: Round): Int {
+    if (round.phase != Phase.Won) return 0
+    if (round.daily) return 1 + (if (round.left * 3 >= round.level.roundMs) 1 else 0) + (if (round.misses == 0) 1 else 0)
+    if (round.easy || round.left * 4 < round.level.roundMs) return 1
+    return if (round.misses <= round.level.maxMissesFor3Stars) 3 else 2
+}
+
+/** XP for a round: boss wins earn half again. */
+fun xpFor(round: Round, stars: Int): Int {
+    val won = round.phase == Phase.Won
+    val xp = round.score / 10 + (if (won) 50 else 10) + stars * 20
+    return if (won && round.level.boss && !round.daily) xp * 3 / 2 else xp
+}
 
 /** The share line for today's porch: "Porchlight daily 20261114 ★★☆ 2,340". */
 fun dailyShare(day: Long, stars: Int, score: Int): String =
@@ -174,25 +243,44 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         return before.copy(rounds = before.rounds + 1) to report
     }
 
-    val xp = round.score / 10 + (if (won) 50 else 10) + stars * 20
+    val xp = xpFor(round, stars)
     val winners = if (won) before.winners + lead else before.winners
     val rounds = before.rounds + 1
-    val night = round.night.number
-    val unlocks = !round.daily && stars >= 2 && night == before.nights && night < NIGHTS.size
-    val nights = if (unlocks) night + 1 else before.nights
+    val number = round.level.number
+    val played = !round.daily && number in 1..LEVELS.size
+    val levelStars = if (played) {
+        before.levelStars.mapIndexed { i, best -> if (i == number - 1) maxOf(best, stars) else best }
+    } else before.levelStars
+    val totalStars = levelStars.sum()
+    // Chapters open by stars held, and stay open.
+    val chapters = maxOf(before.chapters, CHAPTERS.last { totalStars >= it.gate }.number)
+    // A win on the furthest level reached opens the next one.
+    val reaches = played && won && number == before.reached && number < LEVELS.size
+    val reached = if (reaches) number + 1 else before.reached
+    val opens = reaches && levelAt(reached).chapter <= chapters
+    // A gate that opens while the player stands at it is news; one opened further ahead is not yet.
+    val newChapter = if (chapters > before.chapters && levelAt(reached).chapter in (before.chapters + 1)..chapters) levelAt(reached).chapter else null
+    val chapterDone = if (played && won && round.level.boss && before.levelStars[number - 1] == 0) round.level.chapter else null
+    val (lossLevel, losses) = when {
+        !played -> before.lossLevel to before.losses
+        won -> 0 to 0
+        before.lossLevel == number -> number to before.losses + 1
+        else -> number to 1
+    }
     val dailyStreak = when {
         !round.daily -> before.dailyStreak
         before.dailyDay == yesterday -> before.dailyStreak + 1
         else -> 1
     }
 
-    // Rewards are paced: a round hands over at most MAX_UNLOCKS things. A new night and a new lead
-    // always arrive at once; a gold moth and badges wait their turn in later rounds if there is no room.
+    // Rewards are paced: a round hands over at most MAX_UNLOCKS things. A new level and a new lead
+    // always arrive at once, and so does a chapter's stamp; a gold moth and badges wait their turn
+    // in later rounds if there is no room.
     val newMoths = LEADS.filter { !before.unlocked(it) && levelFor(before.xp + xp) >= it.unlockLevel }
-    var room = (MAX_UNLOCKS - (if (unlocks) 1 else 0) - newMoths.size).coerceAtLeast(0)
+    var room = (MAX_UNLOCKS - (if (opens) 1 else 0) - newMoths.size).coerceAtLeast(0)
 
-    // Mastery is three stars with that lead on night 3 or later: night 1 is too easy to count.
-    val earnsMastery = stars == 3 && lead.isLead && !round.daily && night >= 3 && lead !in before.mastered
+    // Mastery is three stars with that lead on level 10 or later: the first levels are too easy to count.
+    val earnsMastery = stars == 3 && lead.isLead && played && number >= 10 && lead !in before.mastered
     val masteryDue = (before.owedMastery + if (earnsMastery) setOf(lead) else emptySet()).sortedBy { it.ordinal }
     val newMastery = masteryDue.take(room.coerceAtMost(1))
     room -= newMastery.size
@@ -207,14 +295,15 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         if (big && round.bestRun >= 6) add(Badge.Melody)
         if (rounds >= 10) add(Badge.NightShift)
         if (LEADS.all { it in winners }) add(Badge.FullRoster)
-        if (won && !round.daily && night >= 4) add(Badge.Wanderers)
-        if (won && !round.daily && night >= 6) add(Badge.LastLight)
+        if (won && played && Twist.Wanderer in round.level) add(Badge.Wanderers)
+        if (won && played && Twist.Blackout in round.level) add(Badge.LastLight)
         if (dailyStreak >= 3) add(Badge.Regular)
         if (mastered.isNotEmpty()) add(Badge.GoldenWing)
         if (LEADS.all { it in mastered }) add(Badge.GildedPorch)
     }
-    val badgesDue = Badge.entries.filter { (it in met || it in before.owedBadges) && it !in before.badges }
-    val newBadges = badgesDue.take(room)
+    val stamp = chapterDone?.let { Badge.forChapter(it) }?.takeIf { it !in before.badges }
+    val badgesDue = Badge.entries.filter { (it in met || it in before.owedBadges) && it !in before.badges && it != stamp }
+    val newBadges = listOfNotNull(stamp) + badgesDue.take(room)
 
     val after = before.copy(
         xp = before.xp + xp,
@@ -225,11 +314,12 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         winners = winners,
         mastered = mastered,
         owedMastery = (masteryDue - newMastery.toSet()).toSet(),
-        nights = nights,
-        night = if (unlocks) nights else before.night,
-        nightStars = if (!round.daily && night in 1..NIGHTS.size) {
-            before.nightStars.mapIndexed { i, best -> if (i == night - 1) maxOf(best, stars) else best }
-        } else before.nightStars,
+        reached = reached,
+        current = if (opens) reached else before.current,
+        levelStars = levelStars,
+        chapters = chapters,
+        lossLevel = lossLevel,
+        losses = losses,
         dailyLog = if (round.daily) (before.dailyLog + DailyEntry(today, stars, round.score)).takeLast(14) else before.dailyLog,
         dailyDay = if (round.daily) today else before.dailyDay,
         dailyStreak = dailyStreak,
@@ -245,11 +335,49 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         newBadges = newBadges,
         newMoths = newMoths,
         newBest = round.score > before.best,
-        newNight = if (unlocks) nights else null,
+        newLevel = if (opens) reached else null,
+        chapterDone = chapterDone,
+        newChapter = newChapter,
         newMastery = newMastery.firstOrNull(),
         dailyStreak = dailyStreak,
     )
     return after to report
+}
+
+/** The save's layout. 1: six nights. 2: fifty levels in five chapters. */
+const val SCHEMA = 2
+
+/** Where each of the old six nights sits among the fifty levels. */
+val NIGHT_TO_LEVEL = listOf(4, 8, 16, 20, 25, 31)
+
+/** Saved best stars, one per level; anything unreadable counts as none. */
+fun readStars(text: String?): List<Int> {
+    val parts = text?.split(",").orEmpty()
+    return List(LEVELS.size) { i -> parts.getOrNull(i)?.trim()?.toIntOrNull()?.coerceIn(0, 3) ?: 0 }
+}
+
+/**
+ * Carries a six-night save across to the levels. Each old night's best stars go to its level in
+ * [NIGHT_TO_LEVEL]; every level before it counts as cleared with one star; the level after it opens.
+ * A night the old save had opened was won before, so it counts as won even if its stars are lost.
+ * Chapters the player had reached stay open whatever their stars. Junk in the old values reads as
+ * nothing, never as a crash.
+ */
+fun migrateNights(nights: Int, nightStars: String?): Progress {
+    val opened = nights.coerceIn(1, NIGHT_TO_LEVEL.size)
+    val old = nightStars?.split(",").orEmpty().map { it.trim().toIntOrNull()?.coerceIn(0, 3) ?: 0 }
+    val stars = MutableList(LEVELS.size) { 0 }
+    var reached = 1
+    for ((i, level) in NIGHT_TO_LEVEL.withIndex()) {
+        val best = maxOf(old.getOrNull(i) ?: 0, if (i + 1 < opened) 1 else 0)
+        if (best == 0) continue
+        stars[level - 1] = maxOf(stars[level - 1], best)
+        for (j in 0 until level - 1) if (stars[j] == 0) stars[j] = 1
+        reached = maxOf(reached, minOf(level + 1, LEVELS.size))
+    }
+    val total = stars.sum()
+    val chapters = maxOf(levelAt(reached).chapter, CHAPTERS.last { total >= it.gate }.number)
+    return Progress(reached = reached, current = reached, levelStars = stars, chapters = chapters)
 }
 
 class Store(private val prefs: SharedPreferences) {
@@ -275,8 +403,30 @@ class Store(private val prefs: SharedPreferences) {
         edit.putInt("names", 2).apply()
     }
 
+    /**
+     * Schema 2 replaced the six nights with fifty levels. A save from before carries its nights
+     * across once (see [migrateNights]); a fresh install just starts at level 1.
+     */
+    private fun migrateLevels() {
+        if (prefs.getInt("schema", 1) >= SCHEMA) return
+        val edit = prefs.edit()
+        if (prefs.contains("nights") || prefs.contains("nightStars")) {
+            val moved = migrateNights(
+                nights = runCatching { prefs.getInt("nights", 1) }.getOrDefault(1),
+                nightStars = runCatching { prefs.getString("nightStars", null) }.getOrNull(),
+            )
+            edit.putInt("reached", moved.reached)
+                .putInt("current", moved.current)
+                .putString("levelStars", moved.levelStars.joinToString(","))
+                .putInt("chapters", moved.chapters)
+                .remove("nights").remove("night").remove("nightStars")
+        }
+        edit.putInt("schema", SCHEMA).apply()
+    }
+
     private fun load(): Progress {
         migrateNames()
+        migrateLevels()
         return read()
     }
 
@@ -289,10 +439,12 @@ class Store(private val prefs: SharedPreferences) {
         mastered = names("mastered"),
         owedBadges = names("owedBadges"),
         owedMastery = names("owedMastery"),
-        nights = prefs.getInt("nights", 1),
-        night = prefs.getInt("night", 1),
-        nightStars = prefs.getString("nightStars", null)?.split(",")?.mapNotNull { it.toIntOrNull() }
-            ?.takeIf { it.size == NIGHTS.size } ?: List(NIGHTS.size) { 0 },
+        reached = prefs.getInt("reached", 1).coerceIn(1, LEVELS.size),
+        current = prefs.getInt("current", 1).coerceIn(1, LEVELS.size),
+        levelStars = readStars(prefs.getString("levelStars", null)),
+        chapters = prefs.getInt("chapters", 1).coerceIn(1, CHAPTERS.size),
+        lossLevel = prefs.getInt("lossLevel", 0),
+        losses = prefs.getInt("losses", 0),
         dailyLog = prefs.getString("dailyLog", null).orEmpty().split(";").mapNotNull { entry ->
             val parts = entry.split(":").mapNotNull { it.toLongOrNull() }
             if (parts.size == 3) DailyEntry(parts[0], parts[1].toInt(), parts[2].toInt()) else null
@@ -322,9 +474,12 @@ class Store(private val prefs: SharedPreferences) {
             .putStringSet("mastered", next.mastered.map { it.name }.toSet())
             .putStringSet("owedBadges", next.owedBadges.map { it.name }.toSet())
             .putStringSet("owedMastery", next.owedMastery.map { it.name }.toSet())
-            .putInt("nights", next.nights)
-            .putInt("night", next.night)
-            .putString("nightStars", next.nightStars.joinToString(","))
+            .putInt("reached", next.reached)
+            .putInt("current", next.current)
+            .putString("levelStars", next.levelStars.joinToString(","))
+            .putInt("chapters", next.chapters)
+            .putInt("lossLevel", next.lossLevel)
+            .putInt("losses", next.losses)
             .putString("dailyLog", next.dailyLog.joinToString(";") { "${it.day}:${it.stars}:${it.score}" })
             .putLong("dailyDay", next.dailyDay)
             .putInt("dailyStreak", next.dailyStreak)

@@ -57,7 +57,7 @@ import java.util.Calendar
 import kotlin.random.Random
 
 internal enum class Screen {
-    Porch, Nights, Daily, Moths, Badges, Settings, Round, Results;
+    Porch, Levels, Daily, Moths, Badges, Settings, Round, Results;
 
     /** The lobby and the screens that hang off it. */
     val isMenu get() = this != Round && this != Results
@@ -107,6 +107,10 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
     /** Fraction of the round's time left. Draw code reads it every frame. */
     var timeLeft by mutableFloatStateOf(1f)
+
+    /** On a Blackout level: how long the round has been played, and whether the bulb is out. */
+    var playedMs = 0L
+    var dark by mutableStateOf(Dark.Lit)
 
     /** 1 normally; drops to 0.3 for an instant while the dying bulb flickers. */
     var flicker by mutableFloatStateOf(1f)
@@ -273,16 +277,16 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         }
     }
 
-    /** Starts a round on the night picked on the porch, or today's daily porch. */
-    fun start(daily: Boolean = round.daily && !screen.isMenu) {
+    /** Starts a round on the level picked on the porch, or today's daily porch. [easy] is the "Easier bulb" retry. */
+    fun start(daily: Boolean = round.daily && !screen.isMenu, easy: Boolean = false) {
         report = null
         notice = null
         noticeMoth = null
         reset()
-        val night = nightFor(store.progress.night, seasoned = store.progress.nightStars[0] > 0)
-        val fresh = !daily && (night.twist != Twist.None || newOn(night).isNotEmpty()) &&
-            "night${night.number}" !in store.progress.tips
-        round = if (daily) Round.daily(lead, todaySeed()) else Round.start(lead, night)
+        val night = levelAt(store.progress.current)
+        val fresh = !daily && (introducedOn(night) != null || newOn(night).isNotEmpty()) &&
+            "level${night.number}" !in store.progress.tips
+        round = if (daily) Round.daily(lead, todaySeed()) else Round.start(lead, night, easy = easy)
         screen = Screen.Round
         if (fresh) {
             // Meet the night first; the peek starts when the player is ready.
@@ -347,8 +351,8 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         buzz(HapticFeedbackType.Confirm)
     }
 
-    /** A night's one-line introduction, shown once before its first round. */
-    var intro by mutableStateOf<Night?>(null)
+    /** A level's one-line introduction, shown once before its first round. */
+    var intro by mutableStateOf<Level?>(null)
 
     /** The locked moth the porch is talking about, drawn as a silhouette beside the notice. */
     var noticeMoth by mutableStateOf<MothId?>(null)
@@ -418,7 +422,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     /** Lights the porch after a night's introduction. */
     fun beginAfterIntro() {
         val night = intro ?: return
-        store.change { it.copy(tips = it.tips + "night${night.number}") }
+        store.change { it.copy(tips = it.tips + "level${night.number}") }
         intro = null
         round = round.copy(phase = Phase.Peek, say = "Look closely. The cards are about to fold shut.")
         sfx.play(Sound.Start)
@@ -436,6 +440,8 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         peekStage = PeekStage.None
         peekPaused = false
         skipIntro = false
+        playedMs = 0L
+        dark = Dark.Lit
     }
 
     /** Opens one of the lobby's screens. */
@@ -452,7 +458,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         porchDark = false
         report = null
         reset()
-        round = Round.ready(lead, NIGHTS[store.progress.night - 1])
+        round = Round.ready(lead, levelAt(store.progress.current))
         screen = Screen.Porch
     }
 }
@@ -520,10 +526,18 @@ fun GameScreen(store: Store, sfx: Sfx) {
                 delay(GO_MS + 250)
                 if (session.peekStage == PeekStage.Go) session.peekStage = PeekStage.None
             }
-            Phase.Play -> while (session.round.phase == Phase.Play) {
-                withFrameMillis { }
+            Phase.Play -> {
+              var lastFrame = -1L
+              while (session.round.phase == Phase.Play) {
+                val frame = withFrameMillis { it }
                 val current = session.round
                 val t = now()
+                // A Blackout counts the time actually played, so a pause holds it too.
+                if (Twist.Blackout in current.level) {
+                    if (lastFrame >= 0 && !current.paused) session.playedMs += frame - lastFrame
+                    session.dark = if (current.paused) Dark.Lit else blackoutAt(session.playedMs)
+                }
+                lastFrame = frame
                 // The bulb reads smooth time every frame, in drawing only...
                 val left = if (current.paused) current.left else (current.endsAt - t).coerceAtLeast(0)
                 session.timeLeft = (left.toFloat() / current.rules.roundMs).coerceIn(0f, 1f)
@@ -531,6 +545,8 @@ fun GameScreen(store: Store, sfx: Sfx) {
                 // readout or phase does: whole seconds, or tenths under ten seconds.
                 val next = current.tick(t)
                 if (next.phase != current.phase || readout(next.left) != readout(current.left)) session.round = next
+              }
+              session.dark = Dark.Lit
             }
             Phase.Won, Phase.Lost -> if (session.screen == Screen.Round && session.round.tutorial) {
                 val won = session.round.phase == Phase.Won
@@ -567,6 +583,36 @@ fun GameScreen(store: Store, sfx: Sfx) {
         if (round.miss) {
             delay(round.rules.flipBackMs)
             session.round = session.round.settle()
+        }
+    }
+    // The Blackout: half a second of flicker and a buzz to warn, then the bulb is out for 0.8 s.
+    // With reduce motion the warning is a steady dim instead of a flicker.
+    LaunchedEffect(session.dark) {
+        when (session.dark) {
+            Dark.Warning -> {
+                sfx.play(Sound.Buzz, volume = 0.9f, pitch = 0.85f)
+                session.buzz(HapticFeedbackType.SegmentTick)
+                if (session.calm) {
+                    session.flicker = 0.6f
+                } else {
+                    try {
+                        while (true) {
+                            session.flicker = 0.35f
+                            delay(60)
+                            session.flicker = 1f
+                            delay(90)
+                        }
+                    } finally {
+                        session.flicker = 1f
+                    }
+                }
+            }
+            Dark.Out -> {
+                session.flicker = 0.04f
+                sfx.play(Sound.Pop, volume = 0.35f, pitch = 0.7f)
+                session.buzz(HapticFeedbackType.Reject)
+            }
+            Dark.Lit -> session.flicker = 1f
         }
     }
     LaunchedEffect(round.flashing) {
@@ -675,7 +721,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
             CompositionLocalProvider(LocalFlights provides if (session.calm) null else Flights(this@SharedTransitionLayout, this)) {
                 when (screen) {
                     Screen.Porch -> Porch(session)
-                    Screen.Nights -> NightsScreen(session)
+                    Screen.Levels -> LevelsScreen(session)
                     Screen.Daily -> DailyScreen(session)
                     Screen.Moths -> MothsScreen(session)
                     Screen.Badges -> BadgesScreen(session)

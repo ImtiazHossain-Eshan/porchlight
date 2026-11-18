@@ -13,80 +13,90 @@ class GameTest {
     private val sorted = LEADS.flatMap { listOf(it, it) }
 
     private fun playing(lead: MothId = MothId.Luna, now: Long = 0): Round =
-        Round.start(lead).copy(deck = sorted).go(now)
+        Round.start(lead, CLASSIC).copy(deck = sorted).go(now)
 
     private fun Round.pair(first: Int, now: Long = 0) = flip(first, now).flip(first + 1, now)
 
     // Dealing
 
     @Test fun `deal has twelve cards with every moth exactly twice`() {
-        val deck = deal()
+        val deck = deal(CLASSIC)
         assertEquals(12, deck.size)
         LEADS.forEach { assertEquals(2, deck.count { card -> card == it }) }
     }
 
     @Test fun `deal shuffles`() {
-        val decks = List(40) { deal() }.toSet()
+        val decks = List(40) { deal(CLASSIC) }.toSet()
         assertTrue("40 deals should not all come out the same", decks.size > 1)
     }
 
     // Lead moth perks
 
-    @Test fun `luna adds five seconds`() = assertEquals(35_000L, rulesFor(MothId.Luna).roundMs)
+    @Test fun `luna adds five seconds`() = assertEquals(35_000L, rulesFor(MothId.Luna, CLASSIC).roundMs)
 
     @Test fun `wick starts the streak at two on a shorter bulb`() {
-        assertEquals(2, rulesFor(MothId.Wick).streakStart)
-        assertEquals(27_000L, rulesFor(MothId.Wick).roundMs)
+        assertEquals(2, rulesFor(MothId.Wick, CLASSIC).streakStart)
+        assertEquals(27_000L, rulesFor(MothId.Wick, CLASSIC).roundMs)
     }
 
-    @Test fun `atlas gets one second look`() = assertEquals(1, rulesFor(MothId.Atlas).flashes)
+    @Test fun `atlas gets one second look`() = assertEquals(1, rulesFor(MothId.Atlas, CLASSIC).flashes)
 
     @Test fun `dot taps through and forgives one miss`() {
-        assertTrue(rulesFor(MothId.Dot).tapThrough)
-        assertEquals(1, rulesFor(MothId.Dot).freeMisses)
+        assertTrue(rulesFor(MothId.Dot, CLASSIC).tapThrough)
+        assertEquals(1, rulesFor(MothId.Dot, CLASSIC).freeMisses)
     }
 
-    @Test fun `iris lengthens the peek`() = assertEquals(3_400L, rulesFor(MothId.Iris).peekMs)
+    @Test fun `iris lengthens the peek`() = assertEquals(3_400L, rulesFor(MothId.Iris, CLASSIC).peekMs)
 
-    @Test fun `sorbet tops up the bulb per pair`() = assertEquals(1_000L, rulesFor(MothId.Sorbet).pairBonusMs)
+    @Test fun `sorbet tops up the bulb per pair`() = assertEquals(1_000L, rulesFor(MothId.Sorbet, CLASSIC).pairBonusMs)
 
     @Test fun `every lead bends the rules`() {
-        LEADS.forEach { assertNotEquals("$it should change something", Rules(), rulesFor(it)) }
+        LEADS.forEach { assertNotEquals("$it should change something", rulesFor(MothId.Moss, CLASSIC), rulesFor(it, CLASSIC)) }
     }
 
-    @Test fun `leads add to the night's own time`() {
-        assertEquals(NIGHTS[2].roundMs + 5_000, rulesFor(MothId.Luna, NIGHTS[2]).roundMs)
+    @Test fun `leads add to the level's own time and peek`() {
+        val level = levelAt(16)
+        assertEquals(level.roundMs + 5_000, rulesFor(MothId.Luna, level).roundMs)
+        assertEquals(level.roundMs - 3_000, rulesFor(MothId.Wick, level).roundMs)
+        assertEquals(level.peekMs, rulesFor(MothId.Luna, level).peekMs)
+        assertEquals(level.peekMs + IRIS_PEEK_MS, rulesFor(MothId.Iris, level).peekMs)
+    }
+
+    @Test fun `the easier bulb is a fifth longer`() {
+        val level = levelAt(16)
+        assertEquals((level.roundMs * 1.2).toLong(), rulesFor(MothId.Moss, level, easy = true).roundMs)
+        assertEquals((level.roundMs * 1.2).toLong() + 5_000, rulesFor(MothId.Luna, level, easy = true).roundMs)
     }
 
     // Round flow
 
     @Test fun `a ready round is idle with a full bulb`() {
-        val round = Round.ready(MothId.Luna)
+        val round = Round.ready(MothId.Luna, CLASSIC)
         assertEquals(Phase.Idle, round.phase)
         assertEquals(35_000L, round.left)
         assertFalse(round.running)
     }
 
     @Test fun `starting opens the peek`() {
-        val round = Round.start(MothId.Dot)
+        val round = Round.start(MothId.Dot, CLASSIC)
         assertEquals(Phase.Peek, round.phase)
         assertTrue(round.running)
         assertTrue((0 until 12).all { round.isFaceUp(it) })
     }
 
     @Test fun `go starts the clock from the peek`() {
-        val round = Round.start(MothId.Dot).go(now = 5_000)
+        val round = Round.start(MothId.Dot, CLASSIC).go(now = 5_000)
         assertEquals(Phase.Play, round.phase)
         assertEquals(35_000L, round.endsAt)
     }
 
     @Test fun `go does nothing outside the peek`() {
-        val idle = Round.ready(MothId.Dot)
+        val idle = Round.ready(MothId.Dot, CLASSIC)
         assertSame(idle, idle.go(0))
     }
 
     @Test fun `cards cannot be flipped during the peek`() {
-        val peek = Round.start(MothId.Dot)
+        val peek = Round.start(MothId.Dot, CLASSIC)
         assertSame(peek, peek.flip(0, 0))
     }
 
@@ -189,7 +199,7 @@ class GameTest {
     }
 
     @Test fun `ticks outside play change nothing`() {
-        val idle = Round.ready(MothId.Luna)
+        val idle = Round.ready(MothId.Luna, CLASSIC)
         assertSame(idle, idle.tick(99_000))
     }
 
@@ -228,16 +238,10 @@ class GameTest {
         assertNotEquals(playing().say, playing().flip(0, 0).say)
     }
 
-    // Nights
+    // Levels
 
-    @Test fun `nights grow and give about five seconds a pair`() {
-        assertEquals(listOf(12, 16, 20, 20, 20, 20), NIGHTS.map { it.cards })
-        NIGHTS.forEach { assertTrue(it.roundMs in it.pairs * 4_500L..it.pairs * 5_500L) }
-        assertEquals((1..NIGHTS.size).toList(), NIGHTS.map { it.number })
-    }
-
-    @Test fun `each night deals its own moths`() {
-        val deck = deal(NIGHTS[1])
+    @Test fun `each level deals its own moths`() {
+        val deck = deal(levelAt(8))
         assertEquals(16, deck.size)
         assertEquals(8, deck.toSet().size)
         assertTrue(MothId.Sulphur in deck && MothId.Rose in deck)
@@ -257,9 +261,9 @@ class GameTest {
         assertEquals(20261114L, dailySeed(2026, 11, 14))
     }
 
-    @Test fun `a bigger night needs every pair to win`() {
+    @Test fun `a bigger level needs every pair to win`() {
         val deck = BOARD_MOTHS.take(8).flatMap { listOf(it, it) }
-        var round = Round.start(MothId.Luna, NIGHTS[1]).copy(deck = deck).go(0)
+        var round = Round.start(MothId.Luna, levelAt(8)).copy(deck = deck).go(0)
         for (first in 0 until 12 step 2) round = round.pair(first)
         assertEquals(Phase.Play, round.phase)
         round = round.pair(12).pair(14)
@@ -270,7 +274,7 @@ class GameTest {
 
     @Test fun `a dead leaf costs two seconds and stays turned`() {
         val deck = listOf(MothId.Leaf) + sorted
-        var round = Round.start(MothId.Luna, NIGHTS[4]).copy(deck = deck, matched = List(deck.size) { false }).go(0)
+        var round = Round.start(MothId.Luna, levelAt(21)).copy(deck = deck, matched = List(deck.size) { false }).go(0)
         val before = round.endsAt
         round = round.flip(0, 1_000)
         assertEquals(before - DUD_MS, round.endsAt)
@@ -279,12 +283,14 @@ class GameTest {
         assertTrue(round.open.isEmpty())
     }
 
-    @Test fun `night five deals two dead leaves`() {
-        assertEquals(2, deal(NIGHTS[4]).count { it == MothId.Leaf })
+    @Test fun `leaf levels deal their dead leaves`() {
+        assertEquals(2, deal(levelAt(21)).count { it == MothId.Leaf })
+        assertEquals(4, deal(levelAt(29)).count { it == MothId.Leaf })
+        assertEquals(0, deal(levelAt(20)).count { it == MothId.Leaf })
     }
 
     @Test fun `the wanderer swaps two face-down cards after a miss`() {
-        val start = Round.start(MothId.Luna, NIGHTS[3]).copy(deck = sorted, seed = 9).go(0).pair(0)
+        val start = Round.start(MothId.Luna, levelAt(11)).copy(deck = sorted, seed = 9).go(0).pair(0)
         val settled = start.flip(2, 0).flip(4, 0).settle()
         val (a, b) = settled.swap!!
         assertEquals(1, settled.swaps)
@@ -294,16 +300,16 @@ class GameTest {
         assertEquals(settled, start.flip(2, 0).flip(4, 0).settle()) // and it is deterministic
     }
 
-    @Test fun `other nights don't swap`() {
+    @Test fun `other levels don't swap`() {
         assertEquals(null, playing().flip(2, 0).flip(4, 0).settle().swap)
     }
 
-    @Test fun `a shadow night hides one moth in the peek`() {
-        assertEquals(null, Round.start(MothId.Luna).shadow)
-        val shadow = Round.start(MothId.Luna, NIGHTS[5])
+    @Test fun `a shadow level hides one moth in the peek`() {
+        assertEquals(null, Round.start(MothId.Luna, CLASSIC).shadow)
+        val shadow = Round.start(MothId.Luna, levelAt(31))
         assertTrue(shadow.shadow in shadow.deck)
         // The hidden moth follows the seed, not the first card.
-        val hidden = (0L until 40L).map { Round.start(MothId.Luna, NIGHTS[5], Random(1), seed = it).shadow }.toSet()
+        val hidden = (0L until 40L).map { Round.start(MothId.Luna, levelAt(31), Random(1), seed = it).shadow }.toSet()
         assertTrue("the shadow should vary between rounds", hidden.size > 5)
     }
 
@@ -347,7 +353,7 @@ class GameTest {
     }
 
     @Test fun `only a live round pauses`() {
-        val idle = Round.ready(MothId.Luna)
+        val idle = Round.ready(MothId.Luna, CLASSIC)
         assertSame(idle, idle.pause(0))
         assertSame(idle, idle.resume(0))
     }
@@ -366,17 +372,20 @@ class GameTest {
         assertEquals(3_000L, round.rules.peekMs)
     }
 
-    @Test fun `nights name the moths they add`() {
-        assertEquals(emptyList<MothId>(), newOn(NIGHTS[0]))
-        assertEquals(listOf(MothId.Sulphur, MothId.Rose), newOn(NIGHTS[1]))
-        assertEquals(listOf(MothId.Midnight, MothId.Moss), newOn(NIGHTS[2]))
-        assertEquals(emptyList<MothId>(), newOn(NIGHTS[3]))
+    @Test fun `levels name the moths they add`() {
+        assertEquals(emptyList<MothId>(), newOn(levelAt(1)))
+        assertEquals(listOf(MothId.Dot), newOn(levelAt(2)))
+        assertEquals(listOf(MothId.Iris, MothId.Sorbet), newOn(levelAt(4)))
+        assertEquals(emptyList<MothId>(), newOn(levelAt(11)))
+        assertEquals(listOf(MothId.Midnight, MothId.Moss), newOn(levelAt(16)))
+        assertEquals(emptyList<MothId>(), newOn(levelAt(18)))
+        assertEquals(listOf(MothId.Ash, MothId.Tide), newOn(levelAt(36)))
     }
 
     // Saved state
 
     @Test fun `a round in play survives being saved and comes back paused`() {
-        val round = Round.start(MothId.Sorbet, NIGHTS[4], Random(3), seed = 3).go(0).tick(12_000)
+        val round = Round.start(MothId.Sorbet, levelAt(21), Random(3), seed = 3).go(0).tick(12_000)
         val played = round.flip(round.deck.indexOfFirst { it != MothId.Leaf }, 12_000)
         val (back, lead) = restoreRound(played.saved(MothId.Sorbet))!!
         assertEquals(MothId.Sorbet, lead)
@@ -384,8 +393,8 @@ class GameTest {
         assertEquals(played.deck, back.deck)
         assertEquals(played.open, back.open)
         assertEquals(played.left, back.left)
-        assertEquals(played.night, back.night)
-        assertEquals(rulesFor(MothId.Sorbet, NIGHTS[4]), back.rules)
+        assertEquals(played.level, back.level)
+        assertEquals(rulesFor(MothId.Sorbet, levelAt(21)), back.rules)
         assertEquals(Phase.Play, back.resume(50_000).tick(51_000).phase)
     }
 
@@ -398,8 +407,15 @@ class GameTest {
     }
 
     @Test fun `the daily porch and the tutorial restore as themselves`() {
-        assertEquals(DAILY, restoreRound(Round.daily(MothId.Luna, 1).saved(MothId.Luna))!!.first.night)
-        assertEquals(TUTORIAL, nightNumbered(-1))
+        assertEquals(DAILY, restoreRound(Round.daily(MothId.Luna, 1).saved(MothId.Luna))!!.first.level)
+        assertEquals(TUTORIAL, levelNumbered(-1))
+    }
+
+    @Test fun `an easier bulb survives being saved`() {
+        val round = Round.start(MothId.Luna, levelAt(12), Random(2), seed = 2, easy = true).go(0)
+        val (back, _) = restoreRound(round.saved(MothId.Luna))!!
+        assertTrue(back.easy)
+        assertEquals(round.rules, back.rules)
     }
 
     @Test fun `junk does not restore`() {

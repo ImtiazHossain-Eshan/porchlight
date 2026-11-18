@@ -9,7 +9,7 @@ class TallyTest {
     /** Pairs side by side: (0,1) Luna, (2,3) Wick, ... */
     private val sorted = LEADS.flatMap { listOf(it, it) }
 
-    private fun playing() = Round.start(MothId.Luna).copy(deck = sorted).go(0)
+    private fun playing() = Round.start(MothId.Luna, CLASSIC).copy(deck = sorted).go(0)
 
     private fun Round.pair(a: Int, b: Int) = flip(a, 0).flip(b, 0).settle()
 
@@ -69,7 +69,12 @@ class TallyTest {
     @Test fun `star hints say what earns each star`() {
         val round = won()
         assertEquals("Find every pair", starHint(0, round))
-        assertEquals("10 s left", starHint(1, round))
-        assertEquals("No misses", starHint(2, round))
+        assertEquals("8 s left", starHint(1, round)) // a quarter of CLASSIC's 30 s, rounded up
+        assertEquals("No misses", starHint(2, round)) // CLASSIC allows none
+        val four = round.copy(level = levelAt(4))
+        assertEquals("9 s left", starHint(1, four.copy(level = four.level.copy(roundMs = 36_000))))
+        assertEquals("2 misses at most", starHint(2, four))
+        val daily = round.copy(level = DAILY, daily = true)
+        assertEquals("No misses", starHint(2, daily))
     }
 }

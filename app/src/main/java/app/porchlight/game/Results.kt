@@ -118,8 +118,11 @@ internal fun Results(session: Session, report: Report) {
 
     val rewards = remember(report) {
         buildList {
-            report.newNight?.let { n ->
-                add(Reward("Night $n is open", nightLine(NIGHTS[n - 1])) { NightSeal(n) })
+            report.newLevel?.let { n ->
+                add(Reward("Level $n is open", levelLine(levelAt(n))) { LevelSeal(n) })
+            }
+            report.newChapter?.let { c ->
+                add(Reward("Chapter $c is open", CHAPTERS[c - 1].name) { LevelSeal(c, roman = true) })
             }
             report.newMastery?.let { moth ->
                 add(Reward("${moth.label} turned gold", "Three stars with ${moth.label} leading.") { MothArt(moth, Modifier.size(54.dp), gold = true) })
@@ -127,7 +130,8 @@ internal fun Results(session: Session, report: Report) {
             report.newMoths.forEach { moth ->
                 add(Reward("${moth.label} joined", moth.perkName) { MothArt(moth, Modifier.size(54.dp)) })
             }
-            report.newBadges.forEach { badge ->
+            // A chapter's own badge has its moment under the headline, not among the cards.
+            report.newBadges.filter { it != Badge.forChapter(report.chapterDone ?: 0) }.forEach { badge ->
                 add(
                     Reward(badge.title, badge.detail) {
                         // A new badge: the card stamps down, a shine crosses it, its ribbon unfurls.
@@ -319,6 +323,17 @@ internal fun Results(session: Session, report: Report) {
                         // Hold the headline's place so nothing jumps when it lights.
                         Text(if (won) "EVERY PAIR FOUND" else "THE BULB BURNED OUT", style = Display, fontSize = TypeScale.Title, color = Color.Transparent, textAlign = TextAlign.Center)
                     }
+                    // A boss beaten for the first time: the chapter's badge stamps down under the headline.
+                    report.chapterDone?.let { chapter ->
+                        Reveal(headline, skipped, stamp = !calm) {
+                            ChapterStamp(chapter, onLand = {
+                                if (!skipped) {
+                                    session.sfx.play(Sound.Thunk)
+                                    session.buzz(HapticFeedbackType.LongPress)
+                                }
+                            })
+                        }
+                    }
                     // A loss gets a word: how close it was, or a tip.
                     if (note != null) {
                         Reveal(headline, skipped) {
@@ -431,6 +446,18 @@ internal fun Results(session: Session, report: Report) {
                             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 SecondaryButton("Porch", Modifier.weight(1f)) { session.toPorch() }
                                 PrimaryButton("Again", Modifier.weight(1.3f)) { session.start() }
+                            }
+                            // Three losses running on this level: a gentler try, offered and never pushed.
+                            if (!round.daily && !won && progress.easierOffered && progress.current == round.level.number) {
+                                Spacer(Modifier.height(8.dp))
+                                SecondaryButton("Easier bulb", Modifier.fillMaxWidth()) { session.start(daily = false, easy = true) }
+                                Text(
+                                    "A fifth more time. One star at most.",
+                                    style = BodyText,
+                                    color = Color(0xFFD9CDB4),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                                )
                             }
                             if (round.daily && !report.practice) {
                                 Spacer(Modifier.height(8.dp))
@@ -786,13 +813,31 @@ private fun LevelSection(session: Session, report: Report, play: Boolean, instan
     }
 }
 
-/** A night's number on a brass seal. */
+/** A level's number, or a chapter's numeral, on a brass seal. */
 @Composable
-private fun NightSeal(number: Int) {
+private fun LevelSeal(number: Int, roman: Boolean = false) {
     Box(Modifier.size(54.dp).metal(corner = 27.dp), contentAlignment = Alignment.Center) {
-        Text("$number", style = TextEngraved, fontSize = TypeScale.Title, color = Dusk.paperInk)
+        Text(if (roman) roman(number) else "$number", style = TextEngraved, fontSize = TypeScale.Title, color = Dusk.paperInk)
     }
 }
+
+/** A finished chapter: its badge, big, and CHAPTER II COMPLETE under it. */
+@Composable
+private fun ChapterStamp(chapter: Int, onLand: () -> Unit) {
+    val badge = Badge.forChapter(chapter) ?: return
+    LaunchedEffect(chapter) { onLand() }
+    Column(
+        Modifier.padding(top = 6.dp).semantics(mergeDescendants = true) {},
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        BadgeMedal(badge, true, Modifier.size(76.dp).graphicsLayer { rotationZ = -8f })
+        Text("CHAPTER ${roman(chapter)} COMPLETE", style = Label, color = Craft.gold, textAlign = TextAlign.Center)
+        Text(CHAPTERS[chapter - 1].name, style = BodyText, color = Color(0xFFD9CDB4), textAlign = TextAlign.Center)
+    }
+}
+
+/** 1..5 as I..V, for the chapters. */
+internal fun roman(n: Int) = listOf("I", "II", "III", "IV", "V").getOrElse(n - 1) { "$n" }
 
 /** Fades a part of the scorecard in. [stamp] slams it down from large instead. */
 @Composable

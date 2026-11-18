@@ -18,7 +18,7 @@ class BalanceTest {
     private fun play(lead: MothId, missRate: Double, random: Random, turnMs: Long = 600): Round {
         val deck = BOARD_MOTHS.take(6).flatMap { listOf(it, it) }
         var now = 0L
-        var round = Round.start(lead).copy(deck = deck).go(now)
+        var round = Round.start(lead, CLASSIC).copy(deck = deck).go(now)
         var rate = missRate * (Rules().peekMs.toDouble() / round.rules.peekMs)
         var next = 0
         while (round.phase == Phase.Play) {

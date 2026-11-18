@@ -13,57 +13,190 @@ const val DUD_MS = 2_000L
 
 enum class Phase { Idle, Peek, Play, Won, Lost }
 
-/** One rule a night can bend, introduced one at a time on later nights. */
+/** One rule a level can bend. Each is introduced alone, on a small board, before it is mixed with others. */
 enum class Twist(val title: String, val tip: String) {
-    None("", ""),
     Wanderer("Wanderer", "After a wrong pair, two face-down cards swap places."),
-    Leaves("Dead leaves", "Two cards are dead leaves. Turning one costs 2 seconds."),
+    Leaves("Dead leaves", "Some cards are dead leaves. Turning one costs 2 seconds."),
     Shadow("Shadow", "One moth shows only as a silhouette during the peek."),
+    Lookalikes("Lookalikes", "Two moths are near-twins. Check the hindwings."),
+    Blackout("Blackout", "Every 8 seconds the bulb cuts out for a moment. Keep turning in the dark."),
 }
 
-/**
- * A difficulty step. More pairs means more time, about five seconds a pair. Each night is unlocked
- * by beating the one before it with two stars or more.
- */
-data class Night(
-    val number: Int,
-    val pairs: Int,
-    val leaves: Int = 0,
-    val twist: Twist = Twist.None,
-    val roundMs: Long = pairs * 5_000L,
-) {
-    val cards get() = pairs * 2 + leaves
+/** A normal level, a gentler one to catch your breath, or the chapter's boss. */
+enum class Kind { Normal, Breather, Boss }
+
+/** Five chapters of ten levels. A chapter opens once the player holds [gate] stars in all. */
+data class Chapter(val number: Int, val name: String, val scene: String, val gate: Int) {
+    val levels get() = LEVELS.filter { it.chapter == number }
+    val boss get() = levels.last()
 }
 
-val NIGHTS = listOf(
-    Night(1, pairs = 6),
-    Night(2, pairs = 8),
-    Night(3, pairs = 10),
-    Night(4, pairs = 10, twist = Twist.Wanderer),
-    Night(5, pairs = 9, leaves = 2, twist = Twist.Leaves, roundMs = 46_000),
-    Night(6, pairs = 10, twist = Twist.Shadow),
+val CHAPTERS = listOf(
+    Chapter(1, "First Light", "The porch", gate = 0),
+    Chapter(2, "Wanderers", "The garden", gate = 15),
+    Chapter(3, "Dead Leaves", "The woods", gate = 35),
+    Chapter(4, "Shadows", "The rooftops", gate = 55),
+    Chapter(5, "Last Light", "The last porch", gate = 80),
 )
 
+/** The board sizes there are: cards in all, and the grid each one is laid out in. */
+val GRIDS = mapOf(6 to (3 to 2), 8 to (4 to 2), 12 to (4 to 3), 16 to (4 to 4), 20 to (4 to 5), 24 to (4 to 6))
+
 /**
- * The night to play. Night 1 is generous for a first win; once the player has won it, its bulb
- * shortens to four seconds a pair so it stays worth playing.
+ * One step on the map. [peekMs] is how long the opening peek lasts before a lead's perks;
+ * [maxMissesFor3Stars] is how many wrong pairs a three-star win may have.
  */
-fun nightFor(number: Int, seasoned: Boolean): Night {
-    val night = NIGHTS[(number - 1).coerceIn(0, NIGHTS.size - 1)]
-    return if (night.number == 1 && seasoned) night.copy(roundMs = night.pairs * 4_000L) else night
+data class Level(
+    val number: Int,
+    val chapter: Int,
+    val pairs: Int,
+    val leaves: Int = 0,
+    val twists: Set<Twist> = emptySet(),
+    val roundMs: Long = pairs * 5_000L,
+    val peekMs: Long = 2_000,
+    val maxMissesFor3Stars: Int = 0,
+    val kind: Kind = Kind.Normal,
+) {
+    val cards get() = pairs * 2 + leaves
+    val boss get() = kind == Kind.Boss
+    val breather get() = kind == Kind.Breather
+    operator fun contains(twist: Twist) = twist in twists
 }
+
+private val N = Kind.Normal
+private val BREATHER = Kind.Breather
+private val BOSS = Kind.Boss
+private val WANDERER = Twist.Wanderer
+private val LEAVES = Twist.Leaves
+private val SHADOW = Twist.Shadow
+private val LOOKALIKES = Twist.Lookalikes
+private val BLACKOUT = Twist.Blackout
+
+/** Wrong pairs a three-star win may have, by chapter; a boss allows one fewer. */
+private val THREE_STAR_MISSES = listOf(2, 2, 3, 3, 4)
+
+private fun level(number: Int, pairs: Int, leaves: Int, seconds: Int, peek: Double, kind: Kind, vararg twists: Twist): Level {
+    val chapter = (number - 1) / 10 + 1
+    return Level(
+        number = number,
+        chapter = chapter,
+        pairs = pairs,
+        leaves = leaves,
+        twists = twists.toSet(),
+        roundMs = seconds * 1_000L,
+        peekMs = (peek * 1_000).toLong(),
+        maxMissesFor3Stars = THREE_STAR_MISSES[chapter - 1] - if (kind == Kind.Boss) 1 else 0,
+        kind = kind,
+    )
+}
+
+/**
+ * The fifty levels, tuned against a simulated player (see LevelCurveTest and docs/LEVELS.md).
+ *           level pairs leaves  s   peek  kind      twists
+ */
+val LEVELS: List<Level> = listOf(
+    // Chapter 1: First Light, the porch.
+    level(1, 3, 0, 13, 1.2, N),
+    level(2, 4, 0, 18, 1.3, N),
+    level(3, 4, 0, 19, 1.0, N),
+    level(4, 6, 0, 33, 0.7, N),
+    level(5, 6, 0, 33, 0.6, N),
+    level(6, 6, 0, 19, 3.2, N),
+    level(7, 6, 0, 22, 3.3, BREATHER),
+    level(8, 8, 0, 28, 3.5, N),
+    level(9, 8, 0, 29, 3.3, N),
+    level(10, 8, 0, 28, 3.0, BOSS),
+    // Chapter 2: Wanderers, the garden.
+    level(11, 6, 0, 19, 3.0, N, WANDERER),
+    level(12, 6, 0, 19, 3.0, N, WANDERER),
+    level(13, 8, 0, 30, 3.0, N),
+    level(14, 8, 0, 34, 3.0, N, WANDERER),
+    level(15, 8, 0, 35, 2.8, N, WANDERER),
+    level(16, 10, 0, 41, 3.2, N),
+    level(17, 8, 0, 31, 3.0, BREATHER),
+    level(18, 10, 0, 50, 3.0, N, WANDERER),
+    level(19, 10, 0, 50, 2.8, N, WANDERER),
+    level(20, 10, 0, 47, 2.8, BOSS, WANDERER),
+    // Chapter 3: Dead Leaves, the woods.
+    level(21, 5, 2, 17, 3.0, N, LEAVES),
+    level(22, 7, 2, 29, 3.0, N, LEAVES),
+    level(23, 7, 2, 30, 2.8, N, LEAVES),
+    level(24, 10, 0, 49, 2.8, N, WANDERER),
+    level(25, 9, 2, 42, 2.8, N, LEAVES),
+    level(26, 9, 2, 42, 2.7, N, LEAVES),
+    level(27, 8, 0, 30, 2.7, BREATHER),
+    level(28, 9, 2, 49, 2.6, N, LEAVES, WANDERER),
+    level(29, 8, 4, 43, 2.6, N, LEAVES),
+    level(30, 9, 2, 46, 2.5, BOSS, LEAVES, WANDERER),
+    // Chapter 4: Shadows, the rooftops.
+    level(31, 8, 0, 31, 2.6, N, SHADOW),
+    level(32, 10, 0, 43, 2.6, N, SHADOW),
+    level(33, 10, 0, 43, 2.5, N, SHADOW),
+    level(34, 8, 0, 32, 2.5, N, LOOKALIKES),
+    level(35, 10, 0, 44, 2.5, N, LOOKALIKES),
+    level(36, 12, 0, 53, 2.6, N),
+    level(37, 10, 0, 42, 2.4, BREATHER),
+    level(38, 12, 0, 55, 2.4, N, SHADOW),
+    level(39, 12, 0, 65, 2.3, N, SHADOW, WANDERER),
+    level(40, 12, 0, 56, 2.2, BOSS, SHADOW, LOOKALIKES),
+    // Chapter 5: Last Light, the last porch.
+    level(41, 8, 0, 31, 2.4, N, BLACKOUT),
+    level(42, 10, 0, 44, 2.3, N, BLACKOUT),
+    level(43, 11, 2, 55, 2.3, N, LEAVES),
+    level(44, 12, 0, 58, 2.2, N, BLACKOUT),
+    level(45, 11, 2, 63, 2.2, N, LEAVES, WANDERER),
+    level(46, 12, 0, 59, 2.1, N, SHADOW, BLACKOUT),
+    level(47, 10, 0, 42, 2.1, BREATHER),
+    level(48, 12, 0, 66, 2.0, N, LOOKALIKES, WANDERER),
+    level(49, 11, 2, 58, 2.0, N, LEAVES, BLACKOUT),
+    level(50, 12, 0, 54, 3.8, BOSS, WANDERER, SHADOW, BLACKOUT),
+)
+
+/** The level to play by number, kept in range. */
+fun levelAt(number: Int): Level = LEVELS[(number - 1).coerceIn(0, LEVELS.size - 1)]
+
+fun chapterOf(level: Level): Chapter = CHAPTERS[level.chapter - 1]
 
 /** The daily porch: the same deal for everyone today. */
-val DAILY = Night(0, pairs = 8)
+val DAILY = Level(0, chapter = 0, pairs = 8)
 
 /** The first-launch tutorial: three pairs in a 3 × 2 grid, and a long bulb. */
-val TUTORIAL = Night(-1, pairs = 3, roundMs = 20_000)
+val TUTORIAL = Level(-1, chapter = 0, pairs = 3, roundMs = 20_000, peekMs = 3_000)
 
-/** What a night brings that the player hasn't met: new moths, or a twist. */
-fun newOn(night: Night): List<MothId> {
-    val before = NIGHTS.getOrNull(night.number - 2)?.pairs ?: return emptyList()
-    return if (night.pairs > before) BOARD_MOTHS.subList(before, night.pairs) else emptyList()
+/** What a level brings that the player hasn't met: new moths. */
+fun newOn(level: Level): List<MothId> {
+    if (level.number < 2) return emptyList()
+    val before = LEVELS.take(level.number - 1).maxOf { it.pairs }
+    return if (level.pairs > before) BOARD_MOTHS.subList(before, level.pairs) else emptyList()
 }
+
+/** The twist a level is the first to bring, if any: that level shows its tip before the peek. */
+fun introducedOn(level: Level): Twist? {
+    if (level.number < 1) return null
+    val seen = LEVELS.take(level.number - 1).flatMap { it.twists }.toSet()
+    return level.twists.firstOrNull { it !in seen }
+}
+
+/** Blackout timing: every [BLACKOUT_EVERY_MS] of play the bulb goes out for [BLACKOUT_MS], after a [BLACKOUT_WARN_MS] flicker. */
+const val BLACKOUT_EVERY_MS = 8_000L
+const val BLACKOUT_MS = 800L
+const val BLACKOUT_WARN_MS = 500L
+
+enum class Dark { Lit, Warning, Out }
+
+/** Where a Blackout round is after [playedMs] of play: lit, flickering a warning, or out. */
+fun blackoutAt(playedMs: Long): Dark {
+    if (playedMs < BLACKOUT_EVERY_MS - BLACKOUT_WARN_MS) return Dark.Lit
+    val t = playedMs % BLACKOUT_EVERY_MS
+    return when {
+        playedMs >= BLACKOUT_EVERY_MS && t < BLACKOUT_MS -> Dark.Out
+        t >= BLACKOUT_EVERY_MS - BLACKOUT_WARN_MS -> Dark.Warning
+        else -> Dark.Lit
+    }
+}
+
+/** The "Easier bulb" retry offered after three losses in a row: this much more time, and one star at most. */
+const val EASIER_BULB = 1.2
 
 /** The lead moth changes the round's rules. */
 data class Rules(
@@ -79,15 +212,19 @@ data class Rules(
     val freeMisses: Int = 0,
 )
 
-fun rulesFor(lead: MothId, night: Night = NIGHTS[0]): Rules {
-    val base = Rules(roundMs = night.roundMs)
-    if (night == TUTORIAL) return base.copy(peekMs = 3_000)
+/** Iris's longer look, on top of the level's own peek. */
+const val IRIS_PEEK_MS = 1_400L
+
+fun rulesFor(lead: MothId, level: Level = LEVELS[0], easy: Boolean = false): Rules {
+    val ms = if (easy) (level.roundMs * EASIER_BULB).toLong() else level.roundMs
+    val base = Rules(roundMs = ms, peekMs = level.peekMs)
+    if (level == TUTORIAL) return base
     return when (lead) {
         MothId.Luna -> base.copy(roundMs = base.roundMs + 5_000)
         MothId.Wick -> base.copy(streakStart = 2, roundMs = base.roundMs - 3_000)
         MothId.Atlas -> base.copy(flashes = 1)
         MothId.Dot -> base.copy(tapThrough = true, freeMisses = 1)
-        MothId.Iris -> base.copy(peekMs = 3_400)
+        MothId.Iris -> base.copy(peekMs = base.peekMs + IRIS_PEEK_MS)
         MothId.Sorbet -> base.copy(pairBonusMs = 1_000)
         else -> base
     }
@@ -96,13 +233,24 @@ fun rulesFor(lead: MothId, night: Night = NIGHTS[0]): Rules {
 /** Atlas -> Atlases, Iris -> Irises, Wick -> Wicks. */
 fun plural(name: String) = if (name.endsWith("s")) "${name}es" else "${name}s"
 
-/** The moths that can appear on a board, in the order nights add them. */
-val BOARD_MOTHS: List<MothId> = MothId.entries.filter { it != MothId.Leaf }
+/** The moths that can appear on a board, in the order levels add them. */
+val BOARD_MOTHS: List<MothId> = MothId.entries.filter { it.board }
 
-/** A shuffled deck for [night]. Pass a seeded [random] for a deal that must come out the same every time. */
-fun deal(night: Night = NIGHTS[0], random: Random = Random.Default): List<MothId> {
-    val moths = if (night == DAILY) BOARD_MOTHS.shuffled(random).take(night.pairs) else BOARD_MOTHS.take(night.pairs)
-    return (moths.flatMap { listOf(it, it) } + List(night.leaves) { MothId.Leaf }).shuffled(random)
+/** The daily porch draws from the ten moths it always has, so a date deals what it always dealt. */
+val DAILY_MOTHS: List<MothId> = BOARD_MOTHS.take(10)
+
+/** Each lookalike and the moth it is a near-twin of. */
+val TWINS: Map<MothId, MothId> = mapOf(MothId.Domino to MothId.Dot, MothId.Lilac to MothId.Iris)
+
+/** A shuffled deck for [level]. Pass a seeded [random] for a deal that must come out the same every time. */
+fun deal(level: Level = LEVELS[0], random: Random = Random.Default): List<MothId> {
+    var moths = if (level == DAILY) DAILY_MOTHS.shuffled(random).take(level.pairs) else BOARD_MOTHS.take(level.pairs)
+    if (Twist.Lookalikes in level) {
+        // The last moth on the board gives way to a near-twin of one already there.
+        val twins = TWINS.filter { (_, of) -> of in moths }.keys.toList()
+        if (twins.isNotEmpty()) moths = moths.dropLast(1) + twins[random.nextInt(twins.size)]
+    }
+    return (moths.flatMap { listOf(it, it) } + List(level.leaves) { MothId.Leaf }).shuffled(random)
 }
 
 /** Today's seed, from the date: 2026-11-14 -> 20261114. */
@@ -142,8 +290,8 @@ fun flightLog(round: Round): List<LogEntry> = round.history.toList()
 
 data class Round(
     val phase: Phase = Phase.Idle,
-    val night: Night = NIGHTS[0],
-    val deck: List<MothId> = deal(night),
+    val level: Level = LEVELS[0],
+    val deck: List<MothId> = deal(level),
     val open: List<Int> = emptyList(),
     val matched: List<Boolean> = List(deck.size) { false },
     /** Dead leaves that have been turned: they stay face up. */
@@ -167,18 +315,20 @@ data class Round(
     val swaps: Int = 0,
     val seed: Long = 0,
     val daily: Boolean = false,
+    /** The "Easier bulb" retry: a longer bulb, and one star at most. */
+    val easy: Boolean = false,
     /** Every turned pair so far, in order. */
     val history: List<LogEntry> = emptyList(),
     val say: String = "Pick a lead moth, then light the porch.",
 ) {
     val running get() = phase == Phase.Peek || phase == Phase.Play
     val over get() = phase == Phase.Won || phase == Phase.Lost
-    val pairCount get() = night.pairs
-    val tutorial get() = night == TUTORIAL
+    val pairCount get() = level.pairs
+    val tutorial get() = level == TUTORIAL
 
-    /** The moth shown only as a silhouette during the peek, on a Shadow night. */
+    /** The moth shown only as a silhouette during the peek, on a Shadow level. */
     val shadow: MothId? get() {
-        if (night.twist != Twist.Shadow) return null
+        if (Twist.Shadow !in level) return null
         // Picked from the round's seed, not from where the cards lie, so its place can't be learned.
         val moths = deck.filter { it != MothId.Leaf }.distinct().sorted()
         return moths.getOrNull(Math.floorMod(seed, moths.size.coerceAtLeast(1)))
@@ -249,11 +399,11 @@ data class Round(
         )
     }
 
-    /** A wrong pair folds back. On a Wanderer night, two face-down cards then swap places. */
+    /** A wrong pair folds back. On a Wanderer level, two face-down cards then swap places. */
     fun settle(): Round {
         if (!miss) return this
         val folded = copy(open = emptyList(), miss = false)
-        if (night.twist != Twist.Wanderer) return folded
+        if (Twist.Wanderer !in level) return folded
         val down = deck.indices.filter { !matched[it] && it !in spent }
         if (down.size < 2) return folded
         val random = Random(seed * 31 + swaps)
@@ -296,42 +446,43 @@ data class Round(
     fun unflash() = if (flashing) copy(flashing = false) else this
 
     companion object {
-        fun ready(lead: MothId, night: Night = NIGHTS[0], random: Random = Random.Default, seed: Long = random.nextLong()): Round {
-            val rules = rulesFor(lead, night)
+        fun ready(lead: MothId, level: Level = LEVELS[0], random: Random = Random.Default, seed: Long = random.nextLong(), easy: Boolean = false): Round {
+            val rules = rulesFor(lead, level, easy)
             return Round(
-                night = night,
-                deck = deal(night, random),
+                level = level,
+                deck = deal(level, random),
                 rules = rules,
                 left = rules.roundMs,
                 flashes = rules.flashes,
                 seed = seed,
-                daily = night == DAILY,
+                daily = level == DAILY,
+                easy = easy,
             )
         }
 
-        fun start(lead: MothId, night: Night = NIGHTS[0], random: Random = Random.Default, seed: Long = random.nextLong()) =
-            ready(lead, night, random, seed).copy(phase = Phase.Peek, say = "Look closely. The cards are about to fold shut.")
+        fun start(lead: MothId, level: Level = LEVELS[0], random: Random = Random.Default, seed: Long = random.nextLong(), easy: Boolean = false) =
+            ready(lead, level, random, seed, easy).copy(phase = Phase.Peek, say = "Look closely. The cards are about to fold shut.")
 
         /** Today's porch: a deal seeded from the date, the same for every player. */
         fun daily(lead: MothId, seed: Long) = start(lead, DAILY, Random(seed), seed)
     }
 }
 
-/** Finds a night by number, including the daily porch (0) and the tutorial (-1). */
-fun nightNumbered(number: Int): Night = when (number) {
+/** Finds a level by number, including the daily porch (0) and the tutorial (-1). */
+fun levelNumbered(number: Int): Level = when (number) {
     DAILY.number -> DAILY
     TUTORIAL.number -> TUTORIAL
-    else -> NIGHTS.getOrElse(number - 1) { NIGHTS[0] }
+    else -> levelAt(number)
 }
 
 /**
  * The round as plain values that fit in a saved-state Bundle, so a round survives the app being
- * killed in the background. Rules are not stored: they follow from the lead and the night.
+ * killed in the background. Rules are not stored: they follow from the lead and the level.
  */
 fun Round.saved(lead: MothId): Map<String, Any> = mapOf(
     "phase" to phase.name,
-    "night" to night.number,
-    "nightMs" to night.roundMs,
+    "level" to level.number,
+    "easy" to easy,
     "lead" to lead.name,
     "deck" to deck.joinToString(",") { it.name },
     "open" to open.toIntArray(),
@@ -359,19 +510,17 @@ fun Round.saved(lead: MothId): Map<String, Any> = mapOf(
  */
 fun restoreRound(values: Map<String, Any?>): Pair<Round, MothId>? = runCatching {
     val lead = MothId.valueOf(values["lead"] as String)
-    val night = nightNumbered(values["night"] as Int).let { base ->
-        val ms = values["nightMs"] as? Long
-        if (ms != null && ms != base.roundMs) base.copy(roundMs = ms) else base
-    }
+    val level = levelNumbered(values["level"] as Int)
+    val easy = values["easy"] as? Boolean ?: false
     val deck = (values["deck"] as String).split(",").map { MothId.valueOf(it) }
     val phase = Phase.valueOf(values["phase"] as String)
-    val rules = rulesFor(lead, night)
+    val rules = rulesFor(lead, level, easy)
     val matched = (values["matched"] as BooleanArray).toList()
     require(matched.size == deck.size)
     val wasPlaying = phase == Phase.Play
     Round(
         phase = phase,
-        night = night,
+        level = level,
         deck = deck,
         // A wrong pair that was showing has folded back by the time the round returns.
         open = if (values["miss"] == true) emptyList() else (values["open"] as IntArray).toList(),
@@ -391,6 +540,7 @@ fun restoreRound(values: Map<String, Any?>): Pair<Round, MothId>? = runCatching 
         swaps = values["swaps"] as Int,
         seed = values["seed"] as Long,
         daily = values["daily"] as Boolean,
+        easy = easy,
         history = decodeLog(values["history"] as? String),
         say = if (wasPlaying) "Paused." else "Look closely. The cards are about to fold shut.",
     ) to lead
@@ -400,7 +550,7 @@ fun restoreRound(values: Map<String, Any?>): Pair<Round, MothId>? = runCatching 
 data class LeadStats(val time: Int, val look: Int, val streak: Int)
 
 fun leadStats(lead: MothId): LeadStats {
-    val base = Rules()
+    val base = Rules(roundMs = LEVELS[0].roundMs, peekMs = LEVELS[0].peekMs)
     val rules = rulesFor(lead)
     val time = when {
         rules.roundMs > base.roundMs || rules.pairBonusMs > 0 -> 3
