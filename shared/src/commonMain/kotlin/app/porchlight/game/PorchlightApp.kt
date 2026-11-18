@@ -27,7 +27,7 @@ fun PorchlightApp(platform: Platform, debug: DebugLaunch? = null) {
     }
     CompositionLocalProvider(LocalPlatform provides platform) {
         ProvideFaces {
-            GameScreen(store, sfx)
+            GameScreen(store, sfx, debug?.screen)
         }
     }
 }

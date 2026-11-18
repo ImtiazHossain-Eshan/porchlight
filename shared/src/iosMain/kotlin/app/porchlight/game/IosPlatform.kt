@@ -56,7 +56,7 @@ import platform.darwin.dispatch_get_main_queue
  * category (it mixes with the player's music and obeys the silent switch), CoreMotion at 60 Hz,
  * UIKit feedback generators and the system share sheet.
  */
-class IosPlatform : Platform {
+class IosPlatform(private val onImmersive: (Boolean) -> Unit = {}) : Platform {
     override val storage: Storage = DefaultsStorage(NSUserDefaults.standardUserDefaults)
 
     /** Skia on Metal runs SkSL runtime shaders and blur on every iPhone that runs iOS 16. */
@@ -73,6 +73,8 @@ class IosPlatform : Platform {
     }
 
     override val haptics: HapticFeedback = UIKitHaptics()
+
+    override fun setImmersive(on: Boolean) = onImmersive(on)
 
     override fun copyText(text: String) {
         UIPasteboard.generalPasteboard.string = text

@@ -29,6 +29,8 @@ class MainActivity : ComponentActivity() {
                 setXp = if (intent.hasExtra("setXp")) intent.getIntExtra("setXp", 0) else null,
                 //   ... --ei level 36   (open every level up to 36 and pick it, to try it out)
                 level = if (intent.hasExtra("level")) intent.getIntExtra("level", 1) else null,
+                //   ... --es screen daily   (open Levels, Daily, Moths, Badges or Settings straight away)
+                screen = intent.getStringExtra("screen"),
             )
         } else null
         setContent { PorchlightApp(platform, debug) }

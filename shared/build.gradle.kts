@@ -21,8 +21,13 @@ kotlin {
 
     // No iosX64: Compose Multiplatform 1.12 stopped publishing it (Intel-Mac simulators), and
     // GitHub's macos-latest runners are Apple silicon anyway.
-    iosArm64()
-    iosSimulatorArm64()
+    // The iOS app links the game as a static framework, Shared.framework.
+    listOf(iosArm64(), iosSimulatorArm64()).forEach {
+        it.binaries.framework {
+            baseName = "Shared"
+            isStatic = true
+        }
+    }
 
     @OptIn(ExperimentalWasmDsl::class)
     wasmJs {

@@ -456,7 +456,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun GameScreen(store: Store, sfx: Sfx) {
+fun GameScreen(store: Store, sfx: Sfx, debugScreen: String? = null) {
     val clock = rememberClock()
     val session = rememberSaveable(
         saver = mapSaver(save = { it.saved() }, restore = { Session(store, sfx, clock).apply { restore(it) } }),
@@ -595,7 +595,15 @@ fun GameScreen(store: Store, sfx: Sfx) {
     // The very first launch opens on the tutorial.
     LaunchedEffect(Unit) {
         if (!store.progress.tutorialDone) session.startTutorial()
+        // A debug launch can open a menu screen straight away, for screenshots.
+        Screen.entries.find { it.name.equals(debugScreen, ignoreCase = true) && it.isMenu && it != Screen.Porch }
+            ?.let { session.open(it) }
     }
+
+    // On iOS a live round hides the status bar and home indicator and holds back edge swipes.
+    val platform = LocalPlatform.current
+    val immersive = session.screen == Screen.Round && round.running
+    LaunchedEffect(immersive) { platform.setImmersive(immersive) }
 
     // Back from a round asks first; back from the results goes to the porch; back from the porch exits.
     BackHandler(session.screen != Screen.Porch || session.leaving) {

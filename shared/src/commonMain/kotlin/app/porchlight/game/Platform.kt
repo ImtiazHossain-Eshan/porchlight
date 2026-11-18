@@ -35,6 +35,12 @@ interface Platform {
 
     /** Offers [image] (as a PNG named [fileName]) with [text]; falls back to the text alone if it can't. */
     suspend fun shareImage(image: ImageBitmap, fileName: String, text: String)
+
+    /**
+     * A round is live ([on]) or over. iOS hides the status bar and home indicator and defers edge
+     * swipes while it is; Android and the web leave the screen as it is.
+     */
+    fun setImmersive(on: Boolean) {}
 }
 
 /** A small key-value save, read once at launch and written after every change. */
@@ -104,6 +110,8 @@ data class DebugLaunch(
     val setXp: Int? = null,
     /** Open every level up to this one and pick it. */
     val level: Int? = null,
+    /** Open this screen at launch (Levels, Daily, Moths, Badges or Settings), for screenshots. */
+    val screen: String? = null,
 )
 
 internal val LocalPlatform = staticCompositionLocalOf<Platform> { error("No Platform: call PorchlightApp(platform)") }

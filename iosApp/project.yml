@@ -1,0 +1,73 @@
+# XcodeGen spec for the iOS app. Generate the Xcode project on a Mac (CI does this too):
+#   brew install xcodegen && cd iosApp && xcodegen
+# The generated Porchlight.xcodeproj is not committed; this file is the source of truth.
+name: Porchlight
+options:
+  bundleIdPrefix: app.porchlight
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "0.6.6"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  Porchlight:
+    type: application
+    platform: iOS
+    sources:
+      - path: iosApp
+    info:
+      path: iosApp/Info.plist
+      properties:
+        CFBundleDisplayName: Porchlight
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        LSRequiresIPhoneOS: true
+        # Compose draws every frame itself; this lets ProMotion iPhones run it at 120 Hz.
+        CADisableMinimumFrameDurationOnPhone: true
+        UIRequiresFullScreen: true
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # The launch screen matches the Android splash: the night wall and the lit bulb with its moth.
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+          UIImageName: SplashMark
+          UIImageRespectsSafeAreaInsets: true
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: app.porchlight.game
+        PRODUCT_NAME: Porchlight
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        ENABLE_USER_SCRIPT_SANDBOXING: false
+        # Shared.framework, built by Gradle in the build phase below.
+        FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
+        OTHER_LDFLAGS: [$(inherited), -framework, Shared]
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: $(PORCHLIGHT_TEAM_ID)
+    preBuildScripts:
+      - name: Build the shared game (Kotlin)
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
+schemes:
+  Porchlight:
+    build:
+      targets:
+        Porchlight: all
+    run:
+      config: Debug
+    archive:
+      config: Release
