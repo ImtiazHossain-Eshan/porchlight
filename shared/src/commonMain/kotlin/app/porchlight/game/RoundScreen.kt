@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import kotlin.math.PI
 import androidx.compose.ui.graphics.drawscope.scale
 import kotlin.math.sin
 import androidx.compose.runtime.mutableStateOf
@@ -465,7 +466,7 @@ private fun Paused(session: Session) {
                         val y = size.height * (0.75f - p * 0.75f)
                         val spread = (y / (size.height * 0.75f)).coerceIn(0f, 1f)
                         val x = top.x + size.width * (((k * 0.618f) % 1f) - 0.5f) * (0.25f + 0.85f * spread) + sin(t * 0.7f + k) * 10.dp.toPx()
-                        val a = 0.55f * sin(p * Math.PI.toFloat())
+                        val a = 0.55f * sin(p * PI.toFloat())
                         drawCircle(Color(0xFFE8EEFF).copy(alpha = a), (1f + (k % 3) * 0.6f).dp.toPx(), Offset(x, y))
                     }
                     // Three moths drawn to the light, circling the sign on slow tilted rings.

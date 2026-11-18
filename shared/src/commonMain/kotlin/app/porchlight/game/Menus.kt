@@ -70,7 +70,6 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -133,7 +132,7 @@ internal fun DailyScreen(session: Session) {
     val progress = session.store.progress
     val today = remember { todaySeed() }
     val played = progress.playedDaily(today)
-    val context = LocalContext.current
+    val platform = LocalPlatform.current
     val alive = played || progress.dailyDay == todaySeed(-1)
     MenuFrame("Daily porch", session, flight = "plaque-Daily") {
         Row(
@@ -248,7 +247,7 @@ internal fun DailyScreen(session: Session) {
                 // The card needs today's round; a day played before cards existed shares the text line.
                 val card = progress.dailyCard?.takeIf { it.day == today }
                 if (card != null) session.sharing = card
-                else shareText(context, dailyShare(today, progress.dailyStars, progress.dailyScore))
+                else platform.shareText(dailyShare(today, progress.dailyStars, progress.dailyScore))
             }
         }
         Spacer(Modifier.height(8.dp))

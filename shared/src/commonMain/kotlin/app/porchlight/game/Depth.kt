@@ -1,18 +1,11 @@
 package app.porchlight.game
 
-import android.content.Context
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -31,55 +24,45 @@ internal class Tilt {
 private const val FULL_TILT = 0.35f
 
 /**
- * Reads the game rotation vector (gyro and accelerometer, no compass), smooths it, and measures it
- * against a resting position that slowly follows the player, so the scene sits level however the
- * phone is held. Listens only while the app is resumed and [enabled] is true.
+ * Reads the platform's tilt sensor (on Android the game rotation vector: gyro and accelerometer, no
+ * compass), smooths it, and measures it against a resting position that slowly follows the player,
+ * so the scene sits level however the phone is held. Listens only while the app is resumed and
+ * [enabled] is true.
  */
 @Composable
 internal fun rememberTilt(enabled: Boolean): Tilt {
     val tilt = remember { Tilt() }
-    val context = LocalContext.current
+    val platform = LocalPlatform.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(enabled, lifecycle) {
-        val sensors = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
-        val sensor = sensors?.getDefaultSensor(Sensor.TYPE_GAME_ROTATION_VECTOR)
+        val sensor = platform.tiltSensor()
         val fake = Gpu.fakeTilt
-        if (!enabled || sensors == null || sensor == null || fake != null) {
+        if (!enabled || sensor == null || fake != null) {
             tilt.x = if (enabled) fake?.first ?: 0f else 0f
             tilt.y = if (enabled) fake?.second ?: 0f else 0f
             return@DisposableEffect onDispose { }
         }
-        val matrix = FloatArray(9)
-        val angles = FloatArray(3)
         var restPitch = Float.NaN
         var restRoll = Float.NaN
-        val listener = object : SensorEventListener {
-            override fun onSensorChanged(event: SensorEvent) {
-                SensorManager.getRotationMatrixFromVector(matrix, event.values)
-                SensorManager.getOrientation(matrix, angles)
-                val pitch = angles[1]
-                val roll = angles[2]
-                if (restPitch.isNaN()) {
-                    restPitch = pitch
-                    restRoll = roll
-                }
-                // The resting position drifts towards how the phone is held now, over a few seconds.
-                restPitch += (pitch - restPitch) * 0.01f
-                restRoll += (roll - restRoll) * 0.01f
-                val wantX = ((roll - restRoll) / FULL_TILT).coerceIn(-1f, 1f)
-                val wantY = ((pitch - restPitch) / FULL_TILT).coerceIn(-1f, 1f)
-                // Low-pass: hand tremor never reaches the screen.
-                val nextX = tilt.x + (wantX - tilt.x) * 0.12f
-                val nextY = tilt.y + (wantY - tilt.y) * 0.12f
-                if (abs(nextX - tilt.x) > 0.001f) tilt.x = nextX
-                if (abs(nextY - tilt.y) > 0.001f) tilt.y = nextY
+        fun reading(pitch: Float, roll: Float) {
+            if (restPitch.isNaN()) {
+                restPitch = pitch
+                restRoll = roll
             }
-
-            override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+            // The resting position drifts towards how the phone is held now, over a few seconds.
+            restPitch += (pitch - restPitch) * 0.01f
+            restRoll += (roll - restRoll) * 0.01f
+            val wantX = ((roll - restRoll) / FULL_TILT).coerceIn(-1f, 1f)
+            val wantY = ((pitch - restPitch) / FULL_TILT).coerceIn(-1f, 1f)
+            // Low-pass: hand tremor never reaches the screen.
+            val nextX = tilt.x + (wantX - tilt.x) * 0.12f
+            val nextY = tilt.y + (wantY - tilt.y) * 0.12f
+            if (abs(nextX - tilt.x) > 0.001f) tilt.x = nextX
+            if (abs(nextY - tilt.y) > 0.001f) tilt.y = nextY
         }
-        fun listen() = sensors.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)
+        fun listen() = sensor.start(::reading)
         fun stop() {
-            sensors.unregisterListener(listener)
+            sensor.stop()
             restPitch = Float.NaN
         }
         val observer = LifecycleEventObserver { _, event ->
@@ -124,7 +107,7 @@ internal class FrameWatch(private val frameSeconds: Float) {
         if (elapsed < 2f) return
         if (slow * 4 > frames && Gpu.quality < 2) {
             Gpu.quality++
-            Log.i("Porchlight", "Frames running long ($slow of $frames slow): quality down to ${Gpu.quality}")
+            log("Frames running long ($slow of $frames slow): quality down to ${Gpu.quality}")
             warmup = 2f
         }
         frames = 0

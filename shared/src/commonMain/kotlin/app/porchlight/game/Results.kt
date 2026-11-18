@@ -82,7 +82,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -124,7 +123,7 @@ internal fun Results(session: Session, report: Report) {
     val round = session.round
     val won = round.phase == Phase.Won
     val progress = session.store.progress
-    val context = LocalContext.current
+    val platform = LocalPlatform.current
     val calm = session.calm
     val lines = remember(report) { tally(round) }
     val note = remember(report) { lossNote(round) }
@@ -570,7 +569,7 @@ internal fun Results(session: Session, report: Report) {
                             SecondaryButton("Share", Modifier.fillMaxWidth(), glyph = Glyph.Share) {
                                 val card = session.store.progress.dailyCard
                                 if (card != null) session.sharing = card
-                                else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
+                                else platform.shareText(dailyShare(todaySeed(), report.stars, round.score))
                             }
                         }
                     }
@@ -624,7 +623,7 @@ internal fun Results(session: Session, report: Report) {
                         .offset {
                             val t = f.t.value
                             val x = f.from.x + (f.to.x - f.from.x) * t
-                            val y = f.from.y + (f.to.y - f.from.y) * t - 30.dp.toPx() * sin(t * Math.PI.toFloat())
+                            val y = f.from.y + (f.to.y - f.from.y) * t - 30.dp.toPx() * sin(t * PI.toFloat())
                             IntOffset(x.roundToInt() - 30.dp.roundToPx(), y.roundToInt() - 12.dp.roundToPx())
                         }
                         .graphicsLayer { alpha = 1f - f.t.value * f.t.value },
@@ -637,7 +636,7 @@ internal fun Results(session: Session, report: Report) {
                     val score = spots.score - spots.origin
                     if (s > 0f && s < 1f) {
                         for (i in 0 until 12) {
-                            val a = i * 30.0 * Math.PI / 180.0 + 0.2
+                            val a = i * 30.0 * PI / 180.0 + 0.2
                             val d = (28f + 90f * s) * density
                             drawCircle(Craft.gold, 3.5f * density * (1f - s), Offset(score.x + (d * cos(a)).toFloat(), score.y + (d * sin(a)).toFloat()), alpha = 1f - s)
                         }
@@ -648,7 +647,7 @@ internal fun Results(session: Session, report: Report) {
                             // Each orb leaves a little after the last and arcs to the emblem.
                             val p = ((o - i * 0.06f) / 0.58f).coerceIn(0f, 1f)
                             if (p <= 0f || p >= 1f) continue
-                            val bend = (if (i % 2 == 0) -1f else 1f) * 40f * density * sin(p * Math.PI.toFloat())
+                            val bend = (if (i % 2 == 0) -1f else 1f) * 40f * density * sin(p * PI.toFloat())
                             val at = Offset(score.x + (to.x - score.x) * p + bend, score.y + (to.y - score.y) * p)
                             drawCircle(Brush.radialGradient(listOf(Dusk.glow, Color.Transparent), at, 9f * density), 9f * density, at)
                             drawCircle(Color.White, 2.2f * density, at)
@@ -1393,7 +1392,7 @@ private fun TypeText(text: String, shown: Boolean, instant: Boolean, modifier: M
 // Modern type and actions
 
 /** The scorecard's own type: Fredoka at its heaviest, tight, with tabular figures. */
-private val Modern = TextStyle(
+private val Modern get() = TextStyle(
     fontFamily = BodyFont,
     fontWeight = FontWeight.Bold,
     fontFeatureSettings = "tnum",

@@ -318,7 +318,7 @@ internal fun DrawScope.sceneLife(chapter: Int, t: Float, top: Float, stops: List
                         val pulse = 0.5f + 0.5f * sin(t * 2.2f)
                         rotate(sin(t * 0.35f) * 8f, lamp) {
                             for (k in 0 until 9) {
-                                val a = Math.toRadians(-180.0 + k * 22.5)
+                                val a = toRadians(-180.0 + k * 22.5)
                                 drawLine(
                                     look.light.copy(alpha = 0.16f + 0.12f * pulse),
                                     lamp,
@@ -554,7 +554,7 @@ private fun DrawScope.cloud(look: SceneLook, c: Offset, s: Float) {
 // Things that move
 
 /** The angle, in degrees, a moth heading along (dx, dy) is turned from flying straight up. */
-private fun heading(dx: Float, dy: Float) = Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f
+private fun heading(dx: Float, dy: Float) = toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f
 
 private val FOREWING = Path().apply {
     // The right forewing, from the body out to a pointed tip and back: unit size, body at the origin.

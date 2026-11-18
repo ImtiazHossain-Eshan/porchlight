@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import kotlin.math.PI
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.style.TextOverflow
@@ -259,8 +260,8 @@ internal fun LevelPlate(xp: Int, modifier: Modifier = Modifier, still: Boolean =
                 .graphicsLayer {
                     if (!still) {
                         cameraDistance = 10f * density
-                        rotationY = kotlin.math.sin(sway.value * 2f * Math.PI.toFloat()) * 16f
-                        rotationX = kotlin.math.cos(sway.value * 2f * Math.PI.toFloat()) * 6f
+                        rotationY = kotlin.math.sin(sway.value * 2f * PI.toFloat()) * 16f
+                        rotationX = kotlin.math.cos(sway.value * 2f * PI.toFloat()) * 6f
                     }
                 },
             xp = fill,
@@ -294,12 +295,12 @@ internal fun Star(filled: Boolean, shown: Boolean, modifier: Modifier = Modifier
         val facets = Path()
         for (i in 0 until 10) {
             val r = if (i % 2 == 0) outer else inner
-            val a = Math.toRadians(-90.0 + i * 36.0)
+            val a = toRadians(-90.0 + i * 36.0)
             val x = c.x + (r * cos(a)).toFloat()
             val y = c.y + (r * sin(a)).toFloat()
             if (i == 0) star.moveTo(x, y) else star.lineTo(x, y)
             if (i % 2 == 0) {
-                val b = Math.toRadians(-90.0 + (i + 1) * 36.0)
+                val b = toRadians(-90.0 + (i + 1) * 36.0)
                 facets.moveTo(c.x, c.y)
                 facets.lineTo(x, y)
                 facets.lineTo(c.x + (inner * cos(b)).toFloat(), c.y + (inner * sin(b)).toFloat())
@@ -433,8 +434,8 @@ internal fun LeverSwitch(on: Boolean, description: String, modifier: Modifier = 
  * A plank button's caption, painted on the wood: the body font in bold capitals. On light oak the
  * ink is dark with a light edge below; on dark walnut it is amber paint with a dark cut above.
  */
-private val signOnOak = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = TextCarved.shadow)
-private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, -1.5f), 0f))
+private val signOnOak get() = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = TextCarved.shadow)
+private val signOnWalnut get() = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, -1.5f), 0f))
 
 /**
  * The play button: the porch's one big action. A taller oak sign with one word in wood type, and a band of light sliding across every

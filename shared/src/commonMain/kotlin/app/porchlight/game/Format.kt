@@ -30,3 +30,9 @@ fun oneDecimal(value: Float): String {
     val text = "${tenths / 10}.${tenths % 10}"
     return if (value < 0f) "-$text" else text
 }
+
+/** Degrees to radians, as `Math.toRadians` did. */
+internal fun toRadians(degrees: Double): Double = degrees * (kotlin.math.PI / 180.0)
+
+/** Radians to degrees, as `Math.toDegrees` did. */
+internal fun toDegrees(radians: Double): Double = radians * (180.0 / kotlin.math.PI)

@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import kotlin.math.PI
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -87,7 +88,7 @@ internal fun Emblem(
         val c = Offset(size.width / 2f, size.height / 2f)
         val s = size.minDimension / 2f
         val b = beat?.value ?: 1f
-        val flap = if (b < 0.18f) 1f - 0.22f * sin(b / 0.18f * Math.PI.toFloat()) else 1f
+        val flap = if (b < 0.18f) 1f - 0.22f * sin(b / 0.18f * PI.toFloat()) else 1f
         // On a level-up the wings spread open from folded as the new number lands.
         val spread = (0.35f + 0.65f * parts) * flap
         if (tier == EmblemTier.Gilded) rays(c, s * 0.62f, parts)
@@ -225,7 +226,7 @@ private fun DrawScope.medallion(c: Offset, r: Float, tier: EmblemTier, shine: Fl
 private fun DrawScope.rays(c: Offset, r: Float, amount: Float) {
     if (amount <= 0f) return
     for (i in 0 until 16) {
-        val a = Math.toRadians(i * 22.5)
+        val a = toRadians(i * 22.5)
         val inner = r * 1.3f
         val outer = r * (if (i % 2 == 0) 1.95f else 1.7f) * amount
         drawLine(
@@ -277,7 +278,7 @@ private fun DrawScope.number(measurer: TextMeasurer, c: Offset, r: Float, level:
 /** Twelve sparks flung out from the emblem as [t] runs 0 to 1. */
 private fun DrawScope.sparks(c: Offset, r: Float, t: Float) {
     for (i in 0 until 12) {
-        val a = Math.toRadians(i * 30.0 + 8.0)
+        val a = toRadians(i * 30.0 + 8.0)
         val d = r * (1.1f + 1.4f * t)
         val at = Offset(c.x + (d * cos(a)).toFloat(), c.y + (d * sin(a)).toFloat())
         drawCircle(Dusk.glow, r * 0.09f * (1f - t), at, alpha = 1f - t)
@@ -333,7 +334,7 @@ internal fun BadgeMedal(badge: Badge, earned: Boolean, modifier: Modifier = Modi
         val rim = Path()
         val scallops = 16
         for (i in 0..scallops * 2) {
-            val a = i * Math.PI / scallops
+            val a = i * PI / scallops
             val rr = if (i % 2 == 0) r else r * 0.92f
             val x = c.x + (rr * cos(a)).toFloat()
             val y = c.y + (rr * sin(a)).toFloat()

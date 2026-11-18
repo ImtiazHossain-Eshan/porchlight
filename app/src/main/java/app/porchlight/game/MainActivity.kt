@@ -7,47 +7,30 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
+/** The Android host: the splash, edge to edge, and the shared game. */
 class MainActivity : ComponentActivity() {
-    private val sfx = Sfx()
-
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val debuggable = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         // Debug builds can act like an older phone to check the fallbacks:
         //   adb shell am start -n app.porchlight.game/.MainActivity --ei pretendApi 30
-        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0) {
-            Gpu.pretend = intent.getIntExtra("pretendApi", 0)
-            //   ... --ei quality 2   (start at a lower quality: 1 half-size bloom, 2 also fewer particles)
-            Gpu.quality = intent.getIntExtra("quality", 0).coerceIn(0, 2)
-            //   ... --ef tiltX 0.8 --ef tiltY -0.5   (a fixed tilt, -1..1, instead of the sensor)
-            if (intent.hasExtra("tiltX") || intent.hasExtra("tiltY")) {
-                Gpu.fakeTilt = intent.getFloatExtra("tiltX", 0f) to intent.getFloatExtra("tiltY", 0f)
-            }
-        }
-        val store = Store(getSharedPreferences("porchlight", MODE_PRIVATE))
-        //   ... --ei setXp 6500   (debug only: set the XP, to see the level emblem at a given level)
-        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("setXp")) {
-            store.change { it.copy(xp = intent.getIntExtra("setXp", 0).coerceAtLeast(0)) }
-        }
-        //   ... --ei level 36   (debug only: open every level up to 36 and pick it, to try it out)
-        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("level")) {
-            val n = intent.getIntExtra("level", 1).coerceIn(1, LEVELS.size)
-            store.change {
-                it.copy(
-                    reached = maxOf(it.reached, n),
-                    current = n,
-                    chapters = maxOf(it.chapters, levelAt(n).chapter),
-                    levelStars = it.levelStars.mapIndexed { i, s -> if (i < n - 1) maxOf(s, 1) else s },
-                    tutorialDone = true,
-                )
-            }
-        }
-        setContent { GameScreen(store, sfx) }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (isFinishing) sfx.release()
+        val platform = AndroidPlatform(this, pretendApi = if (debuggable) intent.getIntExtra("pretendApi", 0) else 0)
+        val debug = if (debuggable) {
+            DebugLaunch(
+                //   ... --ei quality 2   (start at a lower quality: 1 half-size bloom, 2 also fewer particles)
+                quality = intent.getIntExtra("quality", 0),
+                //   ... --ef tiltX 0.8 --ef tiltY -0.5   (a fixed tilt, -1..1, instead of the sensor)
+                fakeTilt = if (intent.hasExtra("tiltX") || intent.hasExtra("tiltY")) {
+                    intent.getFloatExtra("tiltX", 0f) to intent.getFloatExtra("tiltY", 0f)
+                } else null,
+                //   ... --ei setXp 6500   (set the XP, to see the level emblem at a given level)
+                setXp = if (intent.hasExtra("setXp")) intent.getIntExtra("setXp", 0) else null,
+                //   ... --ei level 36   (open every level up to 36 and pick it, to try it out)
+                level = if (intent.hasExtra("level")) intent.getIntExtra("level", 1) else null,
+            )
+        } else null
+        setContent { PorchlightApp(platform, debug) }
     }
 }

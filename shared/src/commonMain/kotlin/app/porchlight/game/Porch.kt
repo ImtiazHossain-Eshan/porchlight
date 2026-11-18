@@ -466,7 +466,7 @@ private fun Stage(session: Session, modifier: Modifier) {
                 val q = travel.value
                 val dx = (ctrlX - fromX) * (2 * (1 - q)) + (toX - ctrlX) * (2 * q)
                 val dy = (ctrlY - fromY) * (2 * (1 - q)) + (toY - ctrlY) * (2 * q)
-                Math.toDegrees(atan2(dx.value.toDouble(), -dy.value.toDouble())).toFloat()
+                toDegrees(atan2(dx.value.toDouble(), -dy.value.toDouble())).toFloat()
             }
             // Moths shrink on short screens so they never crowd each other or the jar.
             // ...and grow on tablets, where the wall has room for them.
@@ -476,7 +476,7 @@ private fun Stage(session: Session, modifier: Modifier) {
                 label = "size",
             )
             // Resting, a moth turns its head toward the light, as far as a moth on a wall would.
-            val toward = Math.toDegrees(kotlin.math.atan2((lampX - x).value.toDouble(), (y - lampY).value.toDouble())).toFloat().coerceIn(-32f, 32f)
+            val toward = toDegrees(kotlin.math.atan2((lampX - x).value.toDouble(), (y - lampY).value.toDouble())).toFloat().coerceIn(-32f, 32f)
             Box(
                 Modifier
                     .offset { IntOffset((x - size / 2).roundToPx(), (y - size / 2).roundToPx()) }
@@ -576,7 +576,7 @@ private fun Stage(session: Session, modifier: Modifier) {
                             val sc = 1f + 0.18f * depth - 0.12f * bell
                             scaleX = sc
                             scaleY = sc
-                            rotationZ = toward * (1f - bell) + Math.toDegrees(atan2(cos(a).toDouble(), -sin(a).toDouble())).toFloat() * bell * 0.6f
+                            rotationZ = toward * (1f - bell) + toDegrees(atan2(cos(a).toDouble(), -sin(a).toDouble())).toFloat() * bell * 0.6f
                             // Passing behind the jar it dims, as if in its shadow.
                             alpha = 1f - 0.4f * (-depth).coerceAtLeast(0f)
                         }
@@ -635,7 +635,7 @@ private fun Stage(session: Session, modifier: Modifier) {
                         // further down and softer under the hovering lead, gone in flight and in the dark.
                         if (!session.porchDark && !inFlight) {
                             // The moth's layer is turned toward the light, so turn the shadow's direction back.
-                            val turned = Math.toRadians((if (chosen) 0f else -toward).toDouble())
+                            val turned = toRadians((if (chosen) 0f else -toward).toDouble())
                             val away = Offset((x - lampX).toPx(), (y - lampY).toPx()).let { d ->
                                 val len = d.getDistance().coerceAtLeast(1f)
                                 val ux = d.x / len

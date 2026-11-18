@@ -648,7 +648,7 @@ private fun LevelConfirm(level: Level, progress: Progress, session: Session, onC
     val stars = progress.levelStars[level.number - 1]
     val rise = remember(level) { Animatable(0f) }
     LaunchedEffect(level) { rise.animateTo(1f, if (session.calm) tween(180) else spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow)) }
-    androidx.activity.compose.BackHandler(onBack = onClose)
+    BackHandler(onBack = onClose)
     Box(
         Modifier
             .fillMaxSize()

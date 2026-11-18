@@ -1,9 +1,8 @@
 package app.porchlight.game
 
-import android.media.AudioAttributes
-import android.media.AudioFormat
-import android.media.AudioTrack
-import kotlin.concurrent.thread
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
+import kotlin.concurrent.Volatile
 import kotlin.math.PI
 import kotlin.math.exp
 import kotlin.math.min
@@ -15,7 +14,7 @@ enum class Sound {
     Start, Go, Tick, Buzz, Pop, Win, Lose, LevelUp, Locked, TopUp, Tap,
 }
 
-private const val RATE = 44_100
+private const val RATE = SAMPLE_RATE
 
 private enum class Wave { Sine, Triangle, Noise, Soft }
 
@@ -178,10 +177,11 @@ private fun ambience(): FloatArray {
 }
 
 /**
- * A tiny mixer: one streaming AudioTrack, every sound a voice, so overlapping sounds never cut each
- * other off. The ambience loop runs as its own voice under the effects.
+ * A tiny mixer: every sound a voice, so overlapping sounds never cut each other off. The ambience
+ * loop runs as its own voice under the effects. The platform's [AudioOutput] pulls the mix from
+ * [render]: one stream on every platform (Android AudioTrack, iOS AVAudioEngine, Web Audio).
  */
-class Sfx {
+class Sfx : AudioEngine {
     private val samples = arrayOfNulls<FloatArray>(Sound.entries.size)
     private var loop: FloatArray? = null
 
@@ -190,7 +190,7 @@ class Sfx {
     }
 
     private val voices = ArrayList<Voice>()
-    private val lock = Any()
+    private val lock = SynchronizedObject()
     private val random = Random(13)
 
     @Volatile var muted = false
@@ -202,87 +202,70 @@ class Sfx {
     @Volatile var ambient = false
 
     /** False while the app is in the background: the mixer stops and sleeps. */
-    @Volatile var awake = true
+    @Volatile override var awake = true
+        set(value) {
+            val waking = value && !field
+            field = value
+            if (waking) output?.resume()
+        }
 
-    @Volatile private var running = true
+    @Volatile override var running = true
+        private set
+
+    @Volatile private var ready = false
     private var loopAt = 0
     private var loopLevel = 0f
+    private var output: AudioOutput? = null
 
-    init {
-        thread(name = "porchlight-sfx", isDaemon = true) {
-            Sound.entries.forEach { samples[it.ordinal] = synth(it) }
-            loop = ambience()
-            runCatching { mix() }
-        }
+    /** Starts the platform's output, which calls [prepare] and then pulls [render]. */
+    fun start(platform: Platform) {
+        output = platform.startAudio(this)
     }
 
-    private fun mix() {
-        val frames = 512
-        val track = AudioTrack.Builder()
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_GAME)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build(),
-            )
-            .setAudioFormat(
-                AudioFormat.Builder()
-                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-                    .setSampleRate(RATE)
-                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-                    .build(),
-            )
-            .setTransferMode(AudioTrack.MODE_STREAM)
-            .setBufferSizeInBytes(maxOf(AudioTrack.getMinBufferSize(RATE, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT), frames * 4))
-            .build()
-        track.play()
-        val buffer = FloatArray(frames)
-        val pcm = ShortArray(frames)
-        val bed = loop!!
-        try {
-            while (running) {
-                if (!awake) {
-                    if (track.playState == AudioTrack.PLAYSTATE_PLAYING) track.pause()
-                    synchronized(lock) { voices.clear() }
-                    Thread.sleep(60)
-                    continue
-                }
-                if (track.playState != AudioTrack.PLAYSTATE_PLAYING) track.play()
-                buffer.fill(0f)
-                val wantLoop = if (ambient && music && !muted) 1f else 0f
-                for (i in 0 until frames) {
-                    loopLevel += (wantLoop - loopLevel) * 0.0002f
-                    buffer[i] = bed[loopAt] * loopLevel
-                    loopAt = (loopAt + 1) % bed.size
-                }
-                synchronized(lock) {
-                    val it = voices.iterator()
-                    while (it.hasNext()) {
-                        val v = it.next()
-                        var i = 0
-                        while (i < frames) {
-                            val j = v.at.toInt()
-                            if (j >= v.data.size - 1) break
-                            val f = v.at - j
-                            buffer[i] += (v.data[j] * (1 - f) + v.data[j + 1] * f) * v.volume
-                            v.at += v.rate
-                            i++
-                        }
-                        if (v.at.toInt() >= v.data.size - 1) it.remove()
-                    }
-                }
-                for (i in 0 until frames) {
-                    // A soft limiter keeps a pile of sounds from clipping.
-                    val x = buffer[i]
-                    val y = x / (1f + kotlin.math.abs(x) * 0.6f)
-                    pcm[i] = (y * 30_000f).toInt().coerceIn(-32_768, 32_767).toShort()
-                }
-                track.write(pcm, 0, frames)
-            }
-        } finally {
-            runCatching { track.stop() }
-            track.release()
+    override fun prepare() {
+        if (ready) return
+        Sound.entries.forEach { samples[it.ordinal] = synth(it) }
+        loop = ambience()
+        ready = true
+    }
+
+    override fun silence() {
+        synchronized(lock) { voices.clear() }
+    }
+
+    override fun render(out: FloatArray): Boolean {
+        val bed = loop
+        if (!ready || bed == null) return false
+        val frames = out.size
+        out.fill(0f)
+        val wantLoop = if (ambient && music && !muted) 1f else 0f
+        for (i in 0 until frames) {
+            loopLevel += (wantLoop - loopLevel) * 0.0002f
+            out[i] = bed[loopAt] * loopLevel
+            loopAt = (loopAt + 1) % bed.size
         }
+        synchronized(lock) {
+            val it = voices.iterator()
+            while (it.hasNext()) {
+                val v = it.next()
+                var i = 0
+                while (i < frames) {
+                    val j = v.at.toInt()
+                    if (j >= v.data.size - 1) break
+                    val f = v.at - j
+                    out[i] += (v.data[j] * (1 - f) + v.data[j + 1] * f) * v.volume
+                    v.at += v.rate
+                    i++
+                }
+                if (v.at.toInt() >= v.data.size - 1) it.remove()
+            }
+        }
+        for (i in 0 until frames) {
+            // A soft limiter keeps a pile of sounds from clipping.
+            val x = out[i]
+            out[i] = x / (1f + kotlin.math.abs(x) * 0.6f)
+        }
+        return true
     }
 
     /**
@@ -311,5 +294,7 @@ class Sfx {
 
     fun release() {
         running = false
+        output?.release()
+        output = null
     }
 }

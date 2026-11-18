@@ -1,8 +1,5 @@
 package app.porchlight.game
 
-import android.provider.Settings
-import androidx.activity.compose.BackHandler
-import androidx.activity.compose.LocalActivity
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.saveable.mapSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -48,7 +45,6 @@ import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -468,14 +464,14 @@ fun GameScreen(store: Store, sfx: Sfx) {
 
     // Going to the background pauses the round (a rotation doesn't); coming back asks to continue.
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val activity = LocalActivity.current
+    val changingConfiguration = rememberChangingConfiguration()
     DisposableEffect(lifecycle, session) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
                     session.foreground = false
                     sfx.awake = false
-                    if (activity?.isChangingConfigurations != true) session.pause()
+                    if (!changingConfiguration()) session.pause()
                 }
                 Lifecycle.Event.ON_RESUME -> {
                     session.foreground = true
@@ -487,15 +483,12 @@ fun GameScreen(store: Store, sfx: Sfx) {
         lifecycle.addObserver(observer)
         onDispose { lifecycle.removeObserver(observer) }
     }
-    session.haptics = LocalHapticFeedback.current
+    session.haptics = LocalPlatform.current.haptics ?: LocalHapticFeedback.current
     session.scope = rememberCoroutineScope()
     sfx.muted = store.progress.muted
     sfx.music = store.progress.music
     // Reduce motion: the in-game toggle, or animations switched off for the whole phone.
-    val context = LocalContext.current
-    val systemCalm = remember {
-        Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
-    }
+    val systemCalm = systemReduceMotion()
     session.calm = store.progress.reduceMotion || systemCalm
     val round = session.round
     val low = round.phase == Phase.Play && !round.paused && round.left <= LOW_MS

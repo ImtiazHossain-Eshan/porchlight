@@ -1,16 +1,16 @@
 package app.porchlight.game
 
-import android.content.SharedPreferences
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 
-class Store(private val prefs: SharedPreferences) {
+/** The save: [Progress] in [prefs], read at launch and written on every change. */
+class Store(private val prefs: Storage) {
     var progress by mutableStateOf(load())
         private set
 
     private inline fun <reified T : Enum<T>> names(key: String): Set<T> =
-        prefs.getStringSet(key, emptySet()).orEmpty()
+        prefs.getStringSet(key).orEmpty()
             .mapNotNull { name -> enumValues<T>().find { it.name == name } }.toSet()
 
     /**
@@ -20,12 +20,13 @@ class Store(private val prefs: SharedPreferences) {
     private fun migrateNames() {
         if (prefs.getInt("names", 1) >= 2) return
         val renamed = mapOf("Wick" to "Luna", "Ember" to "Wick")
-        val edit = prefs.edit()
-        for (key in listOf("winners", "mastered")) {
-            val old = prefs.getStringSet(key, null) ?: continue
-            edit.putStringSet(key, old.map { renamed[it] ?: it }.toSet())
+        prefs.edit {
+            for (key in listOf("winners", "mastered")) {
+                val old = prefs.getStringSet(key) ?: continue
+                putStringSet(key, old.map { renamed[it] ?: it }.toSet())
+            }
+            putInt("names", 2)
         }
-        edit.putInt("names", 2).apply()
     }
 
     /**
@@ -34,19 +35,24 @@ class Store(private val prefs: SharedPreferences) {
      */
     private fun migrateLevels() {
         if (prefs.getInt("schema", 1) >= SCHEMA) return
-        val edit = prefs.edit()
-        if (prefs.contains("nights") || prefs.contains("nightStars")) {
-            val moved = migrateNights(
+        val moved = if (prefs.contains("nights") || prefs.contains("nightStars")) {
+            migrateNights(
                 nights = runCatching { prefs.getInt("nights", 1) }.getOrDefault(1),
-                nightStars = runCatching { prefs.getString("nightStars", null) }.getOrNull(),
+                nightStars = runCatching { prefs.getString("nightStars") }.getOrNull(),
             )
-            edit.putInt("reached", moved.reached)
-                .putInt("current", moved.current)
-                .putString("levelStars", moved.levelStars.joinToString(","))
-                .putInt("chapters", moved.chapters)
-                .remove("nights").remove("night").remove("nightStars")
+        } else null
+        prefs.edit {
+            if (moved != null) {
+                putInt("reached", moved.reached)
+                putInt("current", moved.current)
+                putString("levelStars", moved.levelStars.joinToString(","))
+                putInt("chapters", moved.chapters)
+                remove("nights")
+                remove("night")
+                remove("nightStars")
+            }
+            putInt("schema", SCHEMA)
         }
-        edit.putInt("schema", SCHEMA).apply()
     }
 
     private fun load(): Progress {
@@ -66,12 +72,12 @@ class Store(private val prefs: SharedPreferences) {
         owedMastery = names("owedMastery"),
         reached = prefs.getInt("reached", 1).coerceIn(1, LEVELS.size),
         current = prefs.getInt("current", 1).coerceIn(1, LEVELS.size),
-        lead = prefs.getString("lead", null)?.let { name -> MothId.entries.find { it.name == name && it.isLead } } ?: MothId.Luna,
-        levelStars = readStars(prefs.getString("levelStars", null)),
+        lead = prefs.getString("lead")?.let { name -> MothId.entries.find { it.name == name && it.isLead } } ?: MothId.Luna,
+        levelStars = readStars(prefs.getString("levelStars")),
         chapters = prefs.getInt("chapters", 1).coerceIn(1, CHAPTERS.size),
         lossLevel = prefs.getInt("lossLevel", 0),
         losses = prefs.getInt("losses", 0),
-        dailyLog = prefs.getString("dailyLog", null).orEmpty().split(";").mapNotNull { entry ->
+        dailyLog = prefs.getString("dailyLog").orEmpty().split(";").mapNotNull { entry ->
             val parts = entry.split(":").mapNotNull { it.toLongOrNull() }
             if (parts.size == 3) DailyEntry(parts[0], parts[1].toInt(), parts[2].toInt()) else null
         },
@@ -79,10 +85,10 @@ class Store(private val prefs: SharedPreferences) {
         dailyStreak = prefs.getInt("dailyStreak", 0),
         dailyScore = prefs.getInt("dailyScore", 0),
         dailyStars = prefs.getInt("dailyStars", 0),
-        dailyCard = DailyCard.decode(prefs.getString("dailyCard", null)),
+        dailyCard = DailyCard.decode(prefs.getString("dailyCard")),
         // Anyone who played before the tutorial existed doesn't need it.
         tutorialDone = prefs.getBoolean("tutorialDone", prefs.getInt("rounds", 0) > 0),
-        tips = prefs.getStringSet("tips", emptySet()).orEmpty().toSet(),
+        tips = prefs.getStringSet("tips").orEmpty().toSet(),
         muted = prefs.getBoolean("muted", false),
         music = prefs.getBoolean("music", true),
         reduceMotion = prefs.getBoolean("reduceMotion", false),
@@ -91,35 +97,35 @@ class Store(private val prefs: SharedPreferences) {
 
     private fun save(next: Progress) {
         progress = next
-        prefs.edit()
-            .putInt("xp", next.xp)
-            .putInt("rounds", next.rounds)
-            .putInt("best", next.best)
-            .putStringSet("badges", next.badges.map { it.name }.toSet())
-            .putStringSet("winners", next.winners.map { it.name }.toSet())
-            .putStringSet("mastered", next.mastered.map { it.name }.toSet())
-            .putStringSet("owedBadges", next.owedBadges.map { it.name }.toSet())
-            .putStringSet("owedMastery", next.owedMastery.map { it.name }.toSet())
-            .putInt("reached", next.reached)
-            .putInt("current", next.current)
-            .putString("lead", next.lead.name)
-            .putString("levelStars", next.levelStars.joinToString(","))
-            .putInt("chapters", next.chapters)
-            .putInt("lossLevel", next.lossLevel)
-            .putInt("losses", next.losses)
-            .putString("dailyLog", next.dailyLog.joinToString(";") { "${it.day}:${it.stars}:${it.score}" })
-            .putLong("dailyDay", next.dailyDay)
-            .putInt("dailyStreak", next.dailyStreak)
-            .putInt("dailyScore", next.dailyScore)
-            .putInt("dailyStars", next.dailyStars)
-            .putString("dailyCard", next.dailyCard?.encode())
-            .putBoolean("tutorialDone", next.tutorialDone)
-            .putStringSet("tips", next.tips)
-            .putBoolean("muted", next.muted)
-            .putBoolean("music", next.music)
-            .putBoolean("reduceMotion", next.reduceMotion)
-            .putBoolean("haptics", next.haptics)
-            .apply()
+        prefs.edit {
+            putInt("xp", next.xp)
+            putInt("rounds", next.rounds)
+            putInt("best", next.best)
+            putStringSet("badges", next.badges.map { it.name }.toSet())
+            putStringSet("winners", next.winners.map { it.name }.toSet())
+            putStringSet("mastered", next.mastered.map { it.name }.toSet())
+            putStringSet("owedBadges", next.owedBadges.map { it.name }.toSet())
+            putStringSet("owedMastery", next.owedMastery.map { it.name }.toSet())
+            putInt("reached", next.reached)
+            putInt("current", next.current)
+            putString("lead", next.lead.name)
+            putString("levelStars", next.levelStars.joinToString(","))
+            putInt("chapters", next.chapters)
+            putInt("lossLevel", next.lossLevel)
+            putInt("losses", next.losses)
+            putString("dailyLog", next.dailyLog.joinToString(";") { "${it.day}:${it.stars}:${it.score}" })
+            putLong("dailyDay", next.dailyDay)
+            putInt("dailyStreak", next.dailyStreak)
+            putInt("dailyScore", next.dailyScore)
+            putInt("dailyStars", next.dailyStars)
+            putString("dailyCard", next.dailyCard?.encode())
+            putBoolean("tutorialDone", next.tutorialDone)
+            putStringSet("tips", next.tips)
+            putBoolean("muted", next.muted)
+            putBoolean("music", next.music)
+            putBoolean("reduceMotion", next.reduceMotion)
+            putBoolean("haptics", next.haptics)
+        }
     }
 
     fun setMuted(muted: Boolean) = save(progress.copy(muted = muted))

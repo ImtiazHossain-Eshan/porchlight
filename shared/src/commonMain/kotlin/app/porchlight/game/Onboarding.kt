@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import kotlin.math.PI
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -221,7 +222,7 @@ private fun IntroArt(twist: Twist?, moths: List<MothId>) {
                 val x = if (side == 0) t else 1f - t
                 Box(
                     Modifier
-                        .offset { IntOffset((90.dp * x).roundToPx(), ((-14).dp * kotlin.math.sin(t * Math.PI.toFloat()) * (if (side == 0) 1f else -1f) + 10.dp).roundToPx()) }
+                        .offset { IntOffset((90.dp * x).roundToPx(), ((-14).dp * kotlin.math.sin(t * PI.toFloat()) * (if (side == 0) 1f else -1f) + 10.dp).roundToPx()) }
                         .size(60.dp, 76.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .background(Dusk.cardBack),

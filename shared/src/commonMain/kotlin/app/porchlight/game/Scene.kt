@@ -1,8 +1,6 @@
 package app.porchlight.game
 
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.geometry.Size
-import android.os.Build
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -56,9 +54,8 @@ internal class Clock {
 @Composable
 internal fun rememberClock(): Clock {
     val clock = remember { Clock() }
-    val view = LocalView.current
+    val refresh = displayRefreshRate()
     LaunchedEffect(clock) {
-        val refresh = view.display?.refreshRate?.takeIf { it > 1f } ?: 60f
         val watch = FrameWatch(1f / refresh)
         var last = 0L
         while (true) {
@@ -203,7 +200,7 @@ internal fun NightScene(
                     if (level > 0.01f && radius > 1f) {
                         val gx = at.x + tx * DEPTH_GLOW
                         val gy = at.y + ty * DEPTH_GLOW
-                        if (glowBrush != null && Build.VERSION.SDK_INT >= 33) {
+                        if (glowBrush != null) {
                             glowShader.update(gx, gy, radius * 0.62f, clock.seconds, level, warmth(), hue())
                             drawRect(glowBrush)
                         } else {

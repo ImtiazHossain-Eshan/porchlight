@@ -1,11 +1,5 @@
 package app.porchlight.game
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -48,13 +42,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -66,12 +58,8 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
 
 /** The card is laid out 360 units wide; at three pixels a unit it renders 1080 pixels wide. */
 private const val CARD_UNITS = 360
@@ -238,7 +226,7 @@ private fun logDescription(log: List<LogEntry>): String =
  */
 @Composable
 internal fun ShareSheet(card: DailyCard, gold: Boolean, level: Int, onClose: () -> Unit) {
-    val context = LocalContext.current
+    val platform = LocalPlatform.current
     val scope = rememberCoroutineScope()
     var shape by remember { mutableStateOf(CardShape.Post) }
     var busy by remember { mutableStateOf(false) }
@@ -328,14 +316,14 @@ internal fun ShareSheet(card: DailyCard, gold: Boolean, level: Int, onClose: () 
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SecondaryButton(if (copied) "Copied" else "Copy text", Modifier.weight(1f)) {
-                    copyText(context, text)
+                    platform.copyText(text)
                     copied = true
                 }
                 PrimaryButton("Share image", Modifier.weight(1.3f), busy = busy) {
                     if (busy) return@PrimaryButton
                     busy = true
                     scope.launch {
-                        shareImage(context, layer, card.day, text)
+                        shareImage(platform, layer, card.day, text)
                         busy = false
                     }
                 }
@@ -379,47 +367,11 @@ private fun FullSizeCard(card: DailyCard, gold: Boolean, shape: CardShape, layer
     }
 }
 
-private fun copyText(context: Context, text: String) {
-    runCatching {
-        val clipboard = context.getSystemService(ClipboardManager::class.java)
-        clipboard.setPrimaryClip(ClipData.newPlainText("Porchlight daily", text))
-    }
-}
-
-/** The text-only share, as before: also the fallback if the image can't be made. */
-internal fun shareText(context: Context, text: String) {
-    runCatching {
-        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text)
-        context.startActivity(Intent.createChooser(send, "Share today's porch"))
-    }
-}
-
 /**
- * Turns the recorded card into a PNG in cache/share/, then offers it with the text line. Any
- * failure along the way falls back to sharing the text alone; nothing here may crash the game.
+ * Renders the recorded card to an image and offers it with the text line. Any failure falls back to
+ * sharing the text alone; nothing here may crash the game.
  */
-private suspend fun shareImage(context: Context, layer: GraphicsLayer, day: Long, text: String) {
-    val uri = runCatching {
-        val bitmap = layer.toImageBitmap().asAndroidBitmap()
-        withContext(Dispatchers.IO) {
-            val dir = File(context.cacheDir, "share").apply { mkdirs() }
-            val file = File(dir, "porchlight-daily-$day.png")
-            file.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
-            FileProvider.getUriForFile(context, "${context.packageName}.share", file)
-        }
-    }.getOrNull()
-    if (uri == null) {
-        shareText(context, text)
-        return
-    }
-    runCatching {
-        val send = Intent(Intent.ACTION_SEND)
-            .setType("image/png")
-            .putExtra(Intent.EXTRA_STREAM, uri)
-            .putExtra(Intent.EXTRA_TEXT, text)
-            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        // Some share targets read the image from the clip data rather than the extra.
-        send.clipData = ClipData.newRawUri(null, uri)
-        context.startActivity(Intent.createChooser(send, "Share today's porch"))
-    }.onFailure { shareText(context, text) }
+private suspend fun shareImage(platform: Platform, layer: GraphicsLayer, day: Long, text: String) {
+    val image = runCatching { layer.toImageBitmap() }.getOrNull()
+    if (image == null) platform.shareText(text) else platform.shareImage(image, "porchlight-daily-$day.png", text)
 }

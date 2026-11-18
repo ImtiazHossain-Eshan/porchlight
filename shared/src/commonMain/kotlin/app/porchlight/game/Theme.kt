@@ -15,14 +15,21 @@
  */
 package app.porchlight.game
 
-import android.os.SystemClock
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import app.porchlight.game.resources.Res
+import app.porchlight.game.resources.alfa_slab_one
+import app.porchlight.game.resources.fredoka
+import org.jetbrains.compose.resources.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
@@ -91,21 +98,68 @@ internal object Craft {
 }
 
 /**
- * Alfa Slab One (SIL Open Font License): wood type, only for the big words. Screen titles, the
- * Results headline, the score, the level number, OVERDRIVE, the peek count and GO!.
+ * The two typefaces. Alfa Slab One (SIL Open Font License) is wood type, only for the big words:
+ * screen titles, the Results headline, the score, the level number, OVERDRIVE, the peek count and
+ * GO!. Fredoka (SIL Open Font License) is a rounded, friendly sans for everything else, with real
+ * weights; it is a variable font, so each weight sets its axis explicitly.
+ *
+ * Both load from composeResources, which needs composition, so [ProvideFaces] builds them once at
+ * the root and every style below reads them from here.
  */
-internal val DisplayFont: FontFamily = FontFamily(Font(R.font.alfa_slab_one, FontWeight.Normal))
+private class Faces(val display: FontFamily, val body: FontFamily) {
+    /** Big words in wood type. Tabular figures keep a changing number from jittering. */
+    val displayStyle = TextStyle(fontFamily = display, fontWeight = FontWeight.Normal, fontFeatureSettings = "tnum", letterSpacing = 0.5.sp)
 
-/**
- * Fredoka (SIL Open Font License): a rounded, friendly sans for everything else, with real
- * weights. It is a variable font, so each weight sets its axis explicitly.
- */
+    /** Every line, caption and sentence. Tabular figures, so changing numbers stay still. */
+    val bodyText = TextStyle(fontFamily = body, fontWeight = FontWeight.Normal, fontSize = TypeScale.Body, fontFeatureSettings = "tnum")
+
+    /** Small labels: capitals with +1.5 sp tracking, in the body font. Write them in capitals. */
+    val label = TextStyle(
+        fontFamily = body,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = TypeScale.Label,
+        letterSpacing = 1.5.sp,
+        fontFeatureSettings = "tnum",
+    )
+
+    // One text treatment per surface. Use these instead of ad-hoc shadows.
+
+    /** Painted on wood (screen signs, plank buttons): ink pressed into the grain, a light edge below. */
+    val carved = displayStyle.copy(shadow = Shadow(Color.White.copy(alpha = 0.32f), Offset(0f, 1.5f), 0f))
+
+    /**
+     * Lit by the bulb (the score, OVERDRIVE, the Results headline, the PORCHLIGHT title): an amber
+     * gradient with a soft glow around it, and no dark shadow. Don't pass a colour with it.
+     */
+    val glow = displayStyle.copy(
+        brush = Brush.verticalGradient(listOf(Color(0xFFFFE08A), Color(0xFFF2A93B))),
+        shadow = Shadow(Dusk.glowDeep.copy(alpha = 0.75f), Offset.Zero, 22f),
+    )
+
+    /** Engraved in metal (the level number, badge text, coin labels): a light edge below the cut. */
+    val engraved = displayStyle.copy(shadow = Shadow(Color.White.copy(alpha = 0.45f), Offset(0f, 1f), 0f))
+}
+
+/** Until the fonts load (only the web loads them late) the platform's own font stands in. */
+private var faces by mutableStateOf(Faces(FontFamily.Default, FontFamily.Default))
+
+/** Builds the typefaces from composeResources and makes them the ones every style uses. */
 @OptIn(ExperimentalTextApi::class)
-internal val BodyFont: FontFamily = FontFamily(
-    Font(R.font.fredoka, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
-    Font(R.font.fredoka, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
-    Font(R.font.fredoka, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
-)
+@Composable
+internal fun ProvideFaces(content: @Composable () -> Unit) {
+    val display = FontFamily(Font(Res.font.alfa_slab_one, FontWeight.Normal))
+    val body = FontFamily(
+        Font(Res.font.fredoka, FontWeight.Normal, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
+        Font(Res.font.fredoka, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+        Font(Res.font.fredoka, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+    )
+    val built = remember(display, body) { Faces(display, body) }
+    if (faces !== built) faces = built
+    content()
+}
+
+internal val DisplayFont: FontFamily get() = faces.display
+internal val BodyFont: FontFamily get() = faces.body
 
 /**
  * The type scale. Nothing is set outside it, and no card or panel uses more than three of these.
@@ -121,41 +175,25 @@ internal object TypeScale {
 }
 
 /** Big words in wood type. Tabular figures keep a changing number from jittering. */
-internal val Display = TextStyle(fontFamily = DisplayFont, fontWeight = FontWeight.Normal, fontFeatureSettings = "tnum", letterSpacing = 0.5.sp)
+internal val Display: TextStyle get() = faces.displayStyle
 
 /** Every line, caption and sentence. Tabular figures, so changing numbers stay still. */
-internal val BodyText = TextStyle(fontFamily = BodyFont, fontWeight = FontWeight.Normal, fontSize = TypeScale.Body, fontFeatureSettings = "tnum")
+internal val BodyText: TextStyle get() = faces.bodyText
 
 /** Small labels: capitals with +1.5 sp tracking, in the body font. Write them in capitals. */
-internal val Label = TextStyle(
-    fontFamily = BodyFont,
-    fontWeight = FontWeight.SemiBold,
-    fontSize = TypeScale.Label,
-    letterSpacing = 1.5.sp,
-    fontFeatureSettings = "tnum",
-)
-
-// One text treatment per surface. Use these instead of ad-hoc shadows.
+internal val Label: TextStyle get() = faces.label
 
 /** Painted on wood (screen signs, plank buttons): ink pressed into the grain, a light edge below. */
-internal val TextCarved = Display.copy(shadow = Shadow(Color.White.copy(alpha = 0.32f), Offset(0f, 1.5f), 0f))
+internal val TextCarved: TextStyle get() = faces.carved
 
-/**
- * Lit by the bulb (the score, OVERDRIVE, the Results headline, the PORCHLIGHT title): an amber
- * gradient with a soft glow around it, and no dark shadow. Don't pass a colour with it.
- */
-internal val TextGlow = Display.copy(
-    brush = Brush.verticalGradient(listOf(Color(0xFFFFE08A), Color(0xFFF2A93B))),
-    shadow = Shadow(Dusk.glowDeep.copy(alpha = 0.75f), Offset.Zero, 22f),
-)
+/** Lit by the bulb: an amber gradient with a soft glow around it. Don't pass a colour with it. */
+internal val TextGlow: TextStyle get() = faces.glow
 
 /** Engraved in metal (the level number, badge text, coin labels): a light edge below the cut. */
-internal val TextEngraved = Display.copy(shadow = Shadow(Color.White.copy(alpha = 0.45f), Offset(0f, 1f), 0f))
+internal val TextEngraved: TextStyle get() = faces.engraved
 
 /** On paper (cards, the best-days list): plain ink, no effects. */
-internal val TextInk = BodyText
+internal val TextInk: TextStyle get() = faces.bodyText
 
 /** A glow the colour of [colour], for a lit word in another colour (red for the last number). */
 internal fun glowOf(colour: Color, blur: Float = 22f) = Shadow(colour.copy(alpha = 0.75f), Offset.Zero, blur)
-
-internal fun now() = SystemClock.elapsedRealtime()

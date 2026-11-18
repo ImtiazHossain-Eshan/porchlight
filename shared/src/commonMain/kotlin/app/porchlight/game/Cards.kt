@@ -1,5 +1,6 @@
 package app.porchlight.game
 
+import kotlin.math.PI
 import kotlin.math.cos
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -10,7 +11,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableIntStateOf
-import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -266,7 +266,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                 rotationY = turn + tiltY.value + 2f * cos(idle)
                 rotationX = tiltX.value + 2f * sin(idle)
                 // Mid-flip the card rises off the board: its shadow grows from 2dp to 18dp and back.
-                val mid = sin(turn / 180f * Math.PI.toFloat()).coerceAtLeast(0f)
+                val mid = sin(turn / 180f * PI.toFloat()).coerceAtLeast(0f)
                 translationY = -6.dp.toPx() * mid - 3.dp.toPx() * lift - 36.dp.toPx() * (1f - drop.value)
                 alpha = drop.value.coerceIn(0f, 1f)
                 translationX = shake.value * density
@@ -274,7 +274,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                     // Start from the other card's spot and slide home, lifted above its neighbours.
                     val from = session.cardAt[swapWith] - session.cardAt[index]
                     translationX += from.x * wander.value
-                    translationY += from.y * wander.value - 10.dp.toPx() * sin(wander.value * Math.PI.toFloat())
+                    translationY += from.y * wander.value - 10.dp.toPx() * sin(wander.value * PI.toFloat())
                 }
                 // With only one or two pairs left, the last cards breathe a little so the eye lands on them.
                 val few = round.phase == Phase.Play && !matched && !calm && round.pairCount - round.pairs in 1..2
@@ -372,7 +372,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                     val time = if (calm) 0f else session.clock.seconds
 
                     if (!faceUp) {
-                        if (foilBrush != null && Build.VERSION.SDK_INT >= 33) {
+                        if (foilBrush != null) {
                             foil.update(size.width, size.height, nx, ny, time, gold = true, strength = 0.16f)
                             drawRect(foilBrush)
                         } else {
@@ -508,7 +508,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                 if (gold && silhouette == null) {
                     val nx = (tiltY.value / 12f + session.tilt.x * 0.5f).coerceIn(-1f, 1f)
                     val ny = (tiltX.value / 12f + session.tilt.y * 0.5f).coerceIn(-1f, 1f)
-                    if (goldFoil != null && Build.VERSION.SDK_INT >= 33) {
+                    if (goldFoil != null) {
                         goldFoil.update(size.width, size.height, -nx, ny, if (calm) 0f else session.clock.seconds, gold = true, strength = 0.42f)
                         drawRect(goldBrush!!, blendMode = BlendMode.SrcAtop)
                     } else {

@@ -149,7 +149,7 @@ internal fun CarvedTitle(calm: Boolean) {
                         scaleY = 0.85f + 0.2f * d
                         alpha = 1f - 0.55f * (-d).coerceAtLeast(0f)
                         // In the air it leans the way it is going; on the board it sits upright.
-                        rotationZ = Math.toDegrees(atan2(-m.loop.y.toDouble(), m.loop.x.toDouble())).toFloat() * m.air * 0.4f
+                        rotationZ = toDegrees(atan2(-m.loop.y.toDouble(), m.loop.x.toDouble())).toFloat() * m.air * 0.4f
                     },
             ) { moth(moth, Offset(size.width / 2f, size.height / 2f), size.minDimension, signMoth(k, t(), calm).wings) }
         }
