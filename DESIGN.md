@@ -52,7 +52,7 @@ Everything is in `Theme.kt`. Nothing is set outside the scale, and no card or pa
 | `metal()` | brass; `copper = true`; `dull = true` is iron | round buttons, medallions, night markers, studs |
 | `parchment()` | paper with stains and an inked hairline | the night map, notices, hints, the daily record, badge details |
 | `velvet()` | plum, lit from the middle | lead-moth showcases only |
-| `gilded()` | navy, double gold rule, corner flourishes | the scorecard only |
+| `gilded()` | navy, double gold rule, corner flourishes | not used now: the scorecard is full screen, on ebony plates and walnut boards with brass |
 
 `plank()` adds the shadow and clips. Ornaments: `gear()`, `rivet()`, `pipe()`.
 

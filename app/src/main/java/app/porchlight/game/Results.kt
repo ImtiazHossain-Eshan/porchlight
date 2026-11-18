@@ -315,7 +315,7 @@ internal fun Results(session: Session, report: Report) {
         ) {
             // The top bar: back to the porch, and where this was.
             Row(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                RoundIcon(Glyph.Close, "Back to the porch") { session.toPorch() }
+                BrassButton(Glyph.Close, "Back to the porch", enabled = true, size = 48.dp) { session.toPorch() }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         if (round.daily) "DAILY PORCH" else "LEVEL ${round.level.number}",
@@ -326,11 +326,11 @@ internal fun Results(session: Session, report: Report) {
                         if (round.daily) "Today's deal" else chapterOf(round.level).name,
                         style = Modern,
                         fontSize = 18.sp,
-                        color = Color.White,
+                        color = Dusk.ink,
                         maxLines = 1,
                     )
                 }
-                Spacer(Modifier.size(44.dp))
+                Spacer(Modifier.size(48.dp))
             }
 
             // The middle: centred when it fits, scrolling when it doesn't.
@@ -458,9 +458,8 @@ internal fun Results(session: Session, report: Report) {
                         Column(
                             Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.02f))))
-                                .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+                                .plank(Wood.Walnut, corner = 14.dp, elevation = 4.dp, seed = 9)
+                                .border(1.dp, BrassRule, RoundedCornerShape(14.dp))
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
@@ -495,9 +494,8 @@ internal fun Results(session: Session, report: Report) {
                                     Column(
                                         Modifier
                                             .width(132.dp)
-                                            .clip(RoundedCornerShape(16.dp))
-                                            .background(Brush.verticalGradient(listOf(accent.copy(alpha = 0.14f), Color.White.copy(alpha = 0.03f))))
-                                            .border(1.dp, accent.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                                            .plate(RoundedCornerShape(12.dp))
+                                            .border(1.dp, BrassRule, RoundedCornerShape(12.dp))
                                             .padding(horizontal = 8.dp, vertical = 10.dp)
                                             .semantics(mergeDescendants = true) {},
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -538,23 +536,22 @@ internal fun Results(session: Session, report: Report) {
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     val next = !round.daily && progress.current != round.level.number
-                    CtaButton(
+                    PlayButton(
                         when {
                             next -> "Next level"
-                            won -> "Play again"
+                            won -> "Again"
                             else -> "Try again"
                         },
-                        accent,
-                        accentDeep,
                         calm,
-                        { t },
+                        Modifier.fillMaxWidth(),
                     ) { session.start() }
                     // Three losses running on this level: a gentler try, offered and never pushed.
                     if (!round.daily && !won && progress.easierOffered && progress.current == round.level.number) {
-                        GhostButton("Easier bulb", "20% more time · one star at most") { session.start(daily = false, easy = true) }
+                        SecondaryButton("Easier bulb", Modifier.fillMaxWidth()) { session.start(daily = false, easy = true) }
+                        Text("A fifth more time. One star at most.", style = BodyText, color = MUTED, textAlign = TextAlign.Center)
                     }
                     if (round.daily && !report.practice) {
-                        GhostButton("Share today's porch", null) {
+                        SecondaryButton("Share", Modifier.fillMaxWidth()) {
                             val card = session.store.progress.dailyCard
                             if (card != null) session.sharing = card
                             else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
@@ -689,7 +686,7 @@ private val WIN = Color(0xFFFFC857)
 private val WIN_DEEP = Color(0xFFFF8A3D)
 private val LOSS = Color(0xFFFF7A59)
 private val LOSS_DEEP = Color(0xFFB0385A)
-private val MUTED = Color(0xFFA9B0C2)
+private val MUTED = Dusk.inkSoft
 private val CONFETTI = listOf(Color(0xFFFFC857), Color(0xFFFF7A9C), Color(0xFF7CC6FF), Color(0xFF8BE3B0), Color(0xFFB9A2FF), Color(0xFFFFFFFF))
 
 /** Behind the card: a dark veil, an aurora drifting in the result's colours, and confetti or embers. */
@@ -762,9 +759,8 @@ private fun StatTile(label: String, glyph: Glyph, accent: Color, shown: Boolean,
                 rotationX = (1f - u) * 80f
                 alpha = u.coerceIn(0f, 1f)
             }
-            .clip(RoundedCornerShape(18.dp))
-            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.08f), Color.White.copy(alpha = 0.03f))))
-            .border(1.dp, Color.White.copy(alpha = 0.09f), RoundedCornerShape(18.dp))
+            .plate(RoundedCornerShape(12.dp))
+            .border(1.dp, BrassRule, RoundedCornerShape(12.dp))
             .padding(horizontal = 10.dp, vertical = 10.dp)
             .semantics(mergeDescendants = true) {},
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -774,27 +770,33 @@ private fun StatTile(label: String, glyph: Glyph, accent: Color, shown: Boolean,
     }
 }
 
-/** "312 short of your best", with a thin bar of the score against the best. */
+/** "312 short of your best", over a brass gauge set in an ebony slot: the score against the best. */
 @Composable
 private fun ShortOfBest(score: Int, best: Int, accent: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 8.dp)) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 10.dp)) {
         Text("${(best - score).grouped()} short of your best", style = BodyText, color = MUTED)
-        Box(
+        Canvas(
             Modifier
-                .padding(top = 4.dp)
-                .size(160.dp, 5.dp)
-                .clip(RoundedCornerShape(3.dp))
-                .background(Color.White.copy(alpha = 0.08f)),
+                .padding(top = 5.dp)
+                .size(180.dp, 12.dp)
+                .plate(RoundedCornerShape(6.dp))
+                .border(1.dp, BrassRule, RoundedCornerShape(6.dp)),
         ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = (score.toFloat() / best).coerceIn(0f, 1f)
-                        transformOrigin = TransformOrigin(0f, 0.5f)
-                    }
-                    .background(accent),
-            )
+            val inset = 2.5.dp.toPx()
+            val w = (size.width - inset * 2) * (score.toFloat() / best).coerceIn(0f, 1f)
+            if (w > 0f) {
+                drawRoundRect(
+                    Brush.verticalGradient(listOf(Craft.brassLight, Craft.gold, Craft.brassDark), inset, size.height - inset),
+                    Offset(inset, inset),
+                    Size(w, size.height - inset * 2),
+                    CornerRadius(size.height),
+                )
+            }
+            // Ticks cut every tenth, so it reads as a gauge.
+            for (k in 1 until 10) {
+                val x = inset + (size.width - inset * 2) * k / 10f
+                drawLine(Color.Black.copy(alpha = 0.4f), Offset(x, inset), Offset(x, size.height - inset), 1.dp.toPx())
+            }
         }
     }
 }
@@ -1006,24 +1008,24 @@ private fun MedalStar(filled: Boolean, turn: Boolean, instant: Boolean, calm: Bo
 /** One line of the tally: an icon on a tinted tile, what it was and a word about it, and its points. */
 @Composable
 private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, modifier: Modifier = Modifier) {
-    val (icon, tint, caption) = when (line.kind) {
-        TallyKind.Pairs -> Triple(Glyph.Moth, Color(0xFF7CC6FF), "Matched")
-        TallyKind.Streak -> Triple(Glyph.Flame, Color(0xFFFF8A5B), "Best chain")
-        TallyKind.Time -> Triple(Glyph.Clock, Color(0xFF8BE3B0), "Bulb to spare")
-        TallyKind.Misses -> Triple(Glyph.Close, Color(0xFFFF6B7A), "Wrong pairs")
+    val (icon, caption) = when (line.kind) {
+        TallyKind.Pairs -> Glyph.Moth to "Matched"
+        TallyKind.Streak -> Glyph.Flame to "Best chain"
+        TallyKind.Time -> Glyph.Clock to "Bulb to spare"
+        TallyKind.Misses -> Glyph.Close to "Wrong pairs"
     }
     Column(Modifier.fillMaxWidth()) {
         Row(Modifier.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier
                     .size(34.dp)
-                    .background(Brush.linearGradient(listOf(tint.copy(alpha = 0.32f), tint.copy(alpha = 0.12f))), RoundedCornerShape(10.dp))
-                    .border(1.dp, tint.copy(alpha = 0.4f), RoundedCornerShape(10.dp)),
+                    .shadow(3.dp, RoundedCornerShape(50), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                    .metal(corner = 17.dp, copper = line.kind == TallyKind.Streak || line.kind == TallyKind.Misses),
                 contentAlignment = Alignment.Center,
-            ) { GlyphArt(icon, tint, Modifier.size(18.dp)) }
+            ) { GlyphArt(icon, Dusk.paperInk, Modifier.size(17.dp)) }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(line.text, style = BodyText, fontWeight = FontWeight.Bold, color = Color.White, maxLines = 1)
+                Text(line.text, style = BodyText, fontWeight = FontWeight.Bold, color = Dusk.ink, maxLines = 1)
                 Text(caption, style = Label, color = MUTED, maxLines = 1)
             }
             if (line.points > 0) {
@@ -1032,25 +1034,23 @@ private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, modifier: Mo
                 Spacer(modifier)
             }
         }
-        if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.06f)))
+        if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(Craft.brassDark.copy(alpha = 0.55f)))
     }
 }
 
-/** No wrong pairs: a teal badge with a check, stamped under the tally. */
+/** No wrong pairs: a small brass plaque, stamped under the tally, its words cut into the metal. */
 @Composable
 private fun FlawlessBadge(modifier: Modifier = Modifier) {
     Row(
         modifier
-            .background(Brush.horizontalGradient(listOf(Color(0xFF1FA88E), Color(0xFF5FD6C4))), RoundedCornerShape(50))
-            .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(50))
-            .padding(start = 6.dp, end = 12.dp, top = 4.dp, bottom = 4.dp),
+            .shadow(4.dp, RoundedCornerShape(6.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+            .metal(corner = 6.dp)
+            .padding(horizontal = 12.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(18.dp).background(Color.White.copy(alpha = 0.25f), RoundedCornerShape(50)), contentAlignment = Alignment.Center) {
-            GlyphArt(Glyph.Check, Color.White, Modifier.size(12.dp))
-        }
+        GlyphArt(Glyph.Check, Dusk.paperInk, Modifier.size(14.dp))
         Spacer(Modifier.width(6.dp))
-        Text("FLAWLESS · NO WRONG PAIRS", style = Label, fontWeight = FontWeight.Bold, color = Color.White)
+        Text("CLEAN SWEEP · NO WRONG PAIRS", style = TextEngraved, fontSize = 12.sp, letterSpacing = 1.2.sp, color = Dusk.paperInk)
     }
 }
 
@@ -1104,9 +1104,8 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.06f), Color.White.copy(alpha = 0.02f))))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+            .plank(Wood.Walnut, corner = 14.dp, elevation = 4.dp, seed = 11)
+            .border(1.dp, BrassRule, RoundedCornerShape(14.dp))
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1144,18 +1143,18 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
                                 scaleX = 0.5f + 0.5f * b
                                 scaleY = 0.5f + 0.5f * b
                             }
-                            .background(Brush.horizontalGradient(listOf(WIN, Color(0xFFFFE9A8))), RoundedCornerShape(50))
+                            .metal(corner = 5.dp)
                             .padding(horizontal = 8.dp, vertical = 2.dp),
                     )
                 }
                 Spacer(Modifier.weight(1f))
                 Text(
                     if (report.practice) "NO XP" else "+${report.xp} XP",
-                    style = Label,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1A1206),
+                    style = TextEngraved,
+                    fontSize = 12.sp,
+                    color = Dusk.paperInk,
                     modifier = Modifier
-                        .background(Brush.horizontalGradient(listOf(accent, Color(0xFFFFE9A8))), RoundedCornerShape(50))
+                        .metal(corner = 5.dp)
                         .padding(horizontal = 8.dp, vertical = 2.dp),
                 )
             }
@@ -1172,7 +1171,7 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
                 drawRoundRect(Brush.verticalGradient(listOf(Color.Black.copy(alpha = 0.5f), Color.Transparent), 0f, size.height * 0.5f), cornerRadius = radius)
                 val w = size.width * bar.value.coerceIn(0f, 1f)
                 if (w > 0f) {
-                    drawRoundRect(Brush.horizontalGradient(listOf(Color(0xFFFF8A3D), accent, Color(0xFFFFE9A8)), 0f, size.width), size = Size(w, size.height), cornerRadius = radius)
+                    drawRoundRect(Brush.verticalGradient(listOf(Craft.brassLight, Craft.gold, Craft.brassDark)), size = Size(w, size.height), cornerRadius = radius)
                     // Gloss on the top.
                     drawRoundRect(
                         Color.White.copy(alpha = 0.28f),
@@ -1356,114 +1355,5 @@ private val Modern = TextStyle(
     letterSpacing = (-0.2).sp,
 )
 
-/** A round glass button with one icon: the way back to the porch. */
-@Composable
-private fun RoundIcon(glyph: Glyph, description: String, onClick: () -> Unit) {
-    val touch = remember { MutableInteractionSource() }
-    val pressed by touch.collectIsPressedAsState()
-    val press by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "press")
-    Box(
-        Modifier
-            .size(44.dp)
-            .graphicsLayer {
-                scaleX = press
-                scaleY = press
-            }
-            .clip(RoundedCornerShape(50))
-            .background(Color.White.copy(alpha = 0.08f))
-            .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(50))
-            .clickable(interactionSource = touch, indication = null, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) { GlyphArt(glyph, Color.White, Modifier.size(16.dp)) }
-}
 
-/**
- * The one big thing to do next: a full-width pill in the result's colours, glowing softly and
- * breathing, with a band of light crossing it. It squeezes a little under the finger.
- */
-@Composable
-private fun CtaButton(text: String, accent: Color, deep: Color, calm: Boolean, t: () -> Float, onClick: () -> Unit) {
-    val touch = remember { MutableInteractionSource() }
-    val pressed by touch.collectIsPressedAsState()
-    val press by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "press")
-    val shape = RoundedCornerShape(30.dp)
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .height(62.dp)
-            .graphicsLayer {
-                scaleX = press
-                scaleY = press
-            }
-            .drawBehind {
-                // A soft glow under the pill that breathes.
-                val glow = if (calm) 0.5f else 0.4f + 0.2f * sin(t() * 2.4f)
-                val c = Offset(size.width / 2f, size.height * 0.75f)
-                drawOval(
-                    Brush.radialGradient(listOf(accent.copy(alpha = glow), Color.Transparent), c, size.width * 0.55f),
-                    Offset(c.x - size.width * 0.55f, c.y - size.height * 0.9f),
-                    Size(size.width * 1.1f, size.height * 1.8f),
-                )
-            }
-            .clip(shape)
-            .background(Brush.linearGradient(listOf(lerp(accent, Color.White, 0.25f), accent, deep), Offset.Zero, Offset(900f, 300f)))
-            .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.Transparent)), shape)
-            .drawWithContent {
-                drawContent()
-                if (!calm) {
-                    val run = ((t() * 0.4f) % 1.7f) * size.width * 1.6f - size.width * 0.3f
-                    drawRect(
-                        Brush.linearGradient(
-                            listOf(Color.Transparent, Color.White.copy(alpha = 0.38f), Color.Transparent),
-                            Offset(run - size.height * 1.5f, 0f),
-                            Offset(run, size.height),
-                        ),
-                    )
-                }
-            }
-            .clickable(interactionSource = touch, indication = null, role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text,
-            style = Modern.copy(
-                shadow = if (accent == WIN) androidx.compose.ui.graphics.Shadow(Color.White.copy(alpha = 0.35f), Offset(0f, 1.5f), 0f)
-                else androidx.compose.ui.graphics.Shadow(Color.Black.copy(alpha = 0.35f), Offset(0f, 2f), 6f),
-            ),
-            fontSize = 21.sp,
-            color = if (accent == WIN) Color(0xFF221204) else Color.White,
-            maxLines = 1,
-        )
-    }
-}
 
-/** A quiet outlined pill for a second choice, with an optional small line after its word. */
-@Composable
-private fun GhostButton(text: String, sub: String?, onClick: () -> Unit) {
-    val touch = remember { MutableInteractionSource() }
-    val pressed by touch.collectIsPressedAsState()
-    val press by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "press")
-    val shape = RoundedCornerShape(26.dp)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(52.dp)
-            .graphicsLayer {
-                scaleX = press
-                scaleY = press
-            }
-            .clip(shape)
-            .background(Color.White.copy(alpha = 0.05f))
-            .border(1.5.dp, Color.White.copy(alpha = 0.18f), shape)
-            .clickable(interactionSource = touch, indication = null, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Text(text, style = Modern, fontSize = 17.sp, color = Color.White, maxLines = 1)
-        if (sub != null) {
-            Text("  ·  $sub", style = BodyText, color = MUTED, maxLines = 1)
-        }
-    }
-}
