@@ -3,9 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// CI passes these in; local builds fall back to 1 / 0.6.4.
+// CI passes these in; local builds fall back to 1 / 0.6.5.
 val appVersionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-val appVersionName = System.getenv("VERSION_NAME")?.removePrefix("v") ?: "0.6.4"
+val appVersionName = System.getenv("VERSION_NAME")?.removePrefix("v") ?: "0.6.5"
 
 // Release signing is optional. Without these the release APK is built unsigned.
 val keystorePath: String? = System.getenv("PORCHLIGHT_KEYSTORE")?.takeIf { it.isNotBlank() }
