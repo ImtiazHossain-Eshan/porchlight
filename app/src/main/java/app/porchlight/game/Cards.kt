@@ -80,6 +80,11 @@ private val PAPER_EDGE = Color(0xFFE2CFA0)
 private val LEAF_PAPER = Color(0xFFD9C7A2)
 private val SILHOUETTE = Color(0xFF3A3328)
 
+/** A found pair's socket, and the moth engraved in it. */
+private val SOCKET_MIDDLE = Color(0xFF3A2614)
+private val SOCKET_EDGE = Color(0xFF1A100A)
+private val ENGRAVED = Color(0xFF8C6A36)
+
 /**
  * The board fills whatever space it is given: cards keep a 3:4 shape and shrink to fit. On a tall
  * board in a short space they square up (down to 1:1) before they get narrower than [MIN_CARD].
@@ -130,7 +135,16 @@ internal fun Board(session: Session, modifier: Modifier) {
         )
         if (out > 0.001f) {
             Canvas(Modifier.matchParentSize().semantics { contentDescription = "The bulb is out" }) {
-                drawRect(Color(0xFF05070A), alpha = 0.96f * out)
+                drawRect(Color(0xFF070910), alpha = 0.95f * out)
+                // A dim, cold sign in the middle, so the dark reads as the twist and not a fault.
+                val c = Offset(size.width / 2f, size.height / 2f)
+                val r = size.minDimension * 0.22f
+                drawCircle(
+                    Brush.radialGradient(listOf(Color(0xFF6F86B8).copy(alpha = 0.22f * out), Color.Transparent), c, r * 1.6f),
+                    r * 1.6f,
+                    c,
+                )
+                glyph(Glyph.BulbOff, c, r, Color(0xFF9DB0D8), alpha = 0.55f * out)
             }
         }
     }
@@ -314,8 +328,15 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                     center = Offset(size.width / 2f, size.height * 0.45f),
                     radius = size.height * 0.7f,
                 )
-                // An empty socket is dark, and darker still under its top lip.
-                val hollow = Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.75f), 0.35f to Color.Transparent)
+                // A found pair leaves a recessed walnut socket: warm in the middle, dark at the walls,
+                // and darkest under its top lip. Never a black hole: it should read as done, not broken.
+                val socket = Brush.radialGradient(
+                    0f to SOCKET_MIDDLE,
+                    1f to SOCKET_EDGE,
+                    center = Offset(size.width / 2f, size.height * 0.55f),
+                    radius = size.height * 0.65f,
+                )
+                val hollow = Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.6f), 0.3f to Color.Transparent)
                 // A soft white spot of reflected light; it slides opposite to the tilt.
                 val spot = Brush.radialGradient(
                     0f to Color.White.copy(alpha = 0.5f),
@@ -354,7 +375,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                         if (red.value > 0f) drawRoundRect(WRONG, Offset(inset, inset), innerSize, innerCorner, alpha = red.value * full)
                     }
                     if (emptied > 0f) {
-                        drawRect(Dusk.slot, alpha = emptied)
+                        drawRect(socket, alpha = emptied)
                         drawRect(hollow, alpha = emptied)
                     }
                     drawContent()
@@ -393,8 +414,8 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                         }
                     }
 
-                    // The embossed brass frame. An empty socket keeps only a dull trace of it.
-                    drawRoundRect(BrassRule, Offset(half, half), frameSize, corner, alpha = 0.25f + 0.75f * full, style = frame)
+                    // The embossed brass frame. An empty socket keeps a dulled trace of it.
+                    drawRoundRect(BrassRule, Offset(half, half), frameSize, corner, alpha = 0.5f + 0.5f * full, style = frame)
                     if (!faceUp) {
                         drawRoundRect(Craft.brassDark, Offset(inset, inset), innerSize, innerCorner, style = hair)
                         drawRoundRect(Craft.brassLight, Offset(inset + hair.width, inset + hair.width), Size(innerSize.width - hair.width * 2, innerSize.height - hair.width * 2), innerCorner, alpha = 0.35f, style = hair)
@@ -452,7 +473,24 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
     ) {
         if (turn <= 90f) {
             MothAtRest(Dusk.cardEmblem, Craft.brassDark, Modifier.fillMaxSize().padding(14.dp))
-        } else if (!matched) {
+        } else if (matched) {
+            // The found moth's outline, engraved in the socket's floor: lit brass with a dark cut
+            // under it, so the eye reads it as a pair already found.
+            Canvas(
+                Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+                    .graphicsLayer {
+                        rotationY = 180f
+                        alpha = emptied
+                    },
+            ) {
+                val c = Offset(size.width / 2, size.height / 2)
+                val cut = 1.2.dp.toPx()
+                moth(id, Offset(c.x, c.y + cut), size.minDimension, 0.85f, flat = Color.Black.copy(alpha = 0.55f))
+                moth(id, c, size.minDimension, 0.85f, flat = ENGRAVED)
+            }
+        } else {
             val sheen = remember(gold) {
                 Brush.linearGradient(listOf(Color.Transparent, Color(0xFFFFE9A8), Color.Transparent))
             }
