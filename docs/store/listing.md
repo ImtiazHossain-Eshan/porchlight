@@ -34,7 +34,12 @@ The daily porch deals the same cards to everyone. One scored try a day. Keep you
 Three stars with a lead turns that moth gold. Twelve badges to collect.
 
 **Made to be kind**
-No ads. No purchases. No account. No network. No data leaves your phone. Pause any time; the bulb waits for you. Reduce motion, sound and vibration each have their own switch.
+No lives and no energy: play as much as you like, always free. No account. Ads play only when you tap to watch one, for Fireflies, and never between rounds. Every chapter, moth and look can be earned by playing; Fireflies can also be bought, behind a grown-up check, and you always get exactly what it says. Pause any time; the bulb waits for you. Reduce motion, sound and vibration each have their own switch.
+
+**Fireflies**
+Earn Fireflies for new stars, bosses, chapters, badges, level ups and the daily porch. Spend them on new card backs, jars and porch themes, moth colours, a lead moth early, or a boost for a tough round. The daily porch never takes boosts, and the third star always needs a clean clear.
+
+*Contains ads. In-app purchases.*
 
 ## Category
 

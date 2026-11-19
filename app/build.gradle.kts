@@ -18,6 +18,11 @@ val releaseRewardedUnit = System.getenv("ADMOB_REWARDED_ID")?.takeIf { it.isNotB
 // the phone. Optional: without it purchases are still granted, unchecked (see docs/ECONOMY.md).
 val playLicenseKey = System.getenv("PLAY_LICENSE_KEY")?.trim().orEmpty()
 
+// Where the privacy policy is hosted (docs/PRIVACY.md, published by the owner). The default is the
+// file in this repository on GitHub, which works once it is on main of a public repository.
+val privacyPolicyUrl = System.getenv("PRIVACY_POLICY_URL")?.takeIf { it.isNotBlank() }
+    ?: "https://github.com/ImtiazHossain-Eshan/porchlight/blob/main/docs/PRIVACY.md"
+
 // Release signing is optional. Without these the release APK is built unsigned.
 val keystorePath: String? = System.getenv("PORCHLIGHT_KEYSTORE")?.takeIf { it.isNotBlank() }
 
@@ -36,6 +41,7 @@ android {
         versionCode = appVersionCode
         versionName = appVersionName
         buildConfigField("String", "PLAY_LICENSE_KEY", "\"$playLicenseKey\"")
+        buildConfigField("String", "PRIVACY_POLICY_URL", "\"$privacyPolicyUrl\"")
     }
 
     signingConfigs {

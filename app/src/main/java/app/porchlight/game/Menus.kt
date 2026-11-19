@@ -637,14 +637,56 @@ internal fun SettingsScreen(session: Session) {
         }
         Spacer(Modifier.height(14.dp))
         SecondaryButton("Replay the tutorial", Modifier.fillMaxWidth()) { session.startTutorial() }
+        Spacer(Modifier.height(8.dp))
+        SecondaryButton("Privacy", Modifier.fillMaxWidth(), glyph = Glyph.Lock) { session.open(Screen.Privacy) }
+        Spacer(Modifier.height(14.dp))
+        // For parents: what has been bought with money, plainly.
+        SpendingSummary(progress)
         Spacer(Modifier.height(14.dp))
         Text(
-            "Porchlight keeps everything on this phone. No account, no adverts, no network.",
+            "No account: your game is kept on this phone and in its Android backup. Ads play only when " +
+                "you tap to watch one, and purchases go through Google Play.",
             color = Dusk.inkSoft,
             fontSize = TypeScale.Body,
             lineHeight = 20.sp,
             textAlign = TextAlign.Center,
         )
+    }
+}
+
+/** "Fireflies bought: 3 purchases", and the lifetime totals, on a parchment slip. */
+@Composable
+private fun SpendingSummary(progress: Progress) {
+    val wallet = progress.wallet
+    val bought = wallet.bought.size
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(8.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+            .parchment(8.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .semantics(mergeDescendants = true) {},
+    ) {
+        Text("FOR PARENTS", style = Label, color = Craft.parchmentInkSoft)
+        Spacer(Modifier.height(4.dp))
+        Text(
+            when (bought) {
+                0 -> "Fireflies bought: none. Nothing has been bought with money."
+                1 -> "Fireflies bought: 1 purchase."
+                else -> "Fireflies bought: $bought purchases."
+            },
+            color = Craft.parchmentInk, fontSize = TypeScale.Body, fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            "Fireflies now: ${wallet.balance.grouped()} · earned in all: ${wallet.earned.grouped()} · spent: ${wallet.spent.grouped()}",
+            color = Craft.parchmentInkSoft, fontSize = 13.sp, lineHeight = 18.sp,
+        )
+        if (bought > 0) {
+            Text(
+                "Every purchase is listed in the Google Play account's order history.",
+                color = Craft.parchmentInkSoft, fontSize = 13.sp, lineHeight = 18.sp,
+            )
+        }
     }
 }
 

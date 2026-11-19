@@ -39,6 +39,9 @@ class Ads(context: Context, private val unitId: String) {
     private val initialised = AtomicBoolean(false)
     private var started = false
 
+    /** Bumped when the audience changes, so a load asked for under the old settings is dropped. */
+    private var generation = 0
+
     /** An ad is loaded and can be shown now. */
     var ready by mutableStateOf(false)
         private set
@@ -57,6 +60,14 @@ class Ads(context: Context, private val unitId: String) {
     /** Starts the ads for [audience]: the consent check where it applies, then the SDK, then one ad. */
     fun start(activity: Activity, audience: Audience) {
         if (started && this.audience == audience) return
+        // A different audience (the year of birth was changed): an ad asked for under the old
+        // settings is thrown away, never shown.
+        if (started) {
+            ad = null
+            ready = false
+            loading = false
+            generation += 1
+        }
         started = true
         this.audience = audience
         val policy = policyFor(audience)
@@ -143,14 +154,17 @@ class Ads(context: Context, private val unitId: String) {
     private fun load() {
         if (loading || ad != null || audience == null) return
         loading = true
+        val asked = generation
         RewardedAd.load(app, unitId, AdRequest.Builder().build(), object : RewardedAdLoadCallback() {
             override fun onAdLoaded(loaded: RewardedAd) {
+                if (asked != generation) return
                 loading = false
                 ad = loaded
                 ready = true
             }
 
             override fun onAdFailedToLoad(error: LoadAdError) {
+                if (asked != generation) return
                 loading = false
                 ad = null
                 ready = false

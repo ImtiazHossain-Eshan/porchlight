@@ -57,7 +57,7 @@ import java.util.Calendar
 import kotlin.random.Random
 
 internal enum class Screen {
-    Porch, Levels, Daily, Moths, Badges, Settings, Shop, Round, Results;
+    Porch, Levels, Daily, Moths, Badges, Settings, Shop, Privacy, Round, Results;
 
     /** The lobby and the screens that hang off it. */
     val isMenu get() = this != Round && this != Results
@@ -958,6 +958,7 @@ fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null, till: Till? = null) {
                     Screen.Badges -> BadgesScreen(session)
                     Screen.Settings -> SettingsScreen(session)
                     Screen.Shop -> ShopScreen(session)
+                    Screen.Privacy -> PrivacyScreen(session)
                     Screen.Round, Screen.Results -> {
                         Box(Modifier.fillMaxSize().graphicsLayer { renderEffect = blurOf(behindSheet * density) }) {
                             RoundScreen(session)
