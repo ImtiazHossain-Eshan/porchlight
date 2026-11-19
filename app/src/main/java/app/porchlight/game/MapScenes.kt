@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
@@ -185,39 +186,89 @@ private fun DrawScope.godRays(
     }
 }
 
-/** Curtains of green and violet light rippling slowly over the rooftops: smooth ribbons, never stripes. */
+private val hemPath = Path()
+
+/**
+ * The northern lights over the rooftops, drawn the way they hang: tall curtains with a bright, wavy
+ * hem along the bottom, fading up into the sky, with soft folds of light drifting along them. Three
+ * curtains (green in front, teal, violet high behind) ripple at their own pace.
+ */
 private fun DrawScope.aurora(top: Float, t: Float) {
     val w = size.width
     val h = size.height
-    for ((band, colour) in listOf(0 to Color(0xFF5CF2C4), 1 to Color(0xFFB07CFF))) {
-        val base = top + h * (0.06f + band * 0.05f)
-        val fall = h * (0.15f - band * 0.04f)
-        fun edge(u: Float) = base + h * 0.035f * sin(u * 5.5f + t * 0.22f + band * 2f) + h * 0.015f * sin(u * 13f - t * 0.31f)
+    // A wide wash of green under it all, so the whole sky above the town glows.
+    drawRect(
+        Brush.verticalGradient(
+            0f to Color.Transparent,
+            0.5f to Color(0xFF3FE0A8).copy(alpha = 0.10f + 0.03f * sin(t * 0.4f)),
+            1f to Color.Transparent,
+            startY = top - h * 0.02f,
+            endY = top + h * 0.36f,
+        ),
+        blendMode = BlendMode.Plus,
+    )
+    // Back to front: violet high and far, teal, then the bright green curtain.
+    val curtains = listOf(
+        Triple(Color(0xFFB07CFF), 0.10f, 0.13f),
+        Triple(Color(0xFF3FE6B0), 0.17f, 0.16f),
+        Triple(Color(0xFF8CFF6E), 0.25f, 0.21f),
+    )
+    curtains.forEachIndexed { band, (colour, hemAt, tall) ->
+        val base = top + h * hemAt
+        val rise = h * tall
+        val speed = 1f + band * 0.35f
+        fun hem(u: Float) = base +
+            h * 0.03f * sin(u * 4.6f + t * 0.20f * speed + band * 2.1f) +
+            h * 0.012f * sin(u * 11f - t * 0.33f * speed + band)
+        fun height(u: Float) = rise * (0.65f + 0.35f * sin(u * 6.3f + t * 0.27f + band * 1.7f))
+        val steps = 56
         rayPath.reset()
-        val steps = 48
+        hemPath.reset()
         for (i in 0..steps) {
             val u = -0.05f + 1.1f * i / steps
-            val y = edge(u)
-            if (i == 0) rayPath.moveTo(u * w, y) else rayPath.lineTo(u * w, y)
+            val y = hem(u)
+            if (i == 0) { rayPath.moveTo(u * w, y); hemPath.moveTo(u * w, y) } else { rayPath.lineTo(u * w, y); hemPath.lineTo(u * w, y) }
         }
         for (i in steps downTo 0) {
             val u = -0.05f + 1.1f * i / steps
-            // The hem hangs unevenly, longer where the curtain is brightest.
-            rayPath.lineTo(u * w, edge(u) + fall * (0.7f + 0.3f * sin(u * 7f + t * 0.4f + band)))
+            rayPath.lineTo(u * w, hem(u) - height(u))
         }
         rayPath.close()
-        val glow = 0.30f + 0.08f * sin(t * 0.5f + band * 1.3f)
+        val glow = (0.34f + 0.08f * band) * (0.85f + 0.15f * sin(t * 0.5f + band * 1.3f))
+        // The curtain: brightest at its hem, fading up into the dark.
         drawPath(
             rayPath,
             Brush.verticalGradient(
-                0f to colour.copy(alpha = glow),
-                0.35f to colour.copy(alpha = glow * 0.55f),
-                1f to Color.Transparent,
-                startY = base - h * 0.05f,
-                endY = base + fall,
+                0f to Color.Transparent,
+                0.55f to colour.copy(alpha = glow * 0.35f),
+                0.9f to colour.copy(alpha = glow * 0.8f),
+                1f to colour.copy(alpha = glow),
+                startY = base - rise - h * 0.03f,
+                endY = base + h * 0.04f,
             ),
             blendMode = BlendMode.Plus,
         )
+        // Folds of light drifting along the curtain: a few wide, soft bands, never thin stripes.
+        clipPath(rayPath) {
+            for (k in 0 until 10) {
+                val x = w * (((k * 0.113f + t * 0.010f * speed * (if (k % 2 == 0) 1 else -1)) % 1f + 1f) % 1f)
+                val half = w * (0.022f + 0.016f * (k % 3))
+                val shine = 0.45f + 0.3f * sin(t * 0.6f + k * 1.9f + band)
+                drawRect(
+                    Brush.horizontalGradient(
+                        listOf(Color.Transparent, colour.copy(alpha = (shine * glow * 1.4f).coerceAtMost(1f)), Color.Transparent),
+                        startX = x - half,
+                        endX = x + half,
+                    ),
+                    Offset(x - half, base - rise - h * 0.03f),
+                    androidx.compose.ui.geometry.Size(half * 2f, rise + h * 0.08f),
+                    blendMode = BlendMode.Plus,
+                )
+            }
+        }
+        // The hem itself: a soft halo and a bright thread of light.
+        drawPath(hemPath, colour.copy(alpha = glow * 0.3f), style = androidx.compose.ui.graphics.drawscope.Stroke(9f * density), blendMode = BlendMode.Plus)
+        drawPath(hemPath, colour.copy(alpha = glow * 0.6f), style = androidx.compose.ui.graphics.drawscope.Stroke(2f * density), blendMode = BlendMode.Plus)
     }
 }
 
@@ -564,7 +615,7 @@ private fun DrawScope.window(look: SceneLook, c: Offset, r: Float) {
 private val PETALS = listOf(Color(0xFFF08AA6), Color(0xFFFFD36B), Color(0xFFB79CFF), Color(0xFFFFFFFF))
 
 private fun DrawScope.bloom(c: Offset, s: Float, color: Color) {
-    for (k in 0 until 5) {
+    for (k in 0 until 10) {
         val a = k * 72.0 * PI / 180
         drawCircle(color.copy(alpha = 0.9f), s, Offset(c.x + (s * 1.2f * cos(a)).toFloat(), c.y + (s * 1.2f * sin(a)).toFloat()))
     }
