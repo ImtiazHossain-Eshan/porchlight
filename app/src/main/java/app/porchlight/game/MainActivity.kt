@@ -9,6 +9,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 
 class MainActivity : ComponentActivity() {
     private val sfx = Sfx()
+    private var store: Store? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -25,7 +26,7 @@ class MainActivity : ComponentActivity() {
                 Gpu.fakeTilt = intent.getFloatExtra("tiltX", 0f) to intent.getFloatExtra("tiltY", 0f)
             }
         }
-        val store = Store(getSharedPreferences("porchlight", MODE_PRIVATE))
+        val store = Store(getSharedPreferences("porchlight", MODE_PRIVATE)).also { this.store = it }
         //   ... --ei setXp 6500   (debug only: set the XP, to see the level emblem at a given level)
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("setXp")) {
             store.change { it.copy(xp = intent.getIntExtra("setXp", 0).coerceAtLeast(0)) }
@@ -44,6 +45,12 @@ class MainActivity : ComponentActivity() {
             }
         }
         setContent { GameScreen(store, sfx) }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // The daily gift: the first time the app comes to the front on a day (also past midnight).
+        store?.open(todaySeed())
     }
 
     override fun onDestroy() {

@@ -153,6 +153,8 @@ data class Progress(
     val music: Boolean = true,
     val reduceMotion: Boolean = false,
     val haptics: Boolean = true,
+    /** The player's Fireflies: balance, lifetime totals, purchases and the ledger. */
+    val wallet: Wallet = Wallet(),
 ) {
     val level get() = levelFor(xp)
     fun unlocked(id: MothId) = level >= id.unlockLevel
@@ -205,7 +207,12 @@ data class Report(
     /** A daily porch that was already played today: it shows a score but earns nothing. */
     val practice: Boolean = false,
     val dailyStreak: Int = 0,
-)
+    /** The Fireflies this round paid, line by line; empty when it paid none. */
+    val earnings: List<Earning> = emptyList(),
+) {
+    /** All the Fireflies this round paid. */
+    val fireflies get() = earnings.sumOf { it.amount }
+}
 
 /** The most things one round may unlock, so rewards arrive a few at a time. */
 const val MAX_UNLOCKS = 2
@@ -237,7 +244,7 @@ fun dailyShare(day: Long, stars: Int, score: Int): String =
  * Adds a finished round to [before]. Pure, so it can be tested without storage.
  * [today] and [yesterday] are daily seeds; they only matter for a daily round.
  */
-fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, yesterday: Long = -1): Pair<Progress, Report> {
+fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, yesterday: Long = -1, now: Long = 0): Pair<Progress, Report> {
     val won = round.phase == Phase.Won
     val stars = starsFor(round)
     if (round.daily && before.playedDaily(today)) {
@@ -343,7 +350,10 @@ fun settleRound(before: Progress, round: Round, lead: MothId, today: Long = 0, y
         newMastery = newMastery.firstOrNull(),
         dailyStreak = dailyStreak,
     )
-    return after to report
+    // Fireflies, worked out from what the round changed, so new stars pay once and only once.
+    val earnings = earningsFor(before, after, round, report)
+    val paid = earnings.fold(after) { p, e -> earn(p, e, now) }
+    return paid to report.copy(earnings = earnings)
 }
 
 /** The save's layout. 1: six nights. 2: fifty levels in five chapters. */
@@ -464,6 +474,7 @@ class Store(private val prefs: SharedPreferences) {
         music = prefs.getBoolean("music", true),
         reduceMotion = prefs.getBoolean("reduceMotion", false),
         haptics = prefs.getBoolean("haptics", true),
+        wallet = Wallet.decode(runCatching { prefs.getString("wallet", null) }.getOrNull()),
     )
 
     private fun save(next: Progress) {
@@ -496,6 +507,7 @@ class Store(private val prefs: SharedPreferences) {
             .putBoolean("music", next.music)
             .putBoolean("reduceMotion", next.reduceMotion)
             .putBoolean("haptics", next.haptics)
+            .putString("wallet", next.wallet.encode())
             .apply()
     }
 
@@ -504,9 +516,22 @@ class Store(private val prefs: SharedPreferences) {
     /** Changes a setting and saves it. */
     fun change(edit: (Progress) -> Progress) = save(edit(progress))
 
-    fun finish(round: Round, lead: MothId, today: Long = 0, yesterday: Long = -1): Report {
-        val (after, report) = settleRound(progress, round, lead, today, yesterday)
+    fun finish(round: Round, lead: MothId, today: Long = 0, yesterday: Long = -1, now: Long = System.currentTimeMillis()): Report {
+        val (after, report) = settleRound(progress, round, lead, today, yesterday, now)
         save(after)
         return report
+    }
+
+    /** Today's gift, waiting to be shown flying into the counter; zero once it has been shown. */
+    var gift by mutableStateOf(0)
+
+    /** The daily gift, once per [day]; returns the Fireflies given (0 if already given today). */
+    fun open(day: Long, now: Long = System.currentTimeMillis(), supporter: Boolean = false): Int {
+        val (after, given) = openToday(progress, day, now, supporter)
+        if (given > 0) {
+            save(after)
+            gift += given
+        }
+        return given
     }
 }
