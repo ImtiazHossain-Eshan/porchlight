@@ -295,8 +295,12 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                 val inset = 5.dp.toPx()
                 val innerCorner = CornerRadius(11.dp.toPx())
                 val innerSize = Size(size.width - inset * 2, size.height - inset * 2)
-                // The tile is ebony: a soft shade down it and a few lines of grain, the same each time.
-                val timber = Brush.verticalGradient(listOf(Wood.Ebony.light, Wood.Ebony.base, Wood.Ebony.dark))
+                // The tile is the card back's wood (ebony unless another back is worn): a soft shade
+                // down it and a few lines of grain, the same each time.
+                val back = Wear.back
+                val (trimLight, _, trimDark) = back.trim.tones
+                val trimRule = back.trim.rule
+                val timber = Brush.verticalGradient(listOf(back.light, back.base, back.dark))
                 val grainRandom = Random(index * 31 + 5)
                 val grain = Path()
                 var gy = size.height * 0.06f
@@ -350,7 +354,7 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
                     val faceUp = turn > 90f
                     val full = 1f - emptied
                     drawRect(timber)
-                    drawPath(grain, Wood.Ebony.dark, alpha = 0.7f, style = grainLine)
+                    drawPath(grain, back.dark, alpha = 0.7f, style = grainLine)
                     if (faceUp && full > 0f) {
                         val wash = if (leaf) LEAF_PAPER else if (lost) lerp(Craft.parchment, Dusk.cardBack, 0.62f) else null
                         if (wash != null) {
@@ -402,16 +406,17 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
 
                     // The embossed brass frame. An empty socket keeps only a dull trace of it, and a
                     // thin teal line inside, the mark of a pair found.
-                    drawRoundRect(BrassRule, Offset(half, half), frameSize, corner, alpha = 0.2f + 0.8f * full, style = frame)
+                    drawRoundRect(trimRule, Offset(half, half), frameSize, corner, alpha = 0.2f + 0.8f * full, style = frame)
                     if (emptied > 0f) drawRoundRect(GHOST, Offset(inset, inset), innerSize, innerCorner, alpha = 0.35f * emptied, style = hair)
                     if (!faceUp) {
-                        drawRoundRect(Craft.brassDark, Offset(inset, inset), innerSize, innerCorner, style = hair)
-                        drawRoundRect(Craft.brassLight, Offset(inset + hair.width, inset + hair.width), Size(innerSize.width - hair.width * 2, innerSize.height - hair.width * 2), innerCorner, alpha = 0.35f, style = hair)
+                        drawRoundRect(trimDark, Offset(inset, inset), innerSize, innerCorner, style = hair)
+                        drawRoundRect(trimLight, Offset(inset + hair.width, inset + hair.width), Size(innerSize.width - hair.width * 2, innerSize.height - hair.width * 2), innerCorner, alpha = 0.35f, style = hair)
                         val at = inset + stud * 2.2f
-                        rivet(Offset(at, at), stud)
-                        rivet(Offset(size.width - at, at), stud)
-                        rivet(Offset(at, size.height - at), stud)
-                        rivet(Offset(size.width - at, size.height - at), stud)
+                        rivet(Offset(at, at), stud, trim = back.trim)
+                        rivet(Offset(size.width - at, at), stud, trim = back.trim)
+                        rivet(Offset(at, size.height - at), stud, trim = back.trim)
+                        rivet(Offset(size.width - at, size.height - at), stud, trim = back.trim)
+                        inlay(back.inlay, back.trim, Offset(size.width / 2f, size.height / 2f), size.width * 0.6f)
                     } else if (full > 0f && round.phase == Phase.Peek) {
                         // While the cards are shown, each face is rimmed in the bulb's warm light,
                         // brightening in the peek's last half second as a warning.
@@ -460,7 +465,12 @@ private fun Card(index: Int, session: Session, width: Dp, height: Dp, row: Int, 
         contentAlignment = Alignment.Center,
     ) {
         if (turn <= 90f) {
-            MothAtRest(Dusk.cardEmblem, Craft.brassDark, Modifier.fillMaxSize().padding(14.dp))
+            // The plain back carries the moth at rest in its own metal; a back with an inlay shows that instead.
+            val back = Wear.back
+            if (back.inlay == Inlay.None) {
+                val (_, metal, metalDark) = back.trim.tones
+                MothAtRest(metal, metalDark, Modifier.fillMaxSize().padding(14.dp))
+            }
         } else if (matched) {
             // The found moth's outline, engraved in the socket's floor: lit brass with a dark cut
             // under it, so the eye reads it as a pair already found.

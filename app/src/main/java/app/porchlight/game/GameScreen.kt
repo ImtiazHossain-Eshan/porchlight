@@ -57,7 +57,7 @@ import java.util.Calendar
 import kotlin.random.Random
 
 internal enum class Screen {
-    Porch, Levels, Daily, Moths, Badges, Settings, Round, Results;
+    Porch, Levels, Daily, Moths, Badges, Settings, Shop, Round, Results;
 
     /** The lobby and the screens that hang off it. */
     val isMenu get() = this != Round && this != Results
@@ -93,6 +93,31 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     var leaving by mutableStateOf(false)
     /** The daily card being previewed in the share window, if it is open. */
     var sharing by mutableStateOf<DailyCard?>(null)
+
+    /** Something waiting for the player's one confirming tap before it is bought. */
+    var offer by mutableStateOf<Offer?>(null)
+
+    /** The shop's open tab. */
+    var shopTab by mutableStateOf(ShopTab.Looks)
+
+    fun openShop(tab: ShopTab? = null) {
+        if (tab != null) shopTab = tab
+        if (screen != Screen.Shop) open(Screen.Shop)
+    }
+
+    /** The confirming tap: pays, and on success rings the shop bell and does what comes after. */
+    fun accept(offer: Offer) {
+        val result = store.pay { offer.buy(it, System.currentTimeMillis()) }
+        this.offer = null
+        if (result is SpendResult.Spent) {
+            sfx.play(Sound.Bought)
+            buzz(HapticFeedbackType.Confirm)
+            offer.then()
+        } else {
+            sfx.play(Sound.Locked)
+            buzz(HapticFeedbackType.Reject)
+        }
+    }
 
     /** Centre of the bulb's glass and its width on screen, in pixels: the light and the moths aim for it. */
     var bulbAt by mutableStateOf(Offset.Zero)
@@ -498,6 +523,8 @@ fun GameScreen(store: Store, sfx: Sfx) {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
     }
     session.calm = store.progress.reduceMotion || systemCalm
+    // What the player is wearing, for every drawing that shows it.
+    Wear.from(store.progress)
     val round = session.round
     val low = round.phase == Phase.Play && !round.paused && round.left <= LOW_MS
     sfx.ambient = session.screen.isMenu || round.running
@@ -606,8 +633,9 @@ fun GameScreen(store: Store, sfx: Sfx) {
     }
 
     // Back from a round asks first; back from the results goes to the porch; back from the porch exits.
-    BackHandler(session.screen != Screen.Porch || session.leaving) {
+    BackHandler(session.screen != Screen.Porch || session.leaving || session.offer != null) {
         when {
+            session.offer != null -> session.offer = null
             session.leaving -> session.leaving = false
             session.screen.isMenu -> session.toPorch()
             round.tutorial -> session.endTutorial()
@@ -652,7 +680,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
 
     // Every bare Text in the game reads in the body font at body size, with tabular figures.
     ProvideTextStyle(BodyText) {
-    Box(Modifier.fillMaxSize().background(Dusk.wallTop)) {
+    Box(Modifier.fillMaxSize().background(Wear.porch.wallTop)) {
         NightScene(
             clock = clock,
             tilt = session.tilt,
@@ -664,6 +692,9 @@ fun GameScreen(store: Store, sfx: Sfx) {
             hue = { session.hue },
             danger = { tighten },
             tighten = { tighten },
+            porch = { Wear.porch },
+            // A porch theme colours the light on the porch; in a round the light keeps telling the time.
+            tint = { if (session.screen.isMenu) Wear.tint else null },
         )
         // Screens change with a short fade through the wall, and the things two screens share fly
         // across instead (see Flight.kt). A round and its results are one place.
@@ -684,6 +715,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
                     Screen.Moths -> MothsScreen(session)
                     Screen.Badges -> BadgesScreen(session)
                     Screen.Settings -> SettingsScreen(session)
+                    Screen.Shop -> ShopScreen(session)
                     Screen.Round, Screen.Results -> {
                         Box(Modifier.fillMaxSize().graphicsLayer { renderEffect = blurOf(behindSheet * density) }) {
                             RoundScreen(session)
@@ -710,6 +742,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
         }
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = session.pop.value }.background(Color.White))
         if (session.leaving) LeaveNotice(session)
+        session.offer?.let { ConfirmSheet(session, it) }
         session.sharing?.let { card ->
             ShareSheet(card, gold = card.lead in session.store.progress.mastered, level = session.store.progress.level) { session.sharing = null }
         }

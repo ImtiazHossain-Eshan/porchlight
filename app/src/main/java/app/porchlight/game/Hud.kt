@@ -433,7 +433,7 @@ internal fun LeverSwitch(on: Boolean, description: String, modifier: Modifier = 
  * A plank button's caption, painted on the wood: the body font in bold capitals. On light oak the
  * ink is dark with a light edge below; on dark walnut it is amber paint with a dark cut above.
  */
-private val signOnOak = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = TextCarved.shadow)
+internal val signOnOak = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = TextCarved.shadow)
 private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, shadow = Shadow(Color.Black.copy(alpha = 0.6f), Offset(0f, -1.5f), 0f))
 
 /**

@@ -27,6 +27,7 @@ private val DEEP_ORANGE = Color(0xFFE8642B)
 private val COLD_GLASS = Color(0xFF26313B)
 private val COLD_WIRE = Color(0xFF59626B)
 private val GLASS_EDGE = Color(0xFF2A1C0E)
+private val CLEAR_GLASS = Color(0xFFCFE6F2)
 
 private const val GLASS = "M44 26 C44 44 14 56 14 88 A42 42 0 0 0 98 88 C98 56 68 44 68 26 Z"
 private const val JAR = "M28 44 Q28 34 38 34 H74 Q84 34 84 44 V134 Q84 150 68 150 H44 Q28 150 28 134 Z"
@@ -79,6 +80,8 @@ internal fun Bulb(
     still: Boolean = false,
     /** Draw the lamp's own halo. On by default where the scene's glow shader can't; the share card always wants it. */
     ownHalo: Boolean = !Gpu.shaders,
+    /** The jar and bulb's metal and glass: the one worn, unless a preview asks for another. */
+    style: JarStyle? = null,
 ) {
     val halo = remember {
         Brush.radialGradient(
@@ -102,6 +105,7 @@ internal fun Bulb(
                 val on = raw.coerceAtMost(1f)
                 val time = if (still) 0f else clock.seconds
                 val light = hue() ?: glassColour(t, last())
+                val look = style ?: Wear.jar
 
                 // The time ring sits behind the brass works, so the gears and gauge stay on top of it.
                 if (arc) timeArc(t)
@@ -117,7 +121,7 @@ internal fun Bulb(
                     }
                 }
 
-                if (lamp == Lamp.Jar) jar(light, on, core, time) else bulb(light, on, raw, t, last(), core, time)
+                if (lamp == Lamp.Jar) jar(light, on, core, time, look) else bulb(light, on, raw, t, last(), core, time, look)
 
                 if (smoke() && !still) {
                     // The bulb smoulders: grey puffs rise from the top of the glass and thin out.
@@ -133,7 +137,8 @@ internal fun Bulb(
 }
 
 /** The Edison bulb: brass cap, coloured glass, a hot core and a filament. */
-private fun DrawScope.bulb(light: Color, on: Float, raw: Float, t: Float, last: Boolean, core: Brush, time: Float) {
+private fun DrawScope.bulb(light: Color, on: Float, raw: Float, t: Float, last: Boolean, core: Brush, time: Float, look: JarStyle) {
+    val (metalLight, metal, metalDark) = look.trim.tones
     val glass = svg(GLASS)
     // Dark, the glass is still there: only the light goes.
     drawPath(glass, lerp(COLD_GLASS, light, on * (0.55f + 0.45f * t).coerceAtMost(1f)))
@@ -155,21 +160,24 @@ private fun DrawScope.bulb(light: Color, on: Float, raw: Float, t: Float, last: 
     val heat = (on * (0.45f + 0.55f * t) * pulse).coerceIn(0f, 1f)
     drawPath(svg(FILAMENT), lerp(COLD_WIRE, if (last || t < 0.25f) Dusk.ember else Color.White, heat), style = filamentLine)
 
-    drawRect(Craft.brass, Offset(40f, 0f), Size(32f, 27f))
-    drawRect(Craft.brassLight, Offset(44f, 0f), Size(5f, 27f), alpha = 0.6f)
-    drawPath(svg("M40 9 H72 M40 18 H72"), Craft.brassDark, style = threadLine)
-    drawRect(Craft.brassDark, Offset(40f, 0f), Size(32f, 27f), style = glassLine)
+    drawRect(metal, Offset(40f, 0f), Size(32f, 27f))
+    drawRect(metalLight, Offset(44f, 0f), Size(5f, 27f), alpha = 0.6f)
+    drawPath(svg("M40 9 H72 M40 18 H72"), metalDark, style = threadLine)
+    drawRect(metalDark, Offset(40f, 0f), Size(32f, 27f), style = glassLine)
 }
 
 /** The mason jar: a wire handle, a zinc lid with its thread, thick glass, and a filament inside. */
-private fun DrawScope.jar(light: Color, on: Float, core: Brush, time: Float) {
+private fun DrawScope.jar(light: Color, on: Float, core: Brush, time: Float, look: JarStyle) {
+    val (metalLight, metal, metalDark) = look.trim.tones
     // The wire it hangs from.
-    drawPath(svg("M40 14 C34 -10 78 -10 72 14"), Craft.brassDark, style = Stroke(3f, cap = StrokeCap.Round))
-    drawPath(svg("M40 14 C34 -10 78 -10 72 14"), Craft.brassLight, alpha = 0.6f, style = Stroke(1f, cap = StrokeCap.Round))
+    drawPath(svg("M40 14 C34 -10 78 -10 72 14"), metalDark, style = Stroke(3f, cap = StrokeCap.Round))
+    drawPath(svg("M40 14 C34 -10 78 -10 72 14"), metalLight, alpha = 0.6f, style = Stroke(1f, cap = StrokeCap.Round))
 
     val glass = svg(JAR)
     // The glow fills the jar; the glass itself is a pale blue-white skin over it.
-    drawPath(glass, lerp(COLD_GLASS, lerp(light, AMBER, 0.4f), on * 0.72f))
+    // A tinted glass shows its colour a little even when the jar is dark; clear glass stays as it was.
+    val cold = if (look.glass == CLEAR_GLASS) COLD_GLASS else lerp(COLD_GLASS, look.glass, 0.14f)
+    drawPath(glass, lerp(cold, lerp(light, AMBER, 0.4f), on * 0.72f))
     if (on > 0.02f) {
         val breathe = 0.92f + 0.08f * sin(time * 1.7f)
         translate(56f, 100f) {
@@ -186,14 +194,14 @@ private fun DrawScope.jar(light: Color, on: Float, core: Brush, time: Float) {
     // Reflections: a long one down the left, a short one on the right shoulder.
     drawPath(svg("M36 50 V124"), Color.White, alpha = 0.22f + 0.2f * on, style = Stroke(5f, cap = StrokeCap.Round))
     drawPath(svg("M76 48 V64"), Color.White, alpha = 0.14f + 0.14f * on, style = Stroke(3f, cap = StrokeCap.Round))
-    drawPath(glass, Color(0xFFCFE6F2), alpha = 0.55f, style = Stroke(3f, join = StrokeJoin.Round))
+    drawPath(glass, look.glass, alpha = 0.55f, style = Stroke(3f, join = StrokeJoin.Round))
     drawPath(glass, GLASS_EDGE, alpha = 0.7f, style = Stroke(1f, join = StrokeJoin.Round))
 
     // The lid and its screw thread.
-    drawRoundRect(Craft.brass, Offset(32f, 12f), Size(48f, 24f), androidx.compose.ui.geometry.CornerRadius(4f))
-    drawRect(Craft.brassLight, Offset(38f, 13f), Size(7f, 22f), alpha = 0.55f)
-    drawPath(svg("M32 20 H80 M32 28 H80"), Craft.brassDark, style = threadLine)
-    drawRoundRect(Craft.brassDark, Offset(32f, 12f), Size(48f, 24f), androidx.compose.ui.geometry.CornerRadius(4f), style = glassLine)
+    drawRoundRect(metal, Offset(32f, 12f), Size(48f, 24f), androidx.compose.ui.geometry.CornerRadius(4f))
+    drawRect(metalLight, Offset(38f, 13f), Size(7f, 22f), alpha = 0.55f)
+    drawPath(svg("M32 20 H80 M32 28 H80"), metalDark, style = threadLine)
+    drawRoundRect(metalDark, Offset(32f, 12f), Size(48f, 24f), androidx.compose.ui.geometry.CornerRadius(4f), style = glassLine)
 }
 
 /**

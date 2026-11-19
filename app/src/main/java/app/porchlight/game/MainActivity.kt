@@ -31,6 +31,10 @@ class MainActivity : ComponentActivity() {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("setXp")) {
             store.change { it.copy(xp = intent.getIntExtra("setXp", 0).coerceAtLeast(0)) }
         }
+        //   ... --ei gems 900   (debug only: set the Fireflies balance, to try the shop)
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("gems")) {
+            store.change { it.copy(wallet = it.wallet.copy(balance = intent.getIntExtra("gems", 0).coerceAtLeast(0))) }
+        }
         //   ... --ei level 36   (debug only: open every level up to 36 and pick it, to try it out)
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("level")) {
             val n = intent.getIntExtra("level", 1).coerceIn(1, LEVELS.size)

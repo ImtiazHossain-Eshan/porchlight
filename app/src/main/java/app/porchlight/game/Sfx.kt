@@ -13,6 +13,10 @@ import kotlin.random.Random
 enum class Sound {
     Flip, Match1, Match2, Match3, Match4, Match5, Match6, Bass, Miss, Thunk,
     Start, Go, Tick, Buzz, Pop, Win, Lose, LevelUp, Locked, TopUp, Tap,
+    /** A firefly landing in the counter: a soft, high glass note. */
+    Chime,
+    /** Something bought: two warm notes, like a shop bell. */
+    Bought,
 }
 
 private const val RATE = 44_100
@@ -146,6 +150,14 @@ private fun synth(sound: Sound): FloatArray = when (sound) {
     )
     Sound.Locked -> render(Part(0, 120, 330.0, 290.0, Wave.Triangle, volume = 0.25, decay = 5.0, tone = 0.2))
     Sound.TopUp -> render(Part(0, 180, SCALE[4], SCALE[5], Wave.Sine, volume = 0.22, decay = 4.0))
+    Sound.Chime -> render(
+        Part(0, 260, SCALE[5] * 2, wave = Wave.Sine, volume = 0.14, decay = 5.0),
+        Part(0, 200, SCALE[5] * 3, wave = Wave.Sine, volume = 0.05, decay = 7.0),
+    )
+    Sound.Bought -> render(
+        Part(0, 240, SCALE[3], wave = Wave.Triangle, volume = 0.24, decay = 3.5, tone = 0.4),
+        Part(120, 420, SCALE[5], wave = Wave.Sine, volume = 0.3, decay = 3.0),
+    )
 }
 
 /** Night crickets over a soft mains hum. It loops seamlessly every four seconds. */

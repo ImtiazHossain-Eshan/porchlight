@@ -455,7 +455,7 @@ private fun ShowcaseJar(moth: MothId, open: Boolean, gold: Boolean, clock: Clock
             val burst = (sin(t * 0.8f + phase) + 1f) / 2f
             val beat = if (open && !calm) abs(sin(t * 9f + phase)) else 1f
             val wing = 1f - (0.75f * burst) * (1f - beat)
-            inUnitSquare { mothUnit(moth, wing, if (open) null else Color(0xFF1A0B18), gold) }
+            inUnitSquare { mothUnit(moth, wing, if (open) null else Color(0xFF1A0B18), gold, if (open) Wear.moths[moth] else null) }
         }
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width

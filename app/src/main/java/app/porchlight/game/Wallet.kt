@@ -103,12 +103,16 @@ fun earn(progress: Progress, event: Earning, now: Long): Progress =
 /** What a purchase with Fireflies costs, and what it is for (kept in the ledger). */
 data class Cost(val what: String, val price: Int)
 
-/** The outcome of spending: done, or not enough Fireflies (the wallet is left as it was). */
+/**
+ * The outcome of spending: done; not enough Fireflies; or not on offer at all. Only [Spent] changes
+ * anything: the others leave the wallet and the progress as they were.
+ */
 sealed class SpendResult {
     data class Spent(val progress: Progress) : SpendResult()
     data class Short(val price: Int, val balance: Int) : SpendResult() {
         val missing get() = price - balance
     }
+    data object NotOffered : SpendResult()
 }
 
 /**

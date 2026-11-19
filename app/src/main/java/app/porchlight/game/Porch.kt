@@ -154,8 +154,9 @@ internal fun Porch(session: Session) {
 
 @Composable
 private fun TopRow(session: Session) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         LevelPlate(session.store.progress.xp, Modifier.weight(1f), still = session.calm)
+        FireflyButton(session)
         BrassButton(Glyph.Gear, "Settings", enabled = true) { session.open(Screen.Settings) }
     }
 }
@@ -197,7 +198,7 @@ private fun Controls(session: Session, tight: Boolean = false) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    MothArt(session.noticeMoth ?: lead, Modifier.size(24.dp), flat = if (session.noticeMoth != null) Dusk.locked else null)
+                    MothArt(session.noticeMoth ?: lead, Modifier.size(24.dp), flat = if (session.noticeMoth != null) Dusk.locked else null, colours = if (session.noticeMoth == null) Wear.moths[lead] else null)
                     Text(notice, style = TextInk, color = Craft.parchmentInk, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
             }
@@ -307,15 +308,17 @@ private fun Stage(session: Session, modifier: Modifier) {
 
             val rail = size.height - 10.dp.toPx()
             val post = 9.dp.toPx()
-            val wood = Wood.Night
+            // The railing is night-stained, unless a porch theme gives it its own wood.
+            val (railLight, _, railDark) = Wear.porch.takeIf { it != Wear.defaultPorch }?.rail
+                ?: Triple(Wood.Night.light, Wood.Night.base, Wood.Night.dark)
             var x = 6.dp.toPx()
             while (x < size.width) {
-                drawRect(wood.dark, Offset(x, rail - 30.dp.toPx()), androidx.compose.ui.geometry.Size(post * 0.5f, 34.dp.toPx()), alpha = 0.9f)
+                drawRect(railDark, Offset(x, rail - 30.dp.toPx()), androidx.compose.ui.geometry.Size(post * 0.5f, 34.dp.toPx()), alpha = 0.9f)
                 x += 26.dp.toPx()
             }
-            drawRect(wood.dark, Offset(0f, rail - 36.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 8.dp.toPx()))
-            drawRect(wood.light, Offset(0f, rail - 36.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 1.5.dp.toPx()), alpha = 0.6f)
-            drawRect(wood.dark, Offset(0f, rail + 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 6.dp.toPx()))
+            drawRect(railDark, Offset(0f, rail - 36.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 8.dp.toPx()))
+            drawRect(railLight, Offset(0f, rail - 36.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 1.5.dp.toPx()), alpha = 0.6f)
+            drawRect(railDark, Offset(0f, rail + 2.dp.toPx()), androidx.compose.ui.geometry.Size(size.width, 6.dp.toPx()))
         },
     ) {
         val w = maxWidth
@@ -649,7 +652,7 @@ private fun Stage(session: Session, modifier: Modifier) {
                             moth(id, c, canvas.minDimension * (if (chosen) 0.86f else 1f) * scale, 1f - 0.6f * flutter - hover, flat = Color.Black.copy(alpha = if (chosen) 0.16f else 0.28f))
                         }
                         drawContext.canvas.saveLayer(androidx.compose.ui.geometry.Rect(Offset.Zero, canvas), androidx.compose.ui.graphics.Paint().apply { alpha = shown })
-                        moth(id, Offset(canvas.width / 2f, canvas.height / 2f + lift), canvas.minDimension * (if (chosen) 0.86f else 1f), 1f - 0.6f * flutter - hover, gold = gold)
+                        moth(id, Offset(canvas.width / 2f, canvas.height / 2f + lift), canvas.minDimension * (if (chosen) 0.86f else 1f), 1f - 0.6f * flutter - hover, gold = gold, colours = Wear.moths[id])
                         drawContext.canvas.restore()
                     }
                 } else {

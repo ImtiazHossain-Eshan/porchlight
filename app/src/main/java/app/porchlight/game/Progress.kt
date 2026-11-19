@@ -155,9 +155,17 @@ data class Progress(
     val haptics: Boolean = true,
     /** The player's Fireflies: balance, lifetime totals, purchases and the ledger. */
     val wallet: Wallet = Wallet(),
+    /** Levels skipped with Fireflies: no stars, still there to play, and the next one opened. */
+    val skipped: Set<Int> = emptySet(),
+    /** Lead moths bought before the level that brings them. */
+    val earlyLeads: Set<MothId> = emptySet(),
+    /** Looks owned (see [LOOK_CATALOG]); the defaults are always owned and never listed here. */
+    val owned: Set<String> = emptySet(),
+    /** The look worn in each slot, by slot name; a slot not listed wears its default. */
+    val equipped: Map<String, String> = emptyMap(),
 ) {
     val level get() = levelFor(xp)
-    fun unlocked(id: MothId) = level >= id.unlockLevel
+    fun unlocked(id: MothId) = level >= id.unlockLevel || id.isLead && id in earlyLeads
     fun playedDaily(today: Long) = dailyDay == today
 
     val totalStars get() = levelStars.sum()
@@ -226,7 +234,9 @@ fun starsFor(round: Round): Int {
     if (round.phase != Phase.Won) return 0
     if (round.daily) return 1 + (if (round.left * 3 >= round.level.roundMs) 1 else 0) + (if (round.misses == 0) 1 else 0)
     if (round.easy || round.left * 4 < round.level.roundMs) return 1
-    return if (round.misses <= round.level.maxMissesFor3Stars) 3 else 2
+    val stars = if (round.misses <= round.level.maxMissesFor3Stars) 3 else 2
+    // Any boost, bought or watched for, caps the stars: the third needs a clean, boost-free clear.
+    return if (round.boosts.isNotEmpty()) minOf(stars, Economy.BOOSTED_MAX_STARS) else stars
 }
 
 /** XP for a round: boss wins earn half again. */
@@ -475,6 +485,13 @@ class Store(private val prefs: SharedPreferences) {
         reduceMotion = prefs.getBoolean("reduceMotion", false),
         haptics = prefs.getBoolean("haptics", true),
         wallet = Wallet.decode(runCatching { prefs.getString("wallet", null) }.getOrNull()),
+        skipped = prefs.getStringSet("skipped", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() }.filter { it in 1..LEVELS.size }.toSet(),
+        earlyLeads = names<MothId>("earlyLeads").filter { it.isLead }.toSet(),
+        owned = prefs.getStringSet("owned", emptySet()).orEmpty().filter { id -> LOOK_CATALOG.any { it.id == id } }.toSet(),
+        equipped = prefs.getStringSet("equipped", emptySet()).orEmpty().mapNotNull { entry ->
+            val (slot, id) = entry.split("=", limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+            slot to id
+        }.toMap(),
     )
 
     private fun save(next: Progress) {
@@ -508,6 +525,10 @@ class Store(private val prefs: SharedPreferences) {
             .putBoolean("reduceMotion", next.reduceMotion)
             .putBoolean("haptics", next.haptics)
             .putString("wallet", next.wallet.encode())
+            .putStringSet("skipped", next.skipped.map { it.toString() }.toSet())
+            .putStringSet("earlyLeads", next.earlyLeads.map { it.name }.toSet())
+            .putStringSet("owned", next.owned)
+            .putStringSet("equipped", next.equipped.map { (slot, id) -> "$slot=$id" }.toSet())
             .apply()
     }
 
@@ -515,6 +536,13 @@ class Store(private val prefs: SharedPreferences) {
 
     /** Changes a setting and saves it. */
     fun change(edit: (Progress) -> Progress) = save(edit(progress))
+
+    /** Runs a purchase (one of the functions in Shop.kt) and saves it if it went through. */
+    fun pay(buy: (Progress) -> SpendResult): SpendResult {
+        val result = buy(progress)
+        if (result is SpendResult.Spent) save(result.progress)
+        return result
+    }
 
     fun finish(round: Round, lead: MothId, today: Long = 0, yesterday: Long = -1, now: Long = System.currentTimeMillis()): Report {
         val (after, report) = settleRound(progress, round, lead, today, yesterday, now)

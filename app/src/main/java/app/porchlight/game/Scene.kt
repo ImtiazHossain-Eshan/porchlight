@@ -106,6 +106,10 @@ internal fun NightScene(
     modifier: Modifier = Modifier,
     /** False draws the plain gradient glow on every phone: the share card must look the same everywhere. */
     shaders: Boolean = true,
+    /** The wall and the colour of the light: the porch theme worn, or the night porch's own. */
+    porch: () -> PorchStyle = { Wear.defaultPorch },
+    /** A porch theme's light colour, for when the light has no colour of its own to show. */
+    tint: () -> Color? = { null },
 ) {
     // Each mote: angle, speed, distance from the bulb, phase, depth.
     val motes = remember {
@@ -117,7 +121,8 @@ internal fun NightScene(
         modifier
             .fillMaxSize()
             .drawWithCache {
-                val wall = Brush.verticalGradient(listOf(Dusk.wallTop, Dusk.wallBottom))
+                val look = porch()
+                val wall = Brush.verticalGradient(listOf(look.wallTop, look.wallBottom))
                 // Wide planks: a seam between each, grain along them, a nail at either end.
                 val plankHeight = 58.dp.toPx()
                 val woodRandom = Random(29)
@@ -151,16 +156,16 @@ internal fun NightScene(
                     radius = 100f,
                 )
                 val pool = Brush.radialGradient(
-                    0f to Dusk.glow.copy(alpha = 0.55f),
-                    0.45f to Dusk.glowDeep.copy(alpha = 0.18f),
+                    0f to look.glow.copy(alpha = 0.55f),
+                    0.45f to look.glowDeep.copy(alpha = 0.18f),
                     1f to Color.Transparent,
                     center = Offset.Zero,
                     radius = 100f,
                 )
                 // A soft dot, for the near motes that are out of focus.
                 val soft = Brush.radialGradient(
-                    0f to Dusk.glow,
-                    0.4f to Dusk.glow.copy(alpha = 0.5f),
+                    0f to look.glow,
+                    0.4f to look.glow.copy(alpha = 0.5f),
                     1f to Color.Transparent,
                     center = Offset.Zero,
                     radius = 100f,
@@ -189,10 +194,10 @@ internal fun NightScene(
                         drawPath(grainLight, Wood.Night.light, alpha = 0.3f, style = grainLine)
                         var y = plankHeight
                         while (y < size.height + slide) {
-                            drawLine(Dusk.plank, Offset(-slide, y), Offset(size.width + slide, y), plankWidth * 2.5f)
+                            drawLine(look.plank, Offset(-slide, y), Offset(size.width + slide, y), plankWidth * 2.5f)
                             drawLine(Wood.Night.light, Offset(-slide, y + plankWidth * 2f), Offset(size.width + slide, y + plankWidth * 2f), plankWidth, alpha = 0.35f)
-                            drawCircle(Dusk.plank, plankWidth * 2.2f, Offset(14.dp.toPx(), y - plankHeight / 2f))
-                            drawCircle(Dusk.plank, plankWidth * 2.2f, Offset(size.width - 14.dp.toPx(), y - plankHeight / 2f))
+                            drawCircle(look.plank, plankWidth * 2.2f, Offset(14.dp.toPx(), y - plankHeight / 2f))
+                            drawCircle(look.plank, plankWidth * 2.2f, Offset(size.width - 14.dp.toPx(), y - plankHeight / 2f))
                             y += plankHeight
                         }
                     }
@@ -204,7 +209,7 @@ internal fun NightScene(
                         val gx = at.x + tx * DEPTH_GLOW
                         val gy = at.y + ty * DEPTH_GLOW
                         if (glowBrush != null && Build.VERSION.SDK_INT >= 33) {
-                            glowShader.update(gx, gy, radius * 0.62f, clock.seconds, level, warmth(), hue())
+                            glowShader.update(gx, gy, radius * 0.62f, clock.seconds, level, warmth(), hue() ?: tint())
                             drawRect(glowBrush)
                         } else {
                             translate(gx, gy) {
@@ -241,7 +246,7 @@ internal fun NightScene(
                                     }
                                 }
                             } else {
-                                drawCircle(Dusk.glow, moteSize * (0.5f + depth * 1.2f), Offset(x, y), alpha = bright)
+                                drawCircle(look.glow, moteSize * (0.5f + depth * 1.2f), Offset(x, y), alpha = bright)
                             }
                         }
                     }

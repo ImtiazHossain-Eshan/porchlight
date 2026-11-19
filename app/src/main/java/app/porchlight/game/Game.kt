@@ -195,11 +195,72 @@ data class Rules(
 /** Iris's longer look, on top of the level's own peek. */
 const val IRIS_PEEK_MS = 1_400L
 
-fun rulesFor(lead: MothId, level: Level = LEVELS[0], easy: Boolean = false): Rules {
+/**
+ * A Fireflies boost: bought for one round, at most one of each, and never on the daily porch or the
+ * tutorial. [before] ones are bought ahead of the round and change its rules; the others act during
+ * it ([Look], [Pair], from the pause screen) or after it ([Relight], when the bulb burns out). A
+ * round that used any boost earns at most [Economy.BOOSTED_MAX_STARS] stars. Prices and amounts are
+ * in [Economy].
+ */
+enum class Boost(val before: Boolean) {
+    Time(true),
+    Peek(true),
+    Look(false),
+    Pair(false),
+    Relight(false),
+    ;
+
+    val price: Int get() = when (this) {
+        Time -> Economy.BOOST_TIME_PRICE
+        Peek -> Economy.BOOST_PEEK_PRICE
+        Look -> Economy.BOOST_LOOK_PRICE
+        Pair -> Economy.BOOST_PAIR_PRICE
+        Relight -> Economy.BOOST_RELIGHT_PRICE
+    }
+
+    val title: String get() = when (this) {
+        Time -> "+${secondsText(Economy.BOOST_TIME_MS)} s on the bulb"
+        Peek -> "Longer peek"
+        Look -> "Second look"
+        Pair -> "Light a pair"
+        Relight -> "Relight"
+    }
+
+    val detail: String get() = when (this) {
+        Time -> "The bulb burns ${secondsText(Economy.BOOST_TIME_MS)} seconds longer."
+        Peek -> "${secondsText(Economy.BOOST_PEEK_MS)} more seconds to look before the cards fold shut."
+        Look -> "Every card flashes open for ${secondsText(Economy.BOOST_LOOK_MS)} s."
+        Pair -> "One pair turns up and is found for you."
+        Relight -> "Carry on with ${secondsText(Economy.BOOST_RELIGHT_MS)} s more. Pairs found stay found."
+    }
+
+    /** Where it can be bought, for the shop's list. */
+    val where: String get() = when (this) {
+        Time, Peek -> "Before a round"
+        Look, Pair -> "From the pause screen"
+        Relight -> "When the bulb burns out"
+    }
+}
+
+/** 10_000 -> "10", 1_500 -> "1.5", 900 -> "0.9". */
+fun secondsText(ms: Long): String =
+    if (ms % 1_000 == 0L) "${ms / 1_000}" else String.format(java.util.Locale.US, "%.1f", ms / 1_000f)
+
+/** The pre-round boosts' effect on the rules: more bulb, a longer peek. */
+fun Rules.boosted(boosts: Set<Boost>): Rules = copy(
+    roundMs = roundMs + if (Boost.Time in boosts) Economy.BOOST_TIME_MS else 0,
+    peekMs = peekMs + if (Boost.Peek in boosts) Economy.BOOST_PEEK_MS else 0,
+)
+
+/** Boosts that may change [level]'s rules: none on the daily porch (the same deal for everyone) or the tutorial. */
+fun allowedBoosts(level: Level, boosts: Set<Boost>): Set<Boost> =
+    if (level == DAILY || level == TUTORIAL) emptySet() else boosts
+
+fun rulesFor(lead: MothId, level: Level = LEVELS[0], easy: Boolean = false, boosts: Set<Boost> = emptySet()): Rules {
     val ms = if (easy) (level.roundMs * EASIER_BULB).toLong() else level.roundMs
     val base = Rules(roundMs = ms, peekMs = level.peekMs)
     if (level == TUTORIAL) return base
-    return when (lead) {
+    val led = when (lead) {
         MothId.Luna -> base.copy(roundMs = base.roundMs + 5_000)
         MothId.Wick -> base.copy(streakStart = 2, roundMs = base.roundMs - 3_000)
         MothId.Atlas -> base.copy(flashes = 1)
@@ -208,6 +269,7 @@ fun rulesFor(lead: MothId, level: Level = LEVELS[0], easy: Boolean = false): Rul
         MothId.Sorbet -> base.copy(pairBonusMs = 1_000)
         else -> base
     }
+    return led.boosted(allowedBoosts(level, boosts).filter { it.before }.toSet())
 }
 
 /** Atlas -> Atlases, Iris -> Irises, Wick -> Wicks. */
@@ -300,6 +362,17 @@ data class Round(
     /** Every turned pair so far, in order. */
     val history: List<LogEntry> = emptyList(),
     val say: String = "Pick a lead moth, then light the porch.",
+    /** Every boost used this round. Any of them caps the stars at [Economy.BOOSTED_MAX_STARS]. */
+    val boosts: Set<Boost> = emptySet(),
+    /** How long the current flash of every card lasts: Atlas's own, or a bought Second look. */
+    val flashMs: Long = FLASH_MS,
+    /** The pair a Light a pair just found, so the board can light it up. */
+    val lit: Pair<Int, Int>? = null,
+    /**
+     * The bulb burned out and a Relight is on offer: the board stays face down until the player
+     * decides, so the offer can never become a free look at where the cards lay.
+     */
+    val holding: Boolean = false,
 ) {
     val running get() = phase == Phase.Peek || phase == Phase.Play
     val over get() = phase == Phase.Won || phase == Phase.Lost
@@ -315,7 +388,20 @@ data class Round(
     }
 
     fun isFaceUp(index: Int) = phase != Phase.Idle &&
-        (phase == Phase.Peek || phase == Phase.Lost || flashing || matched[index] || index in open || index in spent)
+        (phase == Phase.Peek || (phase == Phase.Lost && !holding) || flashing || matched[index] || index in open || index in spent)
+
+    /** Boosts can be used on this round at all: never on the daily porch or the tutorial. */
+    val boostable get() = !daily && !tutorial
+
+    /** [boost] can be used now: once a round, at the moment it is for. */
+    fun canUse(boost: Boost): Boolean {
+        if (!boostable || boost in boosts) return false
+        return when (boost) {
+            Boost.Time, Boost.Peek -> false // bought ahead of the round, in [ready]
+            Boost.Look, Boost.Pair -> phase == Phase.Play && pairs < pairCount
+            Boost.Relight -> phase == Phase.Lost
+        }
+    }
 
     /** Peek is over: the clock starts. */
     fun go(now: Long) =
@@ -421,14 +507,64 @@ data class Round(
 
     fun flash() =
         if (phase != Phase.Play || paused || flashes < 1 || miss || flashing) this
-        else copy(flashing = true, flashes = flashes - 1, say = "Second look. Every card is open.")
+        else copy(flashing = true, flashes = flashes - 1, flashMs = FLASH_MS, say = "Second look. Every card is open.")
+
+    /** The bought Second look: every card flashes open, briefly. */
+    fun secondLook(): Round =
+        if (!canUse(Boost.Look) || paused || miss || flashing) this
+        else copy(flashing = true, flashMs = Economy.BOOST_LOOK_MS, boosts = boosts + Boost.Look, say = "Second look. Every card is open.")
+
+    /**
+     * Light a pair: one pair is found for the player. If one card is turned up, it is that card's
+     * partner; otherwise the first pair still face down. It scores nothing and keeps the streak as it
+     * was, but it counts towards the board, so it can finish the round.
+     */
+    fun lightPair(now: Long): Round {
+        if (!canUse(Boost.Pair) || paused || flashing) return this
+        val base = settle()
+        val single = base.open.singleOrNull()
+        val moth = if (single != null) base.deck[single] else
+            base.deck.indices.firstOrNull { !base.matched[it] && base.deck[it] != MothId.Leaf }?.let { base.deck[it] } ?: return this
+        val both = base.deck.indices.filter { base.deck[it] == moth && !base.matched[it] }
+        if (both.size < 2) return this
+        val (a, b) = both.take(2)
+        val nowMatched = base.matched.mapIndexed { i, done -> done || i == a || i == b }
+        val nowPairs = base.pairs + 1
+        val lit = base.copy(
+            open = emptyList(), matched = nowMatched, pairs = nowPairs, boosts = base.boosts + Boost.Pair, lit = a to b,
+            say = "A pair of ${plural(moth.label)}, lit for you.",
+        )
+        if (nowPairs < pairCount) return lit
+        val nowLeft = max(0, endsAt - now)
+        val seconds = (nowLeft / 1000).toInt()
+        return lit.copy(phase = Phase.Won, left = nowLeft, score = score + seconds * SECOND_POINTS, say = "Every pair with $seconds seconds left.")
+    }
+
+    /** Relight: after the bulb burns out, carry on with a little more time. Pairs found stay found. */
+    fun relight(now: Long): Round {
+        if (!canUse(Boost.Relight)) return this
+        return copy(
+            phase = Phase.Play, endsAt = now + Economy.BOOST_RELIGHT_MS, left = Economy.BOOST_RELIGHT_MS,
+            open = emptyList(), miss = false, flashing = false, paused = false, holding = false,
+            boosts = boosts + Boost.Relight, say = "Relit. ${secondsText(Economy.BOOST_RELIGHT_MS)} more seconds.",
+        )
+    }
 
     fun unflash() = if (flashing) copy(flashing = false) else this
 
     companion object {
-        fun ready(lead: MothId, level: Level = LEVELS[0], random: Random = Random.Default, seed: Long = random.nextLong(), easy: Boolean = false): Round {
-            val rules = rulesFor(lead, level, easy)
+        fun ready(
+            lead: MothId,
+            level: Level = LEVELS[0],
+            random: Random = Random.Default,
+            seed: Long = random.nextLong(),
+            easy: Boolean = false,
+            boosts: Set<Boost> = emptySet(),
+        ): Round {
+            val bought = allowedBoosts(level, boosts).filter { it.before }.toSet()
+            val rules = rulesFor(lead, level, easy, bought)
             return Round(
+                boosts = bought,
                 level = level,
                 deck = deal(level, random),
                 rules = rules,
@@ -440,8 +576,14 @@ data class Round(
             )
         }
 
-        fun start(lead: MothId, level: Level = LEVELS[0], random: Random = Random.Default, seed: Long = random.nextLong(), easy: Boolean = false) =
-            ready(lead, level, random, seed, easy).copy(phase = Phase.Peek, say = "Look closely. The cards are about to fold shut.")
+        fun start(
+            lead: MothId,
+            level: Level = LEVELS[0],
+            random: Random = Random.Default,
+            seed: Long = random.nextLong(),
+            easy: Boolean = false,
+            boosts: Set<Boost> = emptySet(),
+        ) = ready(lead, level, random, seed, easy, boosts).copy(phase = Phase.Peek, say = "Look closely. The cards are about to fold shut.")
 
         /** Today's porch: a deal seeded from the date, the same for every player. */
         fun daily(lead: MothId, seed: Long) = start(lead, DAILY, Random(seed), seed)
@@ -482,6 +624,7 @@ fun Round.saved(lead: MothId): Map<String, Any> = mapOf(
     "seed" to seed,
     "daily" to daily,
     "history" to encodeLog(history),
+    "boosts" to boosts.joinToString(",") { it.name },
 )
 
 /**
@@ -494,7 +637,8 @@ fun restoreRound(values: Map<String, Any?>): Pair<Round, MothId>? = runCatching 
     val easy = values["easy"] as? Boolean ?: false
     val deck = (values["deck"] as String).split(",").map { MothId.valueOf(it) }
     val phase = Phase.valueOf(values["phase"] as String)
-    val rules = rulesFor(lead, level, easy)
+    val boosts = (values["boosts"] as? String).orEmpty().split(",").mapNotNull { name -> Boost.entries.find { it.name == name } }.toSet()
+    val rules = rulesFor(lead, level, easy, boosts)
     val matched = (values["matched"] as BooleanArray).toList()
     require(matched.size == deck.size)
     val wasPlaying = phase == Phase.Play
@@ -523,6 +667,7 @@ fun restoreRound(values: Map<String, Any?>): Pair<Round, MothId>? = runCatching 
         easy = easy,
         history = decodeLog(values["history"] as? String),
         say = if (wasPlaying) "Paused." else "Look closely. The cards are about to fold shut.",
+        boosts = allowedBoosts(level, boosts),
     ) to lead
 }.getOrNull()
 

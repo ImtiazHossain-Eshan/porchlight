@@ -293,7 +293,7 @@ private fun DrawScope.wing(spec: Spec, wing: Wing, flat: Color?, line: Color) {
  * Draws a moth into the 120-unit square at the current transform. [open] runs from 0 (wings folded
  * edge-on) to 1. With [flat] set the moth is a single-colour silhouette.
  */
-internal fun DrawScope.mothUnit(id: MothId, open: Float, flat: Color? = null, gold: Boolean = false) {
+internal fun DrawScope.mothUnit(id: MothId, open: Float, flat: Color? = null, gold: Boolean = false, colours: MothColours? = null) {
     if (id == MothId.Leaf) {
         // The dud card: a dead, moth-eaten leaf.
         drawPath(svg(LEAF_SHAPE), flat ?: LEAF)
@@ -304,7 +304,7 @@ internal fun DrawScope.mothUnit(id: MothId, open: Float, flat: Color? = null, go
         drawPath(svg(LEAF_SHAPE), flat ?: LEAF_DARK, style = outline)
         return
     }
-    val spec = SPECS.getValue(id)
+    val spec = if (colours == null) SPECS.getValue(id) else recoloured(id, colours)
     val ink = flat ?: if (gold) GOLD_LINE else INK
     for (side in 0..1) {
         scale(if (side == 1) -1f else 1f, 1f, pivot = MIRROR_PIVOT) {
@@ -339,6 +339,13 @@ internal fun DrawScope.mothUnit(id: MothId, open: Float, flat: Color? = null, go
     }
 }
 
+/** A moth in a bought colour: its own wings' shape and marks, in the new colours. Kept, not rebuilt each frame. */
+private val recolours = HashMap<Pair<MothId, MothColours>, Spec>()
+
+private fun recoloured(id: MothId, colours: MothColours): Spec = recolours.getOrPut(id to colours) {
+    SPECS.getValue(id).copy(foreFill = colours.fore, hindFill = colours.hind, body = colours.body, antenna = colours.antenna)
+}
+
 /** Draws a moth [width] pixels wide, centred on [centre]: the moths in flight use this. */
 internal fun DrawScope.moth(
     id: MothId,
@@ -348,28 +355,34 @@ internal fun DrawScope.moth(
     tilt: Float = 0f,
     flat: Color? = null,
     gold: Boolean = false,
+    colours: MothColours? = null,
 ) {
     val s = width / 120f
     translate(centre.x - width / 2f, centre.y - width / 2f) {
         rotate(tilt, pivot = Offset(width / 2f, width / 2f)) {
-            scale(s, s, pivot = Offset.Zero) { mothUnit(id, open, flat, gold) }
+            scale(s, s, pivot = Offset.Zero) { mothUnit(id, open, flat, gold, colours) }
         }
     }
 }
 
+/**
+ * A moth on its own. [colours] is a bought colour: the porch and a lead's own pages pass it; the
+ * board never does, so a pair always looks like a pair.
+ */
 @Composable
-fun MothArt(id: MothId, modifier: Modifier = Modifier, open: Float = 1f, flat: Color? = null, gold: Boolean = false) {
-    Canvas(modifier) { inUnitSquare { mothUnit(id, open, flat, gold) } }
+fun MothArt(id: MothId, modifier: Modifier = Modifier, open: Float = 1f, flat: Color? = null, gold: Boolean = false, colours: MothColours? = null) {
+    Canvas(modifier) { inUnitSquare { mothUnit(id, open, flat, gold, colours) } }
 }
 
 /** A moth at rest with its wings folded: every card looks like this face down. */
 @Composable
 fun MothAtRest(color: Color, line: Color, modifier: Modifier = Modifier) {
-    Canvas(modifier) {
-        inUnitSquare {
-            drawPath(svg("M57.4 30 C54 23 49 18 43 15 M62.6 30 C66 23 71 18 77 15"), color, style = restLine)
-            drawPath(svg("M60 28 C71 36 89 80 85 98 C77 103 67 100 60 93 C53 100 43 103 35 98 C31 80 49 36 60 28 Z"), color)
-            drawLine(line, Offset(60f, 36f), Offset(60f, 90f), 2.6f, StrokeCap.Round)
-        }
-    }
+    Canvas(modifier) { inUnitSquare { restingMoth(color, line) } }
+}
+
+/** The moth at rest, in the 120-unit square: the plain card back's emblem. */
+internal fun DrawScope.restingMoth(color: Color, line: Color) {
+    drawPath(svg("M57.4 30 C54 23 49 18 43 15 M62.6 30 C66 23 71 18 77 15"), color, style = restLine)
+    drawPath(svg("M60 28 C71 36 89 80 85 98 C77 103 67 100 60 93 C53 100 43 103 35 98 C31 80 49 36 60 28 Z"), color)
+    drawLine(line, Offset(60f, 36f), Offset(60f, 90f), 2.6f, StrokeCap.Round)
 }

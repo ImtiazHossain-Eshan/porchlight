@@ -43,4 +43,70 @@ object Economy {
 
     /** Fireflies for the daily porch at a streak of [streak] days (1 = today only). */
     fun daily(streak: Int): Int = (DAILY_BASE + DAILY_PER_STREAK_DAY * (streak - 1).coerceAtLeast(0)).coerceAtMost(DAILY_CAP)
+
+    // ---------------------------------------------------------------------------------------------
+    // Boosts: bought for one round, at most one of each. Never on the daily porch.
+
+    const val BOOST_TIME_PRICE = 15
+    const val BOOST_TIME_MS = 10_000L
+
+    const val BOOST_PEEK_PRICE = 10
+    const val BOOST_PEEK_MS = 1_500L
+
+    const val BOOST_LOOK_PRICE = 20
+    const val BOOST_LOOK_MS = 900L
+
+    const val BOOST_PAIR_PRICE = 25
+
+    const val BOOST_RELIGHT_PRICE = 30
+    const val BOOST_RELIGHT_MS = 15_000L
+
+    /** A round that used any boost earns at most this many stars: the last needs a clean, boost-free clear. */
+    const val BOOSTED_MAX_STARS = 2
+
+    // ---------------------------------------------------------------------------------------------
+    // Progress skips and early moths
+
+    /** Opening a locked chapter early: this much for each star still missing from its gate. */
+    const val CHAPTER_PRICE_PER_STAR = 10
+
+    /** Skipping a level, offered only after this many losses in a row on it. */
+    const val SKIP_LEVEL_PRICE = 50
+    const val SKIP_AFTER_LOSSES = 3
+
+    /** A lead moth before the level that brings it. */
+    const val EARLY_LEAD_PRICE = 150
+
+    // ---------------------------------------------------------------------------------------------
+    // Looks: cosmetics, never gameplay. Every one listed in [LOOK_CATALOG] needs a price here, or is a gift
+    // (the default looks, and the starter pack's and Supporter's own, which can't be bought with Fireflies).
+
+    val LOOK_PRICES: Map<String, Int> = mapOf(
+        // Card backs, 200 to 400.
+        "back.walnut" to 200,
+        "back.cherry" to 250,
+        "back.night" to 300,
+        "back.moss" to 300,
+        "back.gilded" to 400,
+        // Jar and bulb styles.
+        "jar.copper" to 300,
+        "jar.pewter" to 300,
+        "jar.gilt" to 300,
+        // Moth colours, one for each lead.
+        "moth.luna.harvest" to 150,
+        "moth.wick.blue" to 150,
+        "moth.atlas.ghost" to 150,
+        "moth.dot.ink" to 150,
+        "moth.iris.rose" to 150,
+        "moth.sorbet.lime" to 150,
+        // Porch themes: wall, railing and the colour of the light.
+        "porch.birch" to 500,
+        "porch.barn" to 500,
+        "porch.harbour" to 500,
+        // Seasonal sets: shown in their season, kept for ever once bought.
+        "back.frost" to 300,
+        "porch.frost" to 500,
+        "back.harvest" to 300,
+        "porch.harvest" to 500,
+    )
 }

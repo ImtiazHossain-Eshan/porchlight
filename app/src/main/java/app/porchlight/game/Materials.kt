@@ -276,10 +276,11 @@ internal fun DrawScope.gear(centre: Offset, radius: Float, teeth: Int, degrees: 
 }
 
 /** A domed brass rivet. */
-internal fun DrawScope.rivet(centre: Offset, radius: Float, alpha: Float = 1f) {
-    drawCircle(Craft.brassDark, radius, centre, alpha = alpha)
-    drawCircle(Craft.brass, radius * 0.78f, centre, alpha = alpha)
-    drawCircle(Craft.brassLight, radius * 0.3f, Offset(centre.x - radius * 0.25f, centre.y - radius * 0.28f), alpha = alpha)
+internal fun DrawScope.rivet(centre: Offset, radius: Float, alpha: Float = 1f, trim: Trim = Trim.Brass) {
+    val (light, base, dark) = trim.tones
+    drawCircle(dark, radius, centre, alpha = alpha)
+    drawCircle(base, radius * 0.78f, centre, alpha = alpha)
+    drawCircle(light, radius * 0.3f, Offset(centre.x - radius * 0.25f, centre.y - radius * 0.28f), alpha = alpha)
 }
 
 /** A copper pipe along [path]: a dark body, the copper, and a line of light down its length. */
