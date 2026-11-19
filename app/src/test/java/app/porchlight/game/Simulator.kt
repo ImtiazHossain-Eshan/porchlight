@@ -49,8 +49,15 @@ object Simulator {
         ((level.peekMs.toDouble() / level.cards / CARD_MS).coerceIn(0.15, 0.95) * skill.factor).coerceAtMost(1.0)
 
     fun play(level: Level, skill: Skill, seed: Long): SimGame {
+        val round = playRound(level, skill, seed)
+        val won = round.phase == Phase.Won
+        return SimGame(won, starsFor(round), if (won) round.left else 0)
+    }
+
+    /** One round played through by a simulated player, as the finished [Round] (for the economy sim). */
+    fun playRound(level: Level, skill: Skill, seed: Long, easy: Boolean = false): Round {
         val random = Random(seed)
-        var round = Round.start(MothId.Moss, level, Random(seed), seed).go(0)
+        var round = Round.start(MothId.Moss, level, Random(seed), seed, easy = easy).go(0)
         val n = round.deck.size
         val p = recall(level, skill)
         val lookalikes = Twist.Lookalikes in level
@@ -125,9 +132,7 @@ object Simulator {
                 }
             }
         }
-        round = round.tick(now)
-        val won = round.phase == Phase.Won
-        return SimGame(won, starsFor(round), if (won) round.left else 0)
+        return round.tick(now)
     }
 
     fun run(level: Level, skill: Skill, games: Int = 2_000, seed: Long = 1): SimStats {

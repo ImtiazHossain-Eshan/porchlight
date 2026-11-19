@@ -111,3 +111,63 @@ signature check stops casual fakes; a determined cheater only cheats themselves.
 
 The wallet keeps its last 200 movements (what, how many, when) for support and debugging, along
 with lifetime totals earned and spent.
+
+## A month of a free player
+
+`EconomySim` (in `EconomyBalanceTest.kt`) plays an average free player through 30 days: no money, no
+boosts, no skips. Each day: the daily gift, the daily porch, **two ads** in the shop and **19 more
+rounds** (20 in all). They play their newest level; waiting at a chapter's star gate they replay the
+easiest level still short of three stars, and after half a day of that they open the gate with
+**Fireflies they earned**. Whenever they hold enough for a typical look (300) and aren't saving for
+a gate, they buy the cheapest look they don't own. Regenerate the table with
+`PORCH_ECONOMY=docs ./gradlew testDebugUnitTest --tests '*EconomyBalanceTest*'`.
+
+What it shows:
+
+- **Every chapter opens without money.** Chapters 2 to 4 open on stars alone. At chapter 5's gate
+  (80 stars) this player is still a few stars short on day 3 after ten replays, and opens it with
+  Fireflies earned by playing (10 a missing star; about 70 in this run). Those last stars come later
+  anyway: 90 stars by day 4. `a free player is never blocked from progress` runs five different seeds and
+  fails if any spends a whole day stuck at a gate, or doesn't reach level 50 within the month.
+- **About one look a week, or a little better.** Early on, new stars, bosses, chapters, badges and
+  level ups pay a lot (600 on day 1). Once the levels run out, a day is worth 80 to 110 (daily
+  porch, gift, ads, replays), which buys a 300 look every three or four days. The test checks at
+  least one look in every week of the month.
+- **At 20 rounds a day this player finishes all 50 levels in four days.** That is the spec's
+  "average player" pace; most players play far fewer rounds, which slows both progress and earning
+  in step.
+
+<!-- economy-sim:start -->
+| Day | Earned | Spent | Balance | Newest level | Stars | Chapters open | Looks owned | Rounds at a gate | Gates opened with Fireflies |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 612 | 450 | 162 | 18 | 41 | 3 | 3 | 0 | 0 |
+| 2 | 418 | 300 | 280 | 36 | 65 | 4 | 5 | 0 | 0 |
+| 3 | 309 | 370 | 219 | 42 | 81 | 5 | 7 | 10 | 1 |
+| 4 | 258 | 250 | 227 | 50 | 90 | 5 | 8 | 0 | 0 |
+| 5 | 126 | 300 | 53 | 50 | 92 | 5 | 9 | 0 | 0 |
+| 6 | 110 | 0 | 163 | 50 | 92 | 5 | 9 | 0 | 0 |
+| 7 | 113 | 0 | 276 | 50 | 92 | 5 | 9 | 0 | 0 |
+| 8 | 114 | 300 | 90 | 50 | 92 | 5 | 10 | 0 | 0 |
+| 9 | 113 | 0 | 203 | 50 | 92 | 5 | 10 | 0 | 0 |
+| 10 | 96 | 0 | 299 | 50 | 92 | 5 | 10 | 0 | 0 |
+| 11 | 92 | 300 | 91 | 50 | 92 | 5 | 11 | 0 | 0 |
+| 12 | 81 | 0 | 172 | 50 | 92 | 5 | 11 | 0 | 0 |
+| 13 | 95 | 0 | 267 | 50 | 92 | 5 | 11 | 0 | 0 |
+| 14 | 96 | 300 | 63 | 50 | 92 | 5 | 12 | 0 | 0 |
+| 15 | 96 | 0 | 159 | 50 | 92 | 5 | 12 | 0 | 0 |
+| 16 | 96 | 0 | 255 | 50 | 92 | 5 | 12 | 0 | 0 |
+| 17 | 80 | 300 | 35 | 50 | 92 | 5 | 13 | 0 | 0 |
+| 18 | 95 | 0 | 130 | 50 | 92 | 5 | 13 | 0 | 0 |
+| 19 | 80 | 0 | 210 | 50 | 92 | 5 | 13 | 0 | 0 |
+| 20 | 97 | 0 | 307 | 50 | 92 | 5 | 13 | 0 | 0 |
+| 21 | 79 | 0 | 386 | 50 | 92 | 5 | 13 | 0 | 0 |
+| 22 | 80 | 400 | 66 | 50 | 92 | 5 | 14 | 0 | 0 |
+| 23 | 97 | 0 | 163 | 50 | 92 | 5 | 14 | 0 | 0 |
+| 24 | 82 | 0 | 245 | 50 | 92 | 5 | 14 | 0 | 0 |
+| 25 | 97 | 0 | 342 | 50 | 92 | 5 | 14 | 0 | 0 |
+| 26 | 82 | 0 | 424 | 50 | 92 | 5 | 14 | 0 | 0 |
+| 27 | 83 | 500 | 7 | 50 | 92 | 5 | 15 | 0 | 0 |
+| 28 | 94 | 0 | 101 | 50 | 92 | 5 | 15 | 0 | 0 |
+| 29 | 81 | 0 | 182 | 50 | 92 | 5 | 15 | 0 | 0 |
+| 30 | 82 | 0 | 264 | 50 | 92 | 5 | 15 | 0 | 0 |
+<!-- economy-sim:end -->
