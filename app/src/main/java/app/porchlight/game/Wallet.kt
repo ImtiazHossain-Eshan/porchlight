@@ -10,6 +10,9 @@ enum class Source(val label: String) {
     Badge("Badge"),
     LevelUp("Level up"),
     FirstOpen("Daily gift"),
+    Ad("Watched an ad"),
+    Doubled("Doubled by an ad"),
+    Bought("Bought"),
     Spend("Spent"),
 }
 

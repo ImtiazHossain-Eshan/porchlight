@@ -163,6 +163,11 @@ data class Progress(
     val owned: Set<String> = emptySet(),
     /** The look worn in each slot, by slot name; a slot not listed wears its default. */
     val equipped: Map<String, String> = emptyMap(),
+    /** The year of birth given on the age screen; 0 until then (and no ad is asked for until then). */
+    val birthYear: Int = 0,
+    /** The day [adsWatched] counts, and how many ads of each [Placement] were watched on it. */
+    val adDay: Long = 0,
+    val adsWatched: Map<String, Int> = emptyMap(),
 ) {
     val level get() = levelFor(xp)
     fun unlocked(id: MothId) = level >= id.unlockLevel || id.isLead && id in earlyLeads
@@ -492,6 +497,12 @@ class Store(private val prefs: SharedPreferences) {
             val (slot, id) = entry.split("=", limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
             slot to id
         }.toMap(),
+        birthYear = prefs.getInt("birthYear", 0),
+        adDay = prefs.getLong("adDay", 0),
+        adsWatched = prefs.getStringSet("adsWatched", emptySet()).orEmpty().mapNotNull { entry ->
+            val (name, n) = entry.split("=", limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+            n.toIntOrNull()?.let { name to it }
+        }.toMap(),
     )
 
     private fun save(next: Progress) {
@@ -529,6 +540,9 @@ class Store(private val prefs: SharedPreferences) {
             .putStringSet("earlyLeads", next.earlyLeads.map { it.name }.toSet())
             .putStringSet("owned", next.owned)
             .putStringSet("equipped", next.equipped.map { (slot, id) -> "$slot=$id" }.toSet())
+            .putInt("birthYear", next.birthYear)
+            .putLong("adDay", next.adDay)
+            .putStringSet("adsWatched", next.adsWatched.map { (name, n) -> "$name=$n" }.toSet())
             .apply()
     }
 

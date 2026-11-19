@@ -97,6 +97,64 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     /** Something waiting for the player's one confirming tap before it is bought. */
     var offer by mutableStateOf<Offer?>(null)
 
+    /** Rewarded ads; null where they can't run. */
+    var ads: Ads? = null
+
+    /** The results' Fireflies were doubled by an ad: once a round. */
+    var doubled by mutableStateOf(false)
+
+    /**
+     * Plays a rewarded ad for [placement], if one is ready and today's cap allows. [onEarned] runs
+     * only if the SDK says the ad was watched through: at once, or after the ad has closed when
+     * [afterClose] (a relight must not start the bulb while the ad is still on screen).
+     */
+    fun watchAd(activity: android.app.Activity?, placement: Placement, afterClose: Boolean = false, onEarned: () -> Unit) {
+        val ads = ads ?: return
+        if (activity == null || adsLeft(store.progress, placement, todaySeed()) <= 0) return
+        var earned = false
+        val shown = ads.show(
+            activity,
+            onReward = {
+                earned = true
+                if (!afterClose) onEarned()
+            },
+            onDone = { if (earned && afterClose) onEarned() },
+        )
+        if (shown) sfx.play(Sound.Tap)
+    }
+
+    /** "Watch for 10 Fireflies", in the shop. */
+    fun watchShopAd(activity: android.app.Activity?) = watchAd(activity, Placement.Shop) {
+        val before = store.progress.wallet.balance
+        store.change { rewardShopAd(it, todaySeed(), System.currentTimeMillis()) ?: it }
+        val got = store.progress.wallet.balance - before
+        if (got > 0) earned(got)
+    }
+
+    /** "Double this level's Fireflies", on the results of a win. */
+    fun watchDouble(activity: android.app.Activity?, report: Report) {
+        if (doubled) return
+        watchAd(activity, Placement.Double) {
+            if (doubled) return@watchAd
+            val before = store.progress.wallet.balance
+            store.change { rewardDouble(it, report, todaySeed(), System.currentTimeMillis()) ?: it }
+            val got = store.progress.wallet.balance - before
+            if (got > 0) {
+                doubled = true
+                earned(got)
+            }
+        }
+    }
+
+    /** Fireflies just landed in the wallet: the counter shows them arriving. */
+    var arriving by mutableIntStateOf(0)
+
+    fun earned(amount: Int) {
+        arriving += amount
+        sfx.play(Sound.Chime)
+        buzz(HapticFeedbackType.Confirm)
+    }
+
     /** The shop's open tab. */
     var shopTab by mutableStateOf(ShopTab.Looks)
 
@@ -486,7 +544,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun GameScreen(store: Store, sfx: Sfx) {
+fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null) {
     val clock = rememberClock()
     val session = rememberSaveable(
         saver = mapSaver(save = { it.saved() }, restore = { Session(store, sfx, clock).apply { restore(it) } }),
@@ -514,6 +572,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
         onDispose { lifecycle.removeObserver(observer) }
     }
     session.haptics = LocalHapticFeedback.current
+    session.ads = ads
     session.scope = rememberCoroutineScope()
     sfx.muted = store.progress.muted
     sfx.music = store.progress.music
@@ -588,6 +647,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
                     session.pop.animateTo(0f, tween(120))
                     delay(1_250)
                 }
+                session.doubled = false
                 session.report = result
                 session.screen = Screen.Results
             }
@@ -627,9 +687,14 @@ fun GameScreen(store: Store, sfx: Sfx) {
         }
     }
 
-    // The very first launch opens on the tutorial.
-    LaunchedEffect(Unit) {
+    // The very first launch asks for a year of birth, then opens on the tutorial. Ads start only
+    // once the year is known, and follow what it says (see AdRules.kt).
+    val birthYear = store.progress.birthYear
+    LaunchedEffect(birthYear) {
+        if (birthYear == 0) return@LaunchedEffect
         if (!store.progress.tutorialDone) session.startTutorial()
+        val audience = audienceFor(birthYear, thisYear())
+        if (audience != null && activity != null) ads?.start(activity, audience)
     }
 
     // Back from a round asks first; back from the results goes to the porch; back from the porch exits.
@@ -743,6 +808,7 @@ fun GameScreen(store: Store, sfx: Sfx) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = session.pop.value }.background(Color.White))
         if (session.leaving) LeaveNotice(session)
         session.offer?.let { ConfirmSheet(session, it) }
+        if (birthYear == 0) AgeScreen { year -> store.change { it.copy(birthYear = year) } }
         session.sharing?.let { card ->
             ShareSheet(card, gold = card.lead in session.store.progress.mastered, level = session.store.progress.level) { session.sharing = null }
         }

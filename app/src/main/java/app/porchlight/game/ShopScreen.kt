@@ -426,6 +426,20 @@ private fun MothsTab(session: Session, month: Int) {
 
 @Composable
 private fun FirefliesTab(session: Session) {
+    val ads = session.ads
+    if (ads != null && (ads.ready || adsLeft(session.store.progress, Placement.Shop, todaySeed()) == 0)) {
+        Heading("Watch an ad")
+        AdButton(session, Placement.Shop, "Watch for ${Economy.AD_SHOP_REWARD} Fireflies", Modifier.fillMaxWidth()) { session.watchShopAd(it) }
+        val left = adsLeft(session.store.progress, Placement.Shop, todaySeed())
+        if (left > 0) {
+            Text(
+                "Only if you want to: $left of ${Economy.AD_SHOP_PER_DAY} left today.",
+                color = Dusk.inkSoft, fontSize = 13.sp, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
+            )
+        }
+        Spacer(Modifier.height(14.dp))
+    }
     Heading("Earned by playing")
     Column(
         Modifier

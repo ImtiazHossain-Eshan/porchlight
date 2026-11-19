@@ -31,6 +31,10 @@ class MainActivity : ComponentActivity() {
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("setXp")) {
             store.change { it.copy(xp = intent.getIntExtra("setXp", 0).coerceAtLeast(0)) }
         }
+        //   ... --ei birthYear 2015   (debug only: answer the age screen; 0 shows it again)
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("birthYear")) {
+            store.change { it.copy(birthYear = intent.getIntExtra("birthYear", 0).coerceAtLeast(0)) }
+        }
         //   ... --ei gems 900   (debug only: set the Fireflies balance, to try the shop)
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.hasExtra("gems")) {
             store.change { it.copy(wallet = it.wallet.copy(balance = intent.getIntExtra("gems", 0).coerceAtLeast(0))) }
@@ -48,7 +52,10 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
-        setContent { GameScreen(store, sfx) }
+        val ads = Ads.get(this, BuildConfig.REWARDED_AD_UNIT)
+        //   ... --ez eea true   (debug only: run the consent check as if the phone were in the EEA)
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.getBooleanExtra("eea", false)) ads.pretendEea = true
+        setContent { GameScreen(store, sfx, ads) }
     }
 
     override fun onResume() {

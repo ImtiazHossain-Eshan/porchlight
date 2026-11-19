@@ -78,6 +78,25 @@ object Economy {
     const val EARLY_LEAD_PRICE = 150
 
     // ---------------------------------------------------------------------------------------------
+    // Rewarded ads: only ever when the player taps to watch one. No interstitials, no banners.
+
+    /** "Watch for 10 Fireflies" in the shop. */
+    const val AD_SHOP_REWARD = 10
+    const val AD_SHOP_PER_DAY = 5
+
+    /** "Double this level's Fireflies" on the results of a win. */
+    const val AD_DOUBLE_PER_DAY = 3
+
+    /** "Relight for free" when the bulb burns out: once a round (like any boost), and this many a day. */
+    const val AD_RELIGHT_PER_DAY = 3
+
+    /** Under this age, ads are child-directed: rated G, never personalised. */
+    const val CHILD_AGE = 13
+
+    /** Under this age (the highest digital age of consent in the EEA), ads are never personalised. */
+    const val CONSENT_AGE = 16
+
+    // ---------------------------------------------------------------------------------------------
     // Looks: cosmetics, never gameplay. Every one listed in [LOOK_CATALOG] needs a price here, or is a gift
     // (the default looks, and the starter pack's and Supporter's own, which can't be bought with Fireflies).
 

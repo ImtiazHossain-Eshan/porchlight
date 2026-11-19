@@ -17,6 +17,11 @@
             </intent-filter>
         </activity>
 
+        <!-- AdMob: Google's test app id in debug builds (see app/build.gradle.kts). Rewarded ads only. -->
+        <meta-data
+            android:name="com.google.android.gms.ads.APPLICATION_ID"
+            android:value="${admobAppId}" />
+
         <!-- Hands the daily share card (cache/share/ only) to the app the player shares it with. -->
         <provider
             android:name="androidx.core.content.FileProvider"

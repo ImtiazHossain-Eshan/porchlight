@@ -216,3 +216,24 @@ internal fun FireflyButton(session: Session, modifier: Modifier = Modifier) {
             .semantics { contentDescription = "${fireflies(balance)}. Open the Porch shop." },
     )
 }
+
+/**
+ * An opt-in ad button, with what it gives written on it. It shows only when an ad is loaded; once
+ * today's cap for [placement] is used it says "Come back tomorrow" instead. It never plays anything
+ * by itself.
+ */
+@Composable
+internal fun AdButton(session: Session, placement: Placement, label: String, modifier: Modifier = Modifier, onTap: (android.app.Activity?) -> Unit) {
+    val ads = session.ads ?: return
+    val left = adsLeft(session.store.progress, placement, todaySeed())
+    val activity = androidx.activity.compose.LocalActivity.current
+    when {
+        left <= 0 -> Text(
+            "Come back tomorrow",
+            style = Label, color = Dusk.inkSoft, textAlign = TextAlign.Center,
+            modifier = modifier.padding(vertical = 10.dp).semantics { contentDescription = "$label. None left today: come back tomorrow." },
+        )
+        ads.ready && !ads.showing -> SecondaryButton(label, modifier, glyph = Glyph.Play) { onTap(activity) }
+        else -> Unit
+    }
+}
