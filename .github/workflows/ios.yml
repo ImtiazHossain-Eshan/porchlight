@@ -82,21 +82,33 @@ jobs:
           xcrun simctl bootstatus "$DEVICE" -b
           xcrun simctl status_bar "$DEVICE" override --time 9:41 --batteryState charged --batteryLevel 100
           xcrun simctl install "$DEVICE" "$APP"
-          mkdir -p shots
+          mkdir -p shots/console
+          # Each launch keeps the app's own stdout and stderr (NSLog lines, Kotlin exceptions), and
+          # notes whether the app was still running when the screenshot was taken.
           shot() {
             xcrun simctl terminate "$DEVICE" app.porchlight.game 2>/dev/null || true
-            xcrun simctl launch "$DEVICE" app.porchlight.game --level 12 --setXp 3000 --screen "$2"
+            sleep 2
+            xcrun simctl launch --terminate-running-process \
+              --stdout="$PWD/shots/console/$1.out" --stderr="$PWD/shots/console/$1.err" \
+              "$DEVICE" app.porchlight.game --level 12 --setXp 3000 --screen "$2"
             sleep "$3"
             xcrun simctl io "$DEVICE" screenshot "shots/$1.png"
+            echo "$1: $(xcrun simctl spawn "$DEVICE" launchctl list | grep -i porchlight || echo 'app not running')" \
+              >> shots/console/running.txt
           }
           shot 01-porch Porch 10
           shot 02-round Round 9
-          shot 04-level-map Levels 6
+          shot 04-level-map Levels 8
           shot 05-daily Daily 6
           shot 06-moths Moths 6
-          shot 07-badges Badges 6
+          shot 07-badges Badges 8
           shot 08-settings Settings 6
-          xcrun simctl spawn "$DEVICE" log show --last 5m --predicate 'eventMessage CONTAINS "Porchlight"' > shots/log.txt || true
+          # The round again, once the simulator is warm, with a longer wait.
+          shot 03-round-again Round 15
+          xcrun simctl spawn "$DEVICE" log show --last 10m --style compact \
+            --predicate 'process == "Porchlight" OR eventMessage CONTAINS[c] "app.porchlight.game"' \
+            > shots/log.txt || true
+          cp ~/Library/Logs/DiagnosticReports/Porchlight* shots/console/ 2>/dev/null || echo "no crash reports" >> shots/console/running.txt
 
       - uses: actions/upload-artifact@v7
         if: always()
