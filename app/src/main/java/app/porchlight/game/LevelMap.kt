@@ -261,6 +261,10 @@ private fun ChapterScene(
             }
         }
         Canvas(Modifier.fillMaxSize()) { sceneSky(chapter.number) }
+        // The scene's own light: it lags with the far scenery and breathes with the clock.
+        Canvas(Modifier.fillMaxSize().depthLayer(FAR_SCROLL, 0.3f)) {
+            if (onScreen()) sceneLight(chapter.number, time(), top)
+        }
         Canvas(Modifier.fillMaxSize().depthLayer(FAR_SCROLL, 0.4f)) { sceneFar(chapter.number, top, stopsPx) }
         Canvas(Modifier.fillMaxSize().depthLayer(NEAR_SCROLL, 1f)) { sceneNear(chapter.number, top, stopsPx) }
         Canvas(Modifier.fillMaxSize().depthLayer(LIFE_SCROLL, 0.7f)) {
@@ -343,7 +347,11 @@ private fun LevelCoin(
         Modifier
             .offset(at.x - box * 0.75f, at.y - box / 2)
             .width(box * 1.5f)
-            .graphicsLayer { alpha = if (chapterOpen) 1f else 0.45f }
+            // Faded without an offscreen layer, which would clip the coin's raised rim to its box.
+            .graphicsLayer {
+                alpha = if (chapterOpen) 1f else 0.45f
+                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.ModulateAlpha
+            }
             .hoverable(touch)
             .clickable(interactionSource = touch, indication = null, role = Role.Button) {
                 if (open) onPick(level) else onLocked(level)

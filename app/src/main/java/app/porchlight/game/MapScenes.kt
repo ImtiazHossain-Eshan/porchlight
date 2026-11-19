@@ -3,6 +3,7 @@ package app.porchlight.game
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -88,6 +89,135 @@ internal fun DrawScope.sceneSky(chapter: Int) {
     when (chapter) {
         1 -> glow(Offset(size.width * 0.15f, 0f), size.width * 0.7f, look.light, 0.25f)
         5 -> drawRect(Brush.verticalGradient(listOf(Color.Transparent, look.light.copy(alpha = 0.38f)), size.height * 0.5f, size.height))
+    }
+}
+
+/**
+ * Each scene's light, behind the scenery and in front of the sky, at [t] seconds: lamplight on the
+ * porch, moonbeams in the garden, sunbeams through the woods, an aurora over the rooftops, and the
+ * sun rising behind the last porch's hills. Soft, tapered shafts that breathe, never hard lines.
+ */
+internal fun DrawScope.sceneLight(chapter: Int, t: Float, top: Float) {
+    val look = sceneLook(chapter)
+    val w = size.width
+    val h = size.height
+    when (chapter) {
+        1 -> godRays(Offset(w * 0.12f, top * 0.6f), 62f, 64f, 8, h * 0.62f, look.light, 0.16f, t, seed = 1)
+        2 -> godRays(Offset(w * 0.9f, -h * 0.02f), 112f, 38f, 6, h * 0.8f, Color(0xFFE6F5D0), 0.09f, t, seed = 2)
+        3 -> {
+            godRays(Offset(w * 1.08f, top - h * 0.04f), 116f, 26f, 7, h * 1.1f, Color(0xFFE4F6EC), 0.18f, t, seed = 3)
+            godRays(Offset(w * 0.2f, top - h * 0.06f), 78f, 14f, 3, h * 0.9f, Color(0xFFE4F6EC), 0.07f, t, seed = 33)
+        }
+        4 -> aurora(top, t)
+        else -> {
+            // The sun, just breaking the far hills, and its rays fanning up into the dawn.
+            val sun = Offset(w * 0.6f, h * 0.86f)
+            val r = w * 0.11f
+            glow(sun, w * 0.95f, look.light, 0.30f)
+            godRays(sun, -90f, 170f, 13, h * 0.7f, Color(0xFFFFD58A), 0.20f, t, seed = 5)
+            glow(sun, r * 2.2f, Color(0xFFFFE2A6), 0.55f)
+            drawCircle(Brush.radialGradient(listOf(Color(0xFFFFFBEA), Color(0xFFFFD27A)), sun, r), r, sun)
+        }
+    }
+}
+
+private val rayPath = Path()
+
+/**
+ * Light falling from [origin]: [count] tapered shafts spread over [spread] degrees around [direction]
+ * (0 is to the right, 90 straight down). Each has its own width, reach and slow breath, sways a
+ * degree or two, fades out along its length, and adds onto what is under it. With [motes], dust
+ * drifts in the light.
+ */
+private fun DrawScope.godRays(
+    origin: Offset,
+    direction: Float,
+    spread: Float,
+    count: Int,
+    length: Float,
+    color: Color,
+    alpha: Float,
+    t: Float,
+    seed: Int,
+    motes: Boolean = true,
+) {
+    val random = Random(seed * 977)
+    for (k in 0 until count) {
+        val jitter = random.nextFloat() - 0.5f
+        val widen = 0.35f + 0.65f * random.nextFloat()
+        val reach = length * (0.6f + 0.4f * random.nextFloat())
+        val rate = 0.25f + 0.35f * random.nextFloat()
+        val phase = random.nextFloat() * 6.28f
+        val step = spread / count
+        val a = direction - spread / 2f + step * (k + 0.5f + 0.6f * jitter) + 1.8f * sin(t * 0.11f + phase)
+        val half = step * widen * 0.5f
+        val breath = 0.45f + 0.55f * (0.5f + 0.5f * sin(t * rate + phase))
+        val a0 = Math.toRadians((a - half).toDouble())
+        val a1 = Math.toRadians((a + half).toDouble())
+        rayPath.reset()
+        rayPath.moveTo(origin.x, origin.y)
+        rayPath.lineTo(origin.x + (reach * cos(a0)).toFloat(), origin.y + (reach * sin(a0)).toFloat())
+        rayPath.lineTo(origin.x + (reach * cos(a1)).toFloat(), origin.y + (reach * sin(a1)).toFloat())
+        rayPath.close()
+        val strength = alpha * breath
+        drawPath(
+            rayPath,
+            Brush.radialGradient(
+                0f to color.copy(alpha = strength.coerceIn(0f, 1f)),
+                0.35f to color.copy(alpha = (strength * 0.55f).coerceIn(0f, 1f)),
+                1f to Color.Transparent,
+                center = origin,
+                radius = reach,
+            ),
+            blendMode = BlendMode.Plus,
+        )
+        if (motes) {
+            // A few motes turning slowly in this shaft.
+            for (m in 0 until 3) {
+                val along = ((random.nextFloat() + t * 0.012f * (1 + m)) % 1f) * reach * 0.85f + reach * 0.08f
+                val side = (random.nextFloat() - 0.5f) * half * 1.4f
+                val ang = Math.toRadians((a + side).toDouble())
+                val at = Offset(origin.x + (along * cos(ang)).toFloat(), origin.y + (along * sin(ang)).toFloat())
+                val twinkle = 0.5f + 0.5f * sin(t * (1f + m) + phase + m)
+                drawCircle(color.copy(alpha = (0.5f * twinkle * breath * (1f - along / reach)).coerceIn(0f, 1f)), (0.9f + m * 0.4f) * density, at)
+            }
+        }
+    }
+}
+
+/** Curtains of green and violet light rippling slowly over the rooftops: smooth ribbons, never stripes. */
+private fun DrawScope.aurora(top: Float, t: Float) {
+    val w = size.width
+    val h = size.height
+    for ((band, colour) in listOf(0 to Color(0xFF5CF2C4), 1 to Color(0xFFB07CFF))) {
+        val base = top + h * (0.06f + band * 0.05f)
+        val fall = h * (0.15f - band * 0.04f)
+        fun edge(u: Float) = base + h * 0.035f * sin(u * 5.5f + t * 0.22f + band * 2f) + h * 0.015f * sin(u * 13f - t * 0.31f)
+        rayPath.reset()
+        val steps = 48
+        for (i in 0..steps) {
+            val u = -0.05f + 1.1f * i / steps
+            val y = edge(u)
+            if (i == 0) rayPath.moveTo(u * w, y) else rayPath.lineTo(u * w, y)
+        }
+        for (i in steps downTo 0) {
+            val u = -0.05f + 1.1f * i / steps
+            // The hem hangs unevenly, longer where the curtain is brightest.
+            rayPath.lineTo(u * w, edge(u) + fall * (0.7f + 0.3f * sin(u * 7f + t * 0.4f + band)))
+        }
+        rayPath.close()
+        val glow = 0.30f + 0.08f * sin(t * 0.5f + band * 1.3f)
+        drawPath(
+            rayPath,
+            Brush.verticalGradient(
+                0f to colour.copy(alpha = glow),
+                0.35f to colour.copy(alpha = glow * 0.55f),
+                1f to Color.Transparent,
+                startY = base - h * 0.05f,
+                endY = base + fall,
+            ),
+            blendMode = BlendMode.Plus,
+        )
     }
 }
 
@@ -316,17 +446,7 @@ internal fun DrawScope.sceneLife(chapter: Int, t: Float, top: Float, stops: List
                         // The house's lamp: rays turning slowly, a pulse, and moths circling in.
                         val lamp = Offset(c.x, c.y + r * 0.9f - r * 0.55f)
                         val pulse = 0.5f + 0.5f * sin(t * 2.2f)
-                        rotate(sin(t * 0.35f) * 8f, lamp) {
-                            for (k in 0 until 9) {
-                                val a = Math.toRadians(-180.0 + k * 22.5)
-                                drawLine(
-                                    look.light.copy(alpha = 0.16f + 0.12f * pulse),
-                                    lamp,
-                                    Offset(lamp.x + (r * 2.4f * cos(a)).toFloat(), lamp.y + (r * 2.4f * sin(a)).toFloat()),
-                                    thin * 2.2f,
-                                )
-                            }
-                        }
+                        godRays(lamp, -90f, 210f, 6, r * 2.4f, look.light, 0.22f + 0.08f * pulse, t, seed = 5, motes = false)
                         glow(lamp, r * (1.2f + 0.2f * pulse), look.light, 0.55f + 0.2f * pulse)
                         drawCircle(Color(0xFFFFF4D6), r * 0.08f, lamp)
                         orbit(look, lamp, r * 1.05f, 5, t, 1.1f, 0f)
