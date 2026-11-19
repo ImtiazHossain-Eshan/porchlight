@@ -183,9 +183,24 @@ internal fun Results(session: Session, report: Report) {
     }
     val levelUp = report.levelAfter > report.levelBefore
 
+    // This round's Fireflies are in the wallet already; the counter holds them back until they fly in
+    // from the tally's Fireflies line.
+    var firefliesIn by remember(report) { mutableStateOf(false) }
+    var firefliesFrom by remember(report) { mutableStateOf(Offset.Unspecified) }
+    val held = remember(report) {
+        if (!calm && report.fireflies > 0) session.swarm.hold(report.fireflies)
+        if (!calm) report.fireflies else 0
+    }
+    fun fly() {
+        if (firefliesIn) return
+        firefliesIn = true
+        session.swarm.send(session.scope ?: return, firefliesFrom, report.fireflies, session.sfx, calm, held = held)
+    }
+
     // Everything at its final value: a tap to skip, or reduce motion (with a fade).
     suspend fun finish(fade: Boolean) {
         flights.clear()
+        fly()
         headline = true
         starsIn = 3
         linesIn = lines.size
@@ -273,6 +288,12 @@ internal fun Results(session: Session, report: Report) {
         }
         delay(if (levelUp) 1_600 else 700)
 
+        // Fireflies: they lift off the tally's line and fly up into the wallet.
+        if (report.fireflies > 0) {
+            fly()
+            delay(600)
+        }
+
         // Unlocks, one at a time, each with its own note.
         rewards.forEachIndexed { i, _ ->
             rewardsIn = i + 1
@@ -318,7 +339,9 @@ internal fun Results(session: Session, report: Report) {
         ) {
             // The top bar: back to the porch, and where this was.
             Row(Modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                BrassButton(Glyph.Close, "Back to the porch", enabled = true, size = 48.dp) { session.toPorch() }
+                Box(Modifier.width(COUNTER_SLOT), contentAlignment = Alignment.CenterStart) {
+                    BrassButton(Glyph.Close, "Back to the porch", enabled = true, size = 48.dp) { session.toPorch() }
+                }
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         if (round.daily) "DAILY PORCH" else "LEVEL ${round.level.number}",
@@ -333,7 +356,15 @@ internal fun Results(session: Session, report: Report) {
                         maxLines = 1,
                     )
                 }
-                Spacer(Modifier.size(48.dp))
+                // The wallet, where this round's Fireflies fly to.
+                Box(Modifier.width(COUNTER_SLOT), contentAlignment = Alignment.CenterEnd) {
+                    FireflyCounter(
+                        progress.wallet.balance,
+                        Modifier.semantics { contentDescription = "You have ${fireflies(progress.wallet.balance)}" },
+                        swarm = session.swarm,
+                        calm = calm,
+                    )
+                }
             }
 
             // The result, its details and the actions, laid out by the room there is: one column on a
@@ -488,6 +519,28 @@ internal fun Results(session: Session, report: Report) {
                         Spacer(Modifier.height(12.dp))
                         Reveal(xpIn, skipped) {
                             XpPanel(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
+                        }
+                        if (report.fireflies > 0) {
+                            Spacer(Modifier.height(10.dp))
+                            Reveal(xpIn, skipped) {
+                                FirefliesLine(
+                                    report = report,
+                                    doubled = session.doubled,
+                                    accent = accent,
+                                    modifier = Modifier.onGloballyPositioned { firefliesFrom = it.boundsInRoot().center },
+                                )
+                            }
+                            // Double it: an ad, only if the player wants one, after a win.
+                            if (won && !report.practice && !session.doubled) {
+                                Spacer(Modifier.height(8.dp))
+                                var from by remember { mutableStateOf(Offset.Unspecified) }
+                                AdButton(
+                                    session,
+                                    Placement.Double,
+                                    "Double this level's Fireflies",
+                                    Modifier.fillMaxWidth().onGloballyPositioned { from = it.boundsInRoot().center },
+                                ) { session.watchDouble(it, report, from) }
+                            }
                         }
 
                         if (rewards.isNotEmpty()) {
@@ -1436,5 +1489,33 @@ private fun FitHeight(content: @Composable () -> Unit) {
                 transformOrigin = TransformOrigin(0.5f, 0f)
             }
         }
+    }
+}
+
+private val COUNTER_SLOT = 108.dp
+
+/** The tally's last line: what this round paid in Fireflies, and what for. */
+@Composable
+private fun FirefliesLine(report: Report, doubled: Boolean, accent: Color, modifier: Modifier = Modifier) {
+    val total = report.fireflies * (if (doubled) 2 else 1)
+    val why = report.earnings.groupBy { it.source }.map { (source, list) -> "${source.label} ${list.sumOf { it.amount }}" }
+        .let { if (doubled) it + "Doubled ${report.fireflies}" else it }
+        .joinToString(" · ")
+    Row(
+        modifier
+            .fillMaxWidth()
+            .plate(RoundedCornerShape(12.dp))
+            .border(1.dp, BrassRule, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .semantics(mergeDescendants = true) { contentDescription = "${fireflies(total)} earned. $why" },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        FireflyIcon(Modifier.size(30.dp))
+        Column(Modifier.weight(1f)) {
+            Text("FIREFLIES", style = Label, color = accent)
+            Text(why, style = BodyText, color = MUTED, fontSize = 12.sp, lineHeight = 15.sp, maxLines = 2)
+        }
+        Text("+${total.grouped()}", style = numberStyle(accent), fontSize = 22.sp, maxLines = 1)
     }
 }

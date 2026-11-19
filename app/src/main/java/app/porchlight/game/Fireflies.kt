@@ -2,6 +2,10 @@ package app.porchlight.game
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
@@ -182,19 +186,38 @@ private fun Slip(label: String, n: Int, bold: Boolean = false) {
     }
 }
 
-/** The balance on a small ebony plate with a brass rim, for the top of the porch and the shop. */
+/**
+ * The balance on a small ebony plate with a brass rim: on the porch, in the shop and on the results.
+ * With a [swarm] it is where earned fireflies fly to: it holds back those still in the air, rolls
+ * its number up as each one lands, and bobs to catch it.
+ */
 @Composable
-internal fun FireflyCounter(balance: Int, modifier: Modifier = Modifier) {
+internal fun FireflyCounter(balance: Int, modifier: Modifier = Modifier, swarm: Swarm? = null, calm: Boolean = false, pending: Int = 0) {
+    val bob = remember { androidx.compose.animation.core.Animatable(1f) }
+    val landed = swarm?.landed ?: 0
+    androidx.compose.runtime.LaunchedEffect(landed) {
+        if (landed > 0 && !calm) {
+            bob.snapTo(1.12f)
+            bob.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.4f, stiffness = androidx.compose.animation.core.Spring.StiffnessMedium))
+        }
+    }
+    // Fireflies given but not yet flown in (the daily gift, a purchase) are held back too.
+    val shown = (balance - (swarm?.inFlight ?: 0) - (if (calm) 0 else pending)).coerceAtLeast(0)
     Row(
         modifier
             .height(44.dp)
+            .then(
+                if (swarm != null) Modifier.onGloballyPositioned { swarm.counterAt = it.boundsInRoot().let { b -> Offset(b.left + 22.dp.value * it.size.height / 44f, b.center.y) } }
+                else Modifier,
+            )
+            .graphicsLayer { scaleX = bob.value; scaleY = bob.value }
             .plate(RoundedCornerShape(22.dp))
             .padding(start = 8.dp, end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        FireflyIcon(Modifier.size(28.dp))
-        Text(balance.grouped(), style = Display, fontSize = 18.sp, color = Dusk.amber)
+        FireflyIcon(Modifier.size(28.dp), lit = 0.7f + 0.3f * (bob.value - 1f) / 0.12f)
+        CountUp(shown, Display, 18.sp, color = Dusk.amber, durationMs = 380, calm = calm)
     }
 }
 
@@ -210,7 +233,10 @@ internal fun FireflyButton(session: Session, modifier: Modifier = Modifier) {
     val balance = session.store.progress.wallet.balance
     FireflyCounter(
         balance,
-        modifier
+        swarm = session.swarm,
+        calm = session.calm,
+        pending = session.store.gift,
+        modifier = modifier
             .clip(RoundedCornerShape(22.dp))
             .clickable(role = Role.Button) { session.openShop() }
             .semantics { contentDescription = "${fireflies(balance)}. Open the Porch shop." },

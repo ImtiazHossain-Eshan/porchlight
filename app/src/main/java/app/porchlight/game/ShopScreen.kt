@@ -59,7 +59,13 @@ internal fun ShopScreen(session: Session) {
     val progress = session.store.progress
     val month = remember { thisMonth() }
     MenuFrame("Porch shop", session) {
-        FireflyCounter(progress.wallet.balance, Modifier.semantics { contentDescription = "You have ${fireflies(progress.wallet.balance)}" })
+        FireflyCounter(
+            progress.wallet.balance,
+            Modifier.semantics { contentDescription = "You have ${fireflies(progress.wallet.balance)}" },
+            swarm = session.swarm,
+            calm = session.calm,
+            pending = session.store.gift,
+        )
         Spacer(Modifier.height(12.dp))
         Tabs(session)
         Spacer(Modifier.height(14.dp))

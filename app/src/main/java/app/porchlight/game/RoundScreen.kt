@@ -405,7 +405,7 @@ private fun Paused(session: Session) {
     val scope = rememberCoroutineScope()
     val drop = remember { Animatable(if (calm) 1f else 0f) }
     val shown = remember { Animatable(0f) }
-    val boards = remember { List(3) { Animatable(if (calm) 1f else 0f) } }
+    val boards = remember { List(4) { Animatable(if (calm) 1f else 0f) } }
     var t by remember { mutableFloatStateOf(0f) }
     LaunchedEffect(Unit) {
         launch { shown.animateTo(1f, tween(if (calm) 150 else 260)) }
@@ -577,13 +577,47 @@ private fun Paused(session: Session) {
                 ) { content() }
             }
             Board(0) { PrimaryButton("Keep playing", Modifier.fillMaxWidth()) { resume() } }
-            // A daily porch can't be started over: it has one scored try.
+            // A daily porch can't be started over: it has one scored try. Boosts paid for before the
+            // round come along into the new start.
             if (!session.round.daily) {
                 Spacer(Modifier.height(8.dp))
-                Board(1) { SecondaryButton("Start over", Modifier.fillMaxWidth()) { session.start(daily = false) } }
+                Board(1) {
+                    SecondaryButton("Start over", Modifier.fillMaxWidth()) {
+                        session.start(daily = false, boosts = session.round.boosts.filter { it.before }.toSet())
+                    }
+                }
             }
             Spacer(Modifier.height(8.dp))
             Board(2) { SecondaryButton("Leave round", Modifier.fillMaxWidth()) { session.leaving = true } }
+            // Boosts for the rest of this round: each once, each through the confirm sheet, and play
+            // carries on with it the moment it is bought.
+            val round = session.round
+            val now = listOf(Boost.Look, Boost.Pair).filter { round.canUse(it) }
+            if (now.isNotEmpty()) {
+                Spacer(Modifier.height(14.dp))
+                Board(3) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        for (boost in now) {
+                            BoostSign(boost, Modifier.weight(1f)) {
+                                session.offer = Offer(
+                                    title = boost.title,
+                                    detail = "${boost.detail} A round with a boost earns up to ${Economy.BOOSTED_MAX_STARS} stars.",
+                                    price = boost.price,
+                                    verb = "Use",
+                                    buy = { p, at ->
+                                        if (!session.round.canUse(boost)) SpendResult.NotOffered
+                                        else spend(p, Cost("boost.${boost.name}", boost.price), at)
+                                    },
+                                    then = {
+                                        session.resume()
+                                        session.useBoost(boost)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -653,5 +687,23 @@ internal fun Modifier.shrinkToFit(max: Dp, origin: TransformOrigin = TransformOr
             scaleY = k
             transformOrigin = origin
         }
+    }
+}
+
+/** A small walnut sign for a boost: its mark, its name and its price. */
+@Composable
+private fun BoostSign(boost: Boost, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier
+            .plank(Wood.Walnut, corner = 10.dp, elevation = 5.dp, seed = boost.ordinal + 7)
+            .border(1.dp, BrassRule, RoundedCornerShape(10.dp))
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+            .semantics { contentDescription = "${boost.title}, ${fireflies(boost.price)}" }
+            .padding(vertical = 8.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        GlyphArt(boost.glyph, Craft.brassLight, Modifier.size(22.dp))
+        Text(boost.title.uppercase(), style = Label, color = Dusk.ink, maxLines = 1)
+        Price(boost.price, Dusk.amber, size = 13.sp, icon = 14.dp)
     }
 }

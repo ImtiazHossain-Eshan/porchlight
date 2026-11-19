@@ -154,7 +154,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     }
 
     /** "Double this level's Fireflies", on the results of a win. */
-    fun watchDouble(activity: android.app.Activity?, report: Report) {
+    fun watchDouble(activity: android.app.Activity?, report: Report, from: Offset = Offset.Unspecified) {
         if (doubled) return
         watchAd(activity, Placement.Double) {
             if (doubled) return@watchAd
@@ -163,18 +163,126 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
             val got = store.progress.wallet.balance - before
             if (got > 0) {
                 doubled = true
-                earned(got)
+                earned(got, from)
             }
         }
     }
 
-    /** Fireflies just landed in the wallet: the counter shows them arriving. */
-    var arriving by mutableIntStateOf(0)
+    /** Fireflies on their way into the counter. */
+    val swarm = Swarm(clock)
 
-    fun earned(amount: Int) {
-        arriving += amount
-        sfx.play(Sound.Chime)
+    /** Fireflies just landed in the wallet: they fly in from [from] (or simply arrive). */
+    fun earned(amount: Int, from: Offset = Offset.Unspecified) {
+        val scope = scope
+        if (scope == null) {
+            sfx.play(Sound.Chime)
+            return
+        }
+        swarm.send(scope, from, amount, sfx, calm)
         buzz(HapticFeedbackType.Confirm)
+    }
+
+    /** The pre-round sheet is up: the level, and the boosts that can be bought for it. */
+    var preRound by mutableStateOf(false)
+
+    /**
+     * PLAY on the porch: the pre-round sheet when there is something it could offer (a level that
+     * takes boosts, and Fireflies enough for the cheapest), otherwise straight into the round.
+     */
+    fun play() {
+        val level = levelAt(store.progress.current)
+        val cheapest = Boost.entries.filter { it.before }.minOf { it.price }
+        if (allowedBoosts(level, setOf(Boost.Time)).isNotEmpty() && store.progress.wallet.balance >= cheapest) {
+            preRound = true
+            sfx.play(Sound.Flip, vary = 0.06f)
+        } else {
+            start(daily = false)
+        }
+    }
+
+    /** A boost bought from the pause screen takes effect at once. */
+    fun useBoost(boost: Boost) {
+        val before = round
+        val after = when (boost) {
+            // A wrong pair still showing, or Atlas's own flash, folds away first so the look always happens.
+            Boost.Look -> before.settle().unflash().secondLook()
+            Boost.Pair -> before.lightPair(now())
+            else -> before
+        }
+        if (after === before) return
+        round = after
+        sfx.play(Sound.Go)
+        buzz(HapticFeedbackType.Confirm)
+        after.lit?.let { (a, b) ->
+            if (after.pairs > before.pairs) {
+                flock.add(before.deck[a], cardAt[a], cardWidth, clock.seconds)
+                flock.add(before.deck[b], cardAt[b], cardWidth, clock.seconds)
+                if (!calm) {
+                    particles.burst(cardAt[a], 10, cardWidth * 2.6f, cardWidth * 0.035f, bio = true)
+                    particles.burst(cardAt[b], 10, cardWidth * 2.6f, cardWidth * 0.035f, bio = true)
+                }
+                sfx.play(sfx.matchFor(1))
+            }
+        }
+    }
+
+    /** The bulb burned out with a relight on offer: the burn-out sheet is up and the loss isn't counted yet. */
+    var burnout by mutableStateOf(false)
+
+    /** A relight can be offered: the round takes one, and it can be paid for, in Fireflies or with an ad. */
+    fun relightOffered(): Boolean {
+        if (!round.canUse(Boost.Relight)) return false
+        val affordable = store.progress.wallet.balance >= Boost.Relight.price
+        val ad = ads?.ready == true && adsLeft(store.progress, Placement.Relight, todaySeed()) > 0
+        return affordable || ad
+    }
+
+    private fun relit() {
+        burnout = false
+        round = round.relight(now())
+        flock.scatterAt = -10f
+        sfx.play(Sound.Start)
+        buzz(HapticFeedbackType.Confirm)
+        flareUp(0.8f, 500)
+    }
+
+    /** Relight for its price in Fireflies: the sheet showed the price and the balance after it. */
+    fun relightWithFireflies() {
+        val paid = store.pay { spend(it, Cost("boost.Relight", Boost.Relight.price), System.currentTimeMillis()) }
+        if (paid is SpendResult.Spent) {
+            sfx.play(Sound.Bought)
+            relit()
+        }
+    }
+
+    /** Relight for an ad watched through; the bulb comes on only once the ad has closed. */
+    fun relightWithAd(activity: android.app.Activity?) = watchAd(activity, Placement.Relight, afterClose = true) {
+        if (!burnout) return@watchAd
+        val counted = relightByAd(store.progress, todaySeed()) ?: return@watchAd
+        store.change { counted }
+        relit()
+    }
+
+    /**
+     * No relight: the loss counts. "Try again" goes straight back in, unless this loss brings
+     * something the results should show (a skip or the easier bulb on offer, a badge, a level up),
+     * in which case the results come up first. Back shows the results.
+     */
+    fun declineRelight(again: Boolean) {
+        if (!burnout) return
+        burnout = false
+        val lost = round.copy(holding = false)
+        round = lost
+        val result = store.finish(lost, lead, todaySeed(), todaySeed(-1))
+        val news = result.newBadges.isNotEmpty() || result.levelAfter > result.levelBefore || result.newMoths.isNotEmpty() ||
+            store.progress.easierOffered || skipOffered(store.progress)
+        if (again && !news) {
+            start(daily = false, boosts = lost.boosts.filter { it.before }.toSet())
+            return
+        }
+        doubled = false
+        report = result
+        screen = Screen.Results
     }
 
     /** The shop's open tab. */
@@ -380,16 +488,21 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
         }
     }
 
-    /** Starts a round on the level picked on the porch, or today's daily porch. [easy] is the "Easier bulb" retry. */
-    fun start(daily: Boolean = round.daily && !screen.isMenu, easy: Boolean = false) {
+    /**
+     * Starts a round on the level picked on the porch, or today's daily porch. [easy] is the "Easier
+     * bulb" retry; [boosts] are pre-round boosts already paid for (never on the daily porch).
+     */
+    fun start(daily: Boolean = round.daily && !screen.isMenu, easy: Boolean = false, boosts: Set<Boost> = emptySet()) {
         report = null
         notice = null
         noticeMoth = null
+        preRound = false
+        burnout = false
         reset()
         val night = levelAt(store.progress.current)
         val fresh = !daily && (introducedOn(night) != null || newOn(night).isNotEmpty()) &&
             "level${night.number}" !in store.progress.tips
-        round = if (daily) Round.daily(lead, todaySeed()) else Round.start(lead, night, easy = easy)
+        round = if (daily) Round.daily(lead, todaySeed()) else Round.start(lead, night, easy = easy, boosts = boosts)
         screen = Screen.Round
         if (fresh) {
             // Meet the night first; the peek starts when the player is ready.
@@ -533,6 +646,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     }
 
     private fun reset() {
+        swarm.settle()
         fx = null
         intro = null
         flock.clear()
@@ -557,6 +671,8 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     fun toPorch() {
         leaving = false
         grownUp = false
+        preRound = false
+        burnout = false
         porchDark = false
         report = null
         reset()
@@ -653,6 +769,22 @@ fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null, till: Till? = null) {
                 session.endTutorial(if (won) "That's the game. Light the porch when you're ready." else "Close. The real porch gives you more time.")
             } else if (session.screen == Screen.Round) {
                 val won = session.round.phase == Phase.Won
+                if (!won && session.relightOffered()) {
+                    // The lamp pops as ever, but the loss waits: the burn-out sheet offers a relight,
+                    // and the board stays face down while it does.
+                    session.round = session.round.copy(holding = true)
+                    session.timeLeft = 0f
+                    session.flock.scatterAt = clock.seconds
+                    sfx.play(Sound.Pop)
+                    sfx.play(Sound.Lose)
+                    session.buzz(HapticFeedbackType.LongPress)
+                    session.flareUp(1.8f, 120)
+                    session.pop.snapTo(0.3f)
+                    session.pop.animateTo(0f, tween(120))
+                    delay(700)
+                    session.burnout = true
+                    return@LaunchedEffect
+                }
                 val result = store.finish(session.round, session.lead, todaySeed(), todaySeed(-1))
                 if (won) {
                     sfx.play(Sound.Win)
@@ -711,6 +843,24 @@ fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null, till: Till? = null) {
         }
     }
 
+    // Fireflies given outside a round (the daily gift, a purchase) fly into the counter: out of the
+    // jar on the porch, up from below in the shop. Elsewhere they wait until one of those is showing.
+    val gift = store.gift
+    LaunchedEffect(gift, session.screen, store.progress.birthYear) {
+        if (gift <= 0 || store.progress.birthYear == 0) return@LaunchedEffect
+        val porch = session.screen == Screen.Porch
+        if (!porch && session.screen != Screen.Shop) return@LaunchedEffect
+        delay(if (porch) 1_100 else 250)
+        val counter = session.swarm.counterAt
+        val from = when {
+            porch && session.bulbAt != Offset.Zero -> session.bulbAt
+            counter != Offset.Unspecified -> counter + Offset(0f, 700f)
+            else -> Offset.Unspecified
+        }
+        store.gift = 0
+        session.earned(gift, from)
+    }
+
     // The very first launch asks for a year of birth, then opens on the tutorial. Ads start only
     // once the year is known, and follow what it says (see AdRules.kt).
     val birthYear = store.progress.birthYear
@@ -722,13 +872,15 @@ fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null, till: Till? = null) {
     }
 
     // Back from a round asks first; back from the results goes to the porch; back from the porch exits.
-    BackHandler(session.screen != Screen.Porch || session.leaving || session.offer != null || session.gate != null) {
+    BackHandler(session.screen != Screen.Porch || session.leaving || session.offer != null || session.gate != null || session.preRound) {
         when {
             session.gate != null -> session.gate = null
             session.offer != null -> session.offer = null
             session.leaving -> session.leaving = false
             session.screen.isMenu -> session.toPorch()
             round.tutorial -> session.endTutorial()
+            session.burnout -> session.declineRelight(again = false)
+            session.preRound -> session.preRound = false
             session.screen == Screen.Round && round.running -> session.leaving = true
             else -> session.toPorch()
         }
@@ -831,6 +983,9 @@ fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null, till: Till? = null) {
         }
         }
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = session.pop.value }.background(Color.White))
+        if (session.preRound && session.screen == Screen.Porch) PreRoundSheet(session)
+        if (session.burnout && session.screen == Screen.Round) BurnoutSheet(session)
+        SwarmLayer(session.swarm, clock)
         if (session.leaving) LeaveNotice(session)
         session.offer?.let { ConfirmSheet(session, it) }
         session.gate?.let { (why, pass) -> ParentalGate(why, onPass = pass, onCancel = { session.gate = null }) }
