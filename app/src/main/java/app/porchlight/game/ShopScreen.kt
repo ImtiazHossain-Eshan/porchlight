@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
@@ -185,23 +186,59 @@ internal val Boost.glyph: Glyph get() = when (this) {
 // -------------------------------------------------------------------------------------------------
 // Boosts and getting ahead
 
+/** Each boost's own light: the halo behind its medallion. */
+private val Boost.halo: Color get() = when (this) {
+    Boost.Time -> Color(0xFFFFB347)
+    Boost.Peek -> Color(0xFF7FD8D0)
+    Boost.Look -> Color(0xFFFFE27A)
+    Boost.Pair -> Color(0xFFFF8FA3)
+    Boost.Relight -> Color(0xFFFF7A3D)
+}
+
+/** A short name that fits on a medallion tile. */
+private val Boost.short: String get() = when (this) {
+    Boost.Time -> "+${secondsText(Economy.BOOST_TIME_MS)} s bulb"
+    else -> title
+}
+
+/** When it's used, in two or three words. */
+private val Boost.moment: String get() = when (this) {
+    Boost.Time, Boost.Peek -> "Before a round"
+    Boost.Look, Boost.Pair -> "On pause"
+    Boost.Relight -> "When it burns out"
+}
+
 @Composable
 private fun BoostsTab(session: Session) {
     val progress = session.store.progress
-    Note(
-        "Boosts help with one round, and you choose them at the moment they're for. A round with any " +
-            "boost earns up to ${Economy.BOOSTED_MAX_STARS} stars: the third star needs a clear without one. " +
-            "The daily porch never takes boosts, so it's the same deal for everyone.",
-    )
-    Spacer(Modifier.height(12.dp))
-    Heading("For a round")
-    Boost.entries.forEach { boost ->
-        Shelf(boost.title, "${boost.detail} ${boost.where}.", icon = { GlyphArt(boost.glyph, Craft.brassLight, Modifier.size(26.dp)) }) {
-            Price(boost.price, Dusk.amber)
-        }
-        Spacer(Modifier.height(8.dp))
+    // The one rule, said in a line: a boost caps the round at two stars.
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.Black.copy(alpha = 0.28f))
+            .border(1.dp, BrassRule, RoundedCornerShape(20.dp))
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "A boosted round earns up to ${Economy.BOOSTED_MAX_STARS} stars. The daily porch takes no boosts."
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        repeat(3) { i -> GlyphArt(Glyph.Star, if (i < Economy.BOOSTED_MAX_STARS) Craft.gold else Dusk.inkSoft.copy(alpha = 0.4f), Modifier.size(16.dp)) }
+        Text("max with a boost", color = Dusk.ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+        Text("Tap one to see it", color = Dusk.inkSoft, fontSize = 12.sp)
     }
-    Spacer(Modifier.height(6.dp))
+    Spacer(Modifier.height(14.dp))
+    val small = Boost.entries.filter { it != Boost.Relight }
+    small.chunked(2).forEachIndexed { row, pair ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            pair.forEachIndexed { col, boost -> BoostToken(session, boost, row * 2 + col, wide = false, modifier = Modifier.weight(1f)) }
+        }
+        Spacer(Modifier.height(12.dp))
+    }
+    BoostToken(session, Boost.Relight, 4, wide = true, modifier = Modifier.fillMaxWidth())
+    Spacer(Modifier.height(18.dp))
     Heading("Getting ahead")
     val waiting = progress.waitingChapter
     val chapterCost = waiting?.let { chapterPrice(progress, it) }
@@ -240,12 +277,209 @@ private fun BoostsTab(session: Session) {
         Spacer(Modifier.height(8.dp))
     }
     if (!any) {
-        Text(
-            "Nothing to skip right now. After ${Economy.SKIP_AFTER_LOSSES} losses in a row on your newest level you can skip it, " +
-                "and a chapter you can't open yet can be opened early, for ${Economy.CHAPTER_PRICE_PER_STAR} Fireflies a missing star.",
-            color = Dusk.inkSoft, fontSize = TypeScale.Body, lineHeight = 20.sp, textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-        )
+        // Nothing on offer yet: the two ways ahead, shown waiting.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            WaitingWay(Glyph.Next, "Skip a level", "after ${Economy.SKIP_AFTER_LOSSES} losses", Economy.SKIP_LEVEL_PRICE, "", Modifier.weight(1f))
+            WaitingWay(Glyph.Lock, "Open a chapter", "a missing star", Economy.CHAPTER_PRICE_PER_STAR, " / ★", Modifier.weight(1f))
+        }
+    }
+}
+
+/** A way ahead that isn't open yet: dim, with its price, and when it opens. */
+@Composable
+private fun WaitingWay(glyph: Glyph, title: String, opens: String, price: Int, per: String, modifier: Modifier) {
+    Column(
+        modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.Black.copy(alpha = 0.25f))
+            .border(1.dp, Craft.goldDeep.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+            .padding(12.dp)
+            .semantics(mergeDescendants = true) { contentDescription = "$title, ${fireflies(price)}$per, $opens" },
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        GlyphArt(glyph, Craft.brassLight.copy(alpha = 0.7f), Modifier.size(22.dp))
+        Spacer(Modifier.height(4.dp))
+        FitText(title, BodyText.copy(fontWeight = FontWeight.Bold), TypeScale.Body, Dusk.ink)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Price(price, Craft.gold, size = 16.sp, icon = 18.dp)
+            if (per.isNotEmpty()) Text(per, color = Craft.gold, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+        Text(opens.uppercase(), style = Label, color = Dusk.inkSoft, maxLines = 1)
+    }
+}
+
+/**
+ * A boost as a brass medallion on a walnut tile. The medallion floats and sways in 3D, lit by the
+ * boost's own colour, and the price glows like a live firefly. Tap the tile to flip it over and read
+ * what the boost does; tap again to turn it back. Under Reduce motion it holds still and turns flat.
+ */
+@Composable
+private fun BoostToken(session: Session, boost: Boost, index: Int, wide: Boolean, modifier: Modifier) {
+    val clock = session.clock
+    val calm = session.calm
+    var flipped by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val turn by animateFloatAsState(
+        if (flipped) 180f else 0f,
+        if (calm) androidx.compose.animation.core.snap() else spring(dampingRatio = 0.62f, stiffness = Spring.StiffnessLow),
+        label = "flip",
+    )
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val sink by animateFloatAsState(if (pressed) 0.95f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "sink")
+    val phase = index * 1.3f
+    val height = if (wide) 132.dp else 206.dp
+    Box(
+        modifier
+            .height(height)
+            .graphicsLayer {
+                cameraDistance = 14f * density
+                rotationY = turn
+                scaleX = sink
+                scaleY = sink
+            }
+            .clickable(interactionSource = press, indication = null, role = Role.Button, onClickLabel = if (flipped) "Turn back" else "What it does") {
+                flipped = !flipped
+                session.sfx.play(Sound.Flip, vary = 0.08f)
+            }
+            .semantics { contentDescription = "${boost.title}, ${fireflies(boost.price)}. ${boost.detail} ${boost.where}." },
+    ) {
+        val front = turn < 90f
+        val face = Modifier
+            .fillMaxWidth()
+            .height(height)
+            .plank(Wood.Walnut, corner = 18.dp, elevation = 10.dp, seed = 50 + index)
+            .drawBehind {
+                // The boost's light, washing up from the medallion.
+                val c = if (wide) Offset(size.height * 0.55f, size.height / 2f) else Offset(size.width / 2f, size.height * 0.36f)
+                val breathe = if (calm) 0.5f else 0.5f + 0.5f * kotlin.math.sin(clock.seconds * 1.6f + phase)
+                drawCircle(Brush.radialGradient(listOf(boost.halo.copy(alpha = 0.22f + 0.12f * breathe), Color.Transparent), c, size.minDimension * 0.8f), size.minDimension * 0.8f, c)
+            }
+            .border(1.5.dp, BrassRule, RoundedCornerShape(18.dp))
+        if (front) {
+            if (wide) {
+                Row(face.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Medallion(boost, clock, calm, phase, Modifier.size(104.dp))
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(boost.moment.uppercase(), style = Label, color = boost.halo, maxLines = 1)
+                        FitText(boost.short, Display, 28.sp, Dusk.ink)
+                    }
+                    GlowPrice(boost.price, clock, calm, phase)
+                }
+            } else {
+                Column(face.padding(10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Medallion(boost, clock, calm, phase, Modifier.size(96.dp))
+                    Text(boost.moment.uppercase(), style = Label, color = boost.halo, maxLines = 1)
+                    FitText(boost.short, Display, 20.sp, Dusk.ink)
+                    Spacer(Modifier.weight(1f))
+                    GlowPrice(boost.price, clock, calm, phase)
+                }
+            }
+        } else {
+            // The back of the tile, turned so it reads the right way round.
+            Column(
+                face.graphicsLayer { rotationY = 180f }.padding(14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                GlyphArt(boost.glyph, boost.halo, Modifier.size(if (wide) 26.dp else 30.dp))
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    boost.detail,
+                    color = Dusk.ink, fontSize = TypeScale.Body, lineHeight = 19.sp, fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text("${boost.where}.", color = Dusk.inkSoft, fontSize = 12.sp, lineHeight = 16.sp, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+/**
+ * A thick brass coin with the boost's mark struck into it. It bobs and turns a little in 3D, its
+ * shine slides across the face as it turns, and a soft shadow on the wood shrinks as it rises.
+ */
+@Composable
+private fun Medallion(boost: Boost, clock: Clock, calm: Boolean, phase: Float, modifier: Modifier) {
+    Box(modifier, contentAlignment = Alignment.Center) {
+        // The shadow on the wood (outside the turning layer, so it stays flat).
+        Canvas(Modifier.matchParentSize()) {
+            val t = if (calm) 0f else clock.seconds
+            val lift = 0.5f + 0.5f * kotlin.math.sin(t * 1.4f + phase)
+            val w = size.width * (0.62f - 0.1f * lift)
+            drawOval(
+                Brush.radialGradient(listOf(Color.Black.copy(alpha = 0.55f - 0.2f * lift), Color.Transparent), Offset(size.width / 2f, size.height * 0.93f), w / 2f),
+                Offset(size.width / 2f - w / 2f, size.height * 0.93f - w * 0.12f),
+                androidx.compose.ui.geometry.Size(w, w * 0.24f),
+            )
+        }
+        Canvas(
+            Modifier
+                .fillMaxWidth(0.82f)
+                .aspectRatio(1f)
+                .graphicsLayer {
+                    val t = if (calm) 0f else clock.seconds
+                    cameraDistance = 9f * density
+                    rotationY = 24f * kotlin.math.sin(t * 0.9f + phase)
+                    rotationX = 10f * kotlin.math.sin(t * 0.7f + phase * 1.7f)
+                    translationY = -size.height * 0.07f * (0.5f + 0.5f * kotlin.math.sin(t * 1.4f + phase))
+                },
+        ) {
+            val t = if (calm) 0f else clock.seconds
+            val sway = kotlin.math.sin(t * 0.9f + phase)
+            val r = size.minDimension / 2f
+            val c = Offset(size.width / 2f, size.height / 2f)
+            val (light, metal, dark) = Trim.Brass.tones
+            // Its own glow.
+            drawCircle(Brush.radialGradient(listOf(boost.halo.copy(alpha = 0.45f), Color.Transparent), c, r * 1.25f), r * 1.25f, c)
+            // The coin's edge, seen as a thicker dark band below: its depth.
+            drawCircle(Color(0xFF4A2E10), r * 0.98f, c + Offset(0f, r * 0.07f))
+            // The rim.
+            drawCircle(Brush.linearGradient(listOf(Color(0xFFFFEDB0), light, metal, dark), c - Offset(r, r), c + Offset(r, r)), r * 0.96f, c)
+            // The face, sunk a little inside the rim.
+            drawCircle(Brush.linearGradient(listOf(dark, metal), c - Offset(r, r), c + Offset(r, r)), r * 0.8f, c)
+            drawCircle(Brush.radialGradient(listOf(Color(0xFFFFE9A6), Craft.gold, Craft.goldDeep), c - Offset(r * 0.25f, r * 0.3f), r * 1.1f), r * 0.76f, c)
+            // The mark, struck in: a pale edge below, the dark cut above.
+            glyph(boost.glyph, c + Offset(0f, r * 0.04f), r * 0.95f, Color(0xFFFFF3C4), alpha = 0.7f)
+            glyph(boost.glyph, c, r * 0.95f, Color(0xFF4A2E10))
+            // A shine that slides across the face as the coin turns.
+            val sx = c.x + sway * r * 0.55f
+            clipPath(androidx.compose.ui.graphics.Path().apply { addOval(androidx.compose.ui.geometry.Rect(c, r * 0.96f)) }) {
+                drawRect(
+                    Brush.linearGradient(
+                        listOf(Color.Transparent, Color.White.copy(alpha = 0.5f), Color.Transparent),
+                        Offset(sx - r * 0.35f, c.y - r), Offset(sx + r * 0.05f, c.y + r * 0.2f),
+                    ),
+                    blendMode = androidx.compose.ui.graphics.BlendMode.Plus,
+                )
+            }
+        }
+    }
+}
+
+/** The price, big: a live firefly beside the number, both glowing on a dark glass pill. */
+@Composable
+private fun GlowPrice(price: Int, clock: Clock, calm: Boolean, phase: Float) {
+    Row(
+        Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(Brush.verticalGradient(listOf(Color(0xFF241A10), Color(0xFF120C07))))
+            .border(1.5.dp, Craft.goldDeep, RoundedCornerShape(20.dp))
+            .drawBehind {
+                val pulse = if (calm) 0.6f else 0.5f + 0.5f * kotlin.math.sin(clock.seconds * 2.4f + phase)
+                val c = Offset(size.height * 0.62f, size.height / 2f)
+                drawCircle(Brush.radialGradient(listOf(Color(0xFFFFD45A).copy(alpha = 0.35f + 0.3f * pulse), Color.Transparent), c, size.height * 1.1f), size.height * 1.1f, c)
+            }
+            .padding(start = 6.dp, end = 14.dp, top = 3.dp, bottom = 3.dp)
+            .semantics(mergeDescendants = true) { contentDescription = fireflies(price) },
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Canvas(Modifier.size(34.dp)) {
+            val lit = if (calm) 1f else 0.75f + 0.25f * kotlin.math.sin(clock.seconds * 2.4f + phase)
+            firefly(Offset(size.width / 2f, size.height / 2f), size.minDimension, lit)
+        }
+        Text("$price", style = Display, fontSize = 24.sp, color = Craft.gold, maxLines = 1)
     }
 }
 
