@@ -68,6 +68,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import kotlin.math.sin
 import kotlin.math.cos
 import kotlin.math.PI
@@ -95,7 +96,7 @@ private class PathLayout(width: Dp) {
     val box = coin + 8.dp
     val star = (coin * 0.3f).coerceAtLeast(13.dp)
     val step = box * 0.86f
-    val header = 58.dp
+    val header = 78.dp
     val top = header + box * 0.7f
     val sceneHeight = top + step * 9 + box * 1.3f / 2 + star + 18.dp
     val gap = 14.dp
@@ -303,6 +304,7 @@ private fun ChapterScene(
             Column(Modifier.weight(1f)) {
                 Text("CHAPTER ${roman(chapter.number)} · ${chapter.scene.uppercase()}", style = Label, color = look.ink.copy(alpha = 0.8f), maxLines = 1)
                 Text(chapter.name, style = Display, fontSize = TypeScale.Heading, color = Dusk.ink, maxLines = 1)
+                Text(chapterStory(chapter.number), color = look.ink.copy(alpha = 0.85f), fontSize = 13.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
             }
             Star(earned > 0, shown = true, instant = true, modifier = Modifier.size(18.dp))
             Text(" $earned/${levels.size * 3}", style = Label, color = Dusk.ink)
