@@ -19,7 +19,9 @@ private val start = TimeSource.Monotonic.markNow()
 internal actual fun now(): Long = start.elapsedNow().inWholeMilliseconds
 
 internal actual fun log(message: String) {
-    NSLog("Porchlight: %@", message)
+    // No varargs: Kotlin/Native passes a String through C varargs as a raw C string, so "%@" read
+    // the text as an object and crashed. The message goes into the format with its % escaped.
+    NSLog("Porchlight: " + message.replace("%", "%%"))
 }
 
 /** iOS has no back key; every screen has its own back or close button. */
