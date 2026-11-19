@@ -49,7 +49,7 @@ internal fun fireflies(n: Int) = if (n == 1) "1 Firefly" else "${n.grouped()} Fi
 private val TAIL = Color(0xFFFFF2A8)
 private val GLOW = Color(0xFFFFD45A)
 private val BODY = Color(0xFF2A1C10)
-private val WING = Color(0xFFE8EEF2)
+private val WING = Color(0xFFF7ECD2)
 
 /**
  * A firefly, [width] pixels wide, centred on [centre]: a dark body, two pale wings, and a tail that
@@ -57,25 +57,32 @@ private val WING = Color(0xFFE8EEF2)
  */
 internal fun DrawScope.firefly(centre: Offset, width: Float, lit: Float = 1f, alpha: Float = 1f) {
     val u = width / 24f
-    val tail = Offset(centre.x, centre.y + 5f * u)
+    val tail = Offset(centre.x, centre.y + 4.5f * u)
+    // The glow comes first and big: at icon size it is what makes a firefly read as a firefly.
     if (lit > 0f) {
         drawCircle(
-            Brush.radialGradient(listOf(GLOW.copy(alpha = 0.75f * lit * alpha), Color.Transparent), tail, 11f * u),
-            11f * u, tail,
+            Brush.radialGradient(
+                0f to GLOW.copy(alpha = 0.95f * lit * alpha),
+                0.45f to GLOW.copy(alpha = 0.35f * lit * alpha),
+                1f to Color.Transparent,
+                center = tail, radius = 12.5f * u,
+            ),
+            12.5f * u, tail,
         )
     }
-    // Wings, swept back.
-    drawOval(WING, Offset(centre.x - 9.5f * u, centre.y - 5.5f * u), Size(9f * u, 5f * u), alpha = 0.75f * alpha)
-    drawOval(WING, Offset(centre.x + 0.5f * u, centre.y - 5.5f * u), Size(9f * u, 5f * u), alpha = 0.75f * alpha)
-    // A fine outline, so the wings still read on pale parchment.
-    drawOval(BODY, Offset(centre.x - 9.5f * u, centre.y - 5.5f * u), Size(9f * u, 5f * u), alpha = 0.55f * alpha, style = Stroke(0.7f * u))
-    drawOval(BODY, Offset(centre.x + 0.5f * u, centre.y - 5.5f * u), Size(9f * u, 5f * u), alpha = 0.55f * alpha, style = Stroke(0.7f * u))
+    // Wings, swept back, warm with lamplight, finely outlined so they read on any ground.
+    for (side in listOf(-1f, 1f)) {
+        val wing = Offset(centre.x + side * 5.2f * u - 4.6f * u, centre.y - 6.2f * u)
+        drawOval(WING, wing, Size(9.2f * u, 5.4f * u), alpha = 0.9f * alpha)
+        drawOval(BODY, wing, Size(9.2f * u, 5.4f * u), alpha = 0.6f * alpha, style = Stroke(0.8f * u))
+    }
     // Body and head.
-    drawOval(BODY, Offset(centre.x - 2.6f * u, centre.y - 7f * u), Size(5.2f * u, 11f * u), alpha = alpha)
-    drawCircle(BODY, 2.4f * u, Offset(centre.x, centre.y - 8.2f * u), alpha = alpha)
-    // The lantern in its tail.
-    drawOval(lerpColour(Color(0xFF8A7A3A), TAIL, lit), Offset(centre.x - 3f * u, centre.y + 2f * u), Size(6f * u, 6.5f * u), alpha = alpha)
-    drawOval(BODY, Offset(centre.x - 3f * u, centre.y + 2f * u), Size(6f * u, 6.5f * u), alpha = 0.5f * alpha, style = Stroke(0.8f * u))
+    drawOval(BODY, Offset(centre.x - 2.6f * u, centre.y - 7.5f * u), Size(5.2f * u, 10.5f * u), alpha = alpha)
+    drawCircle(BODY, 2.5f * u, Offset(centre.x, centre.y - 8.6f * u), alpha = alpha)
+    // The lantern in its tail, with a white-hot heart.
+    drawOval(lerpColour(Color(0xFF8A7A3A), TAIL, lit), Offset(centre.x - 3.4f * u, centre.y + 0.8f * u), Size(6.8f * u, 7.4f * u), alpha = alpha)
+    if (lit > 0f) drawCircle(Color.White, 1.6f * u, Offset(centre.x - 0.6f * u, centre.y + 3.6f * u), alpha = 0.85f * lit * alpha)
+    drawOval(BODY, Offset(centre.x - 3.4f * u, centre.y + 0.8f * u), Size(6.8f * u, 7.4f * u), alpha = 0.45f * alpha, style = Stroke(0.8f * u))
 }
 
 private fun lerpColour(a: Color, b: Color, t: Float) = androidx.compose.ui.graphics.lerp(a, b, t.coerceIn(0f, 1f))
@@ -216,7 +223,7 @@ internal fun FireflyCounter(balance: Int, modifier: Modifier = Modifier, swarm: 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        FireflyIcon(Modifier.size(28.dp), lit = 0.7f + 0.3f * (bob.value - 1f) / 0.12f)
+        FireflyIcon(Modifier.size(34.dp), lit = 0.8f + 0.2f * (bob.value - 1f) / 0.12f)
         CountUp(shown, Display, 18.sp, color = Dusk.amber, durationMs = 380, calm = calm)
     }
 }

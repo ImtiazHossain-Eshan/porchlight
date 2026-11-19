@@ -1,6 +1,15 @@
 package app.porchlight.game
 
 import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.border
@@ -18,6 +27,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -432,92 +442,209 @@ private fun MothsTab(session: Session, month: Int) {
 
 @Composable
 private fun FirefliesTab(session: Session) {
-    val ads = session.ads
-    if (ads != null && (ads.ready || adsLeft(session.store.progress, Placement.Shop, todaySeed()) == 0)) {
-        Heading("Watch an ad")
-        AdButton(session, Placement.Shop, "Watch for ${Economy.AD_SHOP_REWARD} Fireflies", Modifier.fillMaxWidth()) { session.watchShopAd(it) }
-        val left = adsLeft(session.store.progress, Placement.Shop, todaySeed())
-        if (left > 0) {
-            Text(
-                "Only if you want to: $left of ${Economy.AD_SHOP_PER_DAY} left today.",
-                color = Dusk.inkSoft, fontSize = 13.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 6.dp),
-            )
-        }
-        Spacer(Modifier.height(14.dp))
-    }
-    TillSection(session)
-    Spacer(Modifier.height(14.dp))
-    Heading("Earned by playing")
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(8.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
-            .parchment(8.dp)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        EarnLine("A level's first, second and third star", "${Economy.NEW_STAR[0]} · ${Economy.NEW_STAR[1]} · ${Economy.NEW_STAR[2]}")
-        EarnLine("A win with no new star", "${Economy.REPLAY_WIN}")
-        EarnLine("A boss beaten for the first time", "${Economy.BOSS_FIRST_CLEAR}")
-        EarnLine("Every level of a chapter cleared", "${Economy.CHAPTER_COMPLETE}")
-        EarnLine("The daily porch", "${Economy.DAILY_BASE} to ${Economy.DAILY_CAP}")
-        EarnLine("A badge", "${Economy.BADGE}")
-        EarnLine("A level up", "${Economy.LEVEL_UP}")
-        EarnLine("Your first visit each day", "${Economy.FIRST_OPEN}")
-    }
-    Spacer(Modifier.height(10.dp))
-    Text(
-        "Every chapter, moth and look can be earned by playing. A daily streak adds ${Economy.DAILY_PER_STREAK_DAY} a day, up to ${Economy.DAILY_CAP}.",
-        color = Dusk.inkSoft, fontSize = 13.sp, lineHeight = 18.sp, textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-    )
+    FreeFirefliesCard(session)
+    PackShelf(session)
+    Spacer(Modifier.height(18.dp))
+    EarnedByPlaying()
 }
 
+// -------------------------------------------------------------------------------------------------
+// Free Fireflies: the opt-in ad, as a lamplit card with a jar of live fireflies.
+
 @Composable
-private fun EarnLine(what: String, amount: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(what, color = Craft.parchmentInk, fontSize = TypeScale.Body, modifier = Modifier.weight(1f), lineHeight = 19.sp)
-        Spacer(Modifier.width(8.dp))
-        FireflyIcon(Modifier.size(16.dp))
-        Spacer(Modifier.width(3.dp))
-        Text(amount, color = Craft.parchmentInk, fontSize = TypeScale.Body, fontWeight = FontWeight.Bold)
+private fun FreeFirefliesCard(session: Session) {
+    val ads = session.ads ?: return
+    val left = adsLeft(session.store.progress, Placement.Shop, todaySeed())
+    // No ad to show and some left: the card simply isn't there (it comes back when one loads).
+    if (!ads.ready && left > 0) return
+    val activity = androidx.activity.compose.LocalActivity.current
+    val clock = session.clock
+    val calm = session.calm
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(bottom = 18.dp)
+            .shadow(14.dp, RoundedCornerShape(16.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+            .clip(RoundedCornerShape(16.dp))
+            .drawBehind {
+                // A night-blue box lit from the jar on the left, fireflies drifting across it.
+                drawRect(Brush.verticalGradient(listOf(Color(0xFF1C2B3E), Color(0xFF0E1622))))
+                val jar = Offset(size.width * 0.2f, size.height * 0.5f)
+                drawCircle(Brush.radialGradient(listOf(Color(0xFFFFC94A).copy(alpha = 0.42f), Color.Transparent), jar, size.width * 0.55f), size.width * 0.55f, jar)
+                val t = if (calm) 0f else clock.seconds
+                for (k in 0 until 9) {
+                    val x = size.width * ((0.32f + k * 0.083f + 0.03f * kotlin.math.sin(t * 0.6f + k)) % 1f)
+                    val y = size.height * (0.15f + 0.7f * ((k * 0.37f + 0.05f * t * (1 + k % 3)) % 1f))
+                    val a = 0.25f + 0.35f * (0.5f + 0.5f * kotlin.math.sin(t * 2.3f + k * 1.7f))
+                    drawCircle(Brush.radialGradient(listOf(Color(0xFFFFE27A).copy(alpha = a), Color.Transparent), Offset(x, y), 7.dp.toPx()), 7.dp.toPx(), Offset(x, y))
+                }
+            }
+            .border(1.5.dp, BrassRule, RoundedCornerShape(16.dp))
+            .padding(16.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            FireflyJar(fill = 0.8f, bugs = 9, clock = clock, calm = calm, modifier = Modifier.size(84.dp, 112.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text("+${Economy.AD_SHOP_REWARD}", style = Display, fontSize = 44.sp, color = Craft.gold, lineHeight = 46.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Fireflies,\nfree", color = Dusk.ink, fontSize = TypeScale.Body, fontWeight = FontWeight.Bold, lineHeight = 18.sp, modifier = Modifier.padding(bottom = 6.dp))
+                }
+                Text(
+                    if (left > 0) "Watch a short ad, only if you want to." else "That's all of today's. Come back tomorrow.",
+                    color = Dusk.inkSoft, fontSize = 13.sp, lineHeight = 17.sp,
+                )
+                Spacer(Modifier.height(8.dp))
+                // Today's watches as five little lanterns: lit ones are still to use.
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(5.dp),
+                    modifier = Modifier.semantics(mergeDescendants = true) { contentDescription = "$left of ${Economy.AD_SHOP_PER_DAY} left today" },
+                ) {
+                    repeat(Economy.AD_SHOP_PER_DAY) { i -> FireflyIcon(Modifier.size(20.dp), lit = if (i < left) 1f else 0f) }
+                }
+            }
+        }
+    }
+    if (left > 0 && ads.ready && !ads.showing) {
+        PrimaryButton("Watch for ${Economy.AD_SHOP_REWARD}", Modifier.fillMaxWidth().padding(bottom = 18.dp).offset(y = (-6).dp), glyph = Glyph.Play) {
+            session.watchShopAd(activity)
+        }
+    }
+}
+
+/**
+ * A mason jar of fireflies: [fill] (0..1) is how full of light it is, [bugs] how many fireflies drift
+ * in it. They wander slowly and their tails pulse; under Reduce motion they hold still.
+ */
+@Composable
+internal fun FireflyJar(fill: Float, bugs: Int, clock: Clock, calm: Boolean, modifier: Modifier = Modifier, dim: Boolean = false) {
+    Canvas(modifier) {
+        val w = size.width
+        val h = size.height
+        val lid = androidx.compose.ui.geometry.Rect(w * 0.2f, 0f, w * 0.8f, h * 0.14f)
+        val body = androidx.compose.ui.geometry.Rect(w * 0.06f, h * 0.12f, w * 0.94f, h)
+        val corner = androidx.compose.ui.geometry.CornerRadius(w * 0.2f)
+        val glass = androidx.compose.ui.graphics.Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(body, corner)) }
+        // The light inside, filling from the bottom.
+        val light = if (dim) 0.25f else 1f
+        drawPath(glass, Color(0xFF26313B))
+        clipPath(glass) {
+            val top = body.bottom - body.height * fill.coerceIn(0f, 1f)
+            drawRect(
+                Brush.verticalGradient(listOf(Color(0xFFFFB347).copy(alpha = 0.35f * light), Color(0xFFFFE28A).copy(alpha = 0.85f * light)), top, body.bottom),
+                Offset(body.left, top), androidx.compose.ui.geometry.Size(body.width, body.bottom - top),
+            )
+            val t = if (calm) 0f else clock.seconds
+            val random = kotlin.random.Random(bugs * 31 + 7)
+            for (k in 0 until bugs) {
+                val bx = random.nextFloat()
+                val by = random.nextFloat()
+                val x = body.left + body.width * (0.18f + 0.64f * ((bx + 0.06f * kotlin.math.sin(t * (0.7f + bx) + k)) % 1f))
+                val y = top + (body.bottom - top) * (0.12f + 0.76f * ((by + 0.05f * kotlin.math.cos(t * (0.5f + by) + k * 2f)) % 1f))
+                val pulse = 0.6f + 0.4f * kotlin.math.sin(t * 3f + k * 1.3f)
+                firefly(Offset(x, y), w * 0.2f, lit = pulse * light)
+            }
+        }
+        // Thick glass: a pale skin and two reflections.
+        drawPath(glass, Color(0xFFCFE6F2), alpha = 0.6f, style = androidx.compose.ui.graphics.drawscope.Stroke(w * 0.035f))
+        drawLine(Color.White, Offset(body.left + w * 0.14f, body.top + h * 0.12f), Offset(body.left + w * 0.14f, body.bottom - h * 0.16f), w * 0.05f, androidx.compose.ui.graphics.StrokeCap.Round, alpha = 0.22f)
+        // The brass lid and its thread.
+        val (lightMetal, metal, dark) = Trim.Brass.tones
+        drawRoundRect(metal, lid.topLeft, lid.size, androidx.compose.ui.geometry.CornerRadius(w * 0.04f))
+        drawRect(lightMetal, Offset(lid.left + lid.width * 0.12f, lid.top), androidx.compose.ui.geometry.Size(lid.width * 0.12f, lid.height), alpha = 0.6f)
+        drawLine(dark, Offset(lid.left, lid.center.y), Offset(lid.right, lid.center.y), w * 0.02f)
     }
 }
 
 // -------------------------------------------------------------------------------------------------
-// With money: behind the grown-up check, every time the shop is opened.
+// Fireflies packs: a shelf of jars, filling up from a handful to a porchful. Behind the grown-up check.
+
+private val PACK_FILL = mapOf(Product.Handful to 0.5f, Product.Jar to 0.68f, Product.Lantern to 0.85f, Product.Porchful to 1f)
+private val PACK_BUGS = mapOf(Product.Handful to 2, Product.Jar to 5, Product.Lantern to 8, Product.Porchful to 13)
 
 @Composable
-private fun TillSection(session: Session) {
+private fun PackShelf(session: Session) {
     val till = session.till ?: return
     val progress = session.store.progress
-    Heading("With money")
-    if (!session.grownUp) {
-        SecondaryButton("For grown-ups", Modifier.fillMaxWidth(), glyph = Glyph.Lock) {
-            session.askGrownUp("Fireflies packs, the starter pack and Supporter cost real money.") {}
-        }
-        return
-    }
+    val open = session.grownUp
     val activity = androidx.activity.compose.LocalActivity.current
-    if (till.prices.isEmpty()) {
-        Note("Google Play isn't selling anything here right now. Please try again later.")
-        return
-    }
     fun buy(product: Product) {
         if (activity != null) {
             session.sfx.play(Sound.Tap)
             till.buy(activity, product)
         }
     }
-    for (product in Product.packs) {
-        val price = till.prices[product] ?: continue
-        val bonus = bonusPercent(product, till.micros)
-        Shelf(
-            product.title,
-            fireflies(product.fireflies) + (bonus?.let { " · $it% more than handfuls" } ?: ""),
-            icon = { FireflyIcon(Modifier.size(34.dp)) },
-        ) { MoneyChip(price) { buy(product) } }
-        Spacer(Modifier.height(8.dp))
+    val ask = { session.askGrownUp("Fireflies packs, the starter pack and Supporter cost real money.") {} }
+    Text(
+        "Fireflies packs",
+        style = Display, fontSize = 24.sp, color = Dusk.ink,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp).semantics { heading() },
+    )
+    Text(
+        if (open) "Exactly what it says on the jar. Payment is through Google Play."
+        else "These cost real money, so a grown-up opens this shelf.",
+        color = Dusk.inkSoft, fontSize = 13.sp, lineHeight = 17.sp,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    )
+    Box {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .plank(Wood.Walnut, corner = 14.dp, elevation = 8.dp, seed = 33)
+                .border(1.5.dp, BrassRule, RoundedCornerShape(14.dp))
+                .then(if (open) Modifier else Modifier.clickable(role = Role.Button, onClickLabel = "Ask a grown-up") { ask() })
+                .padding(horizontal = 10.dp, vertical = 14.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
+                for (product in Product.packs) {
+                    val price = till.prices[product]
+                    val bonus = bonusPercent(product, till.micros)
+                    Column(
+                        Modifier.weight(1f).semantics(mergeDescendants = true) {
+                            contentDescription = "${product.title}: ${fireflies(product.fireflies)}" + (price?.let { ", $it" } ?: "")
+                        },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        val tall = 64.dp + 14.dp * Product.packs.indexOf(product)
+                        FireflyJar(
+                            fill = PACK_FILL.getValue(product), bugs = PACK_BUGS.getValue(product),
+                            clock = session.clock, calm = session.calm,
+                            modifier = Modifier.size(tall * 0.72f, tall),
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(product.fireflies.grouped(), style = Display, fontSize = 17.sp, color = Craft.gold, maxLines = 1)
+                        Text(product.title.removePrefix("A ").uppercase(), style = Label, color = Dusk.inkSoft, maxLines = 1)
+                        if (open && price != null) {
+                            Spacer(Modifier.height(6.dp))
+                            MoneyChip(price, Modifier.fillMaxWidth().padding(horizontal = 3.dp), compact = true) { buy(product) }
+                            Text(bonus?.let { "+$it%" } ?: " ", style = Label, color = Dusk.amber, modifier = Modifier.padding(top = 3.dp))
+                        }
+                    }
+                }
+            }
+            // The shelf the jars stand on.
+            Box(Modifier.fillMaxWidth().padding(top = 8.dp).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Brush.verticalGradient(listOf(Wood.Oak.light, Wood.Oak.dark))))
+        }
+        if (!open) {
+            // A brass padlock hung on the shelf.
+            Canvas(Modifier.align(Alignment.TopStart).padding(top = 10.dp, start = 14.dp).size(34.dp, 40.dp)) {
+                val (l, m, d) = Trim.Brass.tones
+                drawArc(d, 180f, 180f, false, Offset(size.width * 0.2f, 0f), androidx.compose.ui.geometry.Size(size.width * 0.6f, size.height * 0.7f), style = androidx.compose.ui.graphics.drawscope.Stroke(size.width * 0.12f))
+                drawRoundRect(m, Offset(0f, size.height * 0.36f), androidx.compose.ui.geometry.Size(size.width, size.height * 0.64f), androidx.compose.ui.geometry.CornerRadius(size.width * 0.16f))
+                drawRect(l, Offset(size.width * 0.12f, size.height * 0.4f), androidx.compose.ui.geometry.Size(size.width * 0.14f, size.height * 0.56f), alpha = 0.6f)
+                drawCircle(d, size.width * 0.1f, Offset(size.width / 2f, size.height * 0.62f))
+                drawLine(d, Offset(size.width / 2f, size.height * 0.62f), Offset(size.width / 2f, size.height * 0.82f), size.width * 0.08f)
+            }
+        }
+    }
+    Spacer(Modifier.height(10.dp))
+    if (!open) {
+        PrimaryButton("Ask a grown-up to open", Modifier.fillMaxWidth(), glyph = Glyph.Lock) { ask() }
+        return
+    }
+    if (till.prices.isEmpty()) {
+        Note("Google Play isn't selling anything here right now. Please try again later.")
+        return
     }
     if (!progress.ownsProduct(Product.Starter)) {
         till.prices[Product.Starter]?.let { price ->
@@ -550,30 +677,86 @@ private fun TillSection(session: Session) {
             "Waiting for your payment to go through: ${till.pending.joinToString { it.title.lowercase() }}. " +
                 "It arrives the moment Google Play says it's paid.",
         )
-        Spacer(Modifier.height(8.dp))
     }
+}
+
+// -------------------------------------------------------------------------------------------------
+// Earned by playing: each way to earn, its amount stamped on a brass coin.
+
+@Composable
+private fun EarnedByPlaying() {
     Text(
-        "You get exactly what it says: no loot boxes, nothing random. Payment is through Google Play.",
-        color = Dusk.inkSoft, fontSize = 13.sp, lineHeight = 18.sp, textAlign = TextAlign.Center,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+        "Earned by playing",
+        style = Display, fontSize = 24.sp, color = Dusk.ink,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp).semantics { heading() },
     )
+    Text(
+        "Every chapter, moth and look can be earned this way.",
+        color = Dusk.inkSoft, fontSize = 13.sp, lineHeight = 17.sp,
+        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+    )
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .plank(Wood.Walnut, corner = 14.dp, elevation = 6.dp, seed = 41)
+            .border(1.5.dp, BrassRule, RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        val rows = listOf(
+            Triple(Glyph.Star, "Each new star on a level", "${Economy.NEW_STAR[0]}-${Economy.NEW_STAR[2]}"),
+            Triple(Glyph.Crown, "A boss beaten, first time", "${Economy.BOSS_FIRST_CLEAR}"),
+            Triple(Glyph.Map, "A whole chapter cleared", "${Economy.CHAPTER_COMPLETE}"),
+            Triple(Glyph.Calendar, "The daily porch (more with a streak)", "${Economy.DAILY_BASE}-${Economy.DAILY_CAP}"),
+            Triple(Glyph.Trophy, "A badge", "${Economy.BADGE}"),
+            Triple(Glyph.Wing, "A level up", "${Economy.LEVEL_UP}"),
+            Triple(Glyph.Lamp, "Your first visit each day", "${Economy.FIRST_OPEN}"),
+            Triple(Glyph.Replay, "A win with no new star", "${Economy.REPLAY_WIN}"),
+        )
+        rows.forEachIndexed { i, (glyph, what, amount) ->
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 6.dp).semantics(mergeDescendants = true) { contentDescription = "$what: $amount Fireflies" },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                GlyphArt(glyph, Craft.brassLight, Modifier.size(22.dp))
+                Text(what, color = Dusk.ink, fontSize = TypeScale.Body, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), lineHeight = 19.sp)
+                // The amount, stamped on a little brass plaque that grows to fit it.
+                Box(
+                    Modifier
+                        .widthIn(min = 52.dp)
+                        .height(34.dp)
+                        .shadow(4.dp, RoundedCornerShape(17.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(Brush.verticalGradient(listOf(Color(0xFFFFE9A6), Craft.gold, Craft.goldDeep)))
+                        .border(1.5.dp, Craft.goldDeep, RoundedCornerShape(17.dp))
+                        .padding(horizontal = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("+$amount", style = Display, fontSize = 16.sp, color = Color(0xFF3E2810), maxLines = 1)
+                }
+            }
+            if (i < rows.lastIndex) Box(Modifier.fillMaxWidth().height(1.dp).background(Color.Black.copy(alpha = 0.25f)))
+        }
+    }
 }
 
 /** A price in money, on a small oak tag: tap to go to Google Play's own checkout. */
 @Composable
-private fun MoneyChip(price: String, onClick: () -> Unit) {
+private fun MoneyChip(price: String, modifier: Modifier = Modifier, compact: Boolean = false, onClick: () -> Unit) {
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     val sink by animateFloatAsState(if (pressed) 0.94f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "money")
     Box(
-        Modifier
+        modifier
             .graphicsLayer { scaleX = sink; scaleY = sink }
             .plank(Wood.Oak, corner = 10.dp, elevation = 4.dp, seed = price.length)
             .border(1.dp, BrassRule, RoundedCornerShape(10.dp))
             .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onClick)
             .semantics { contentDescription = "Buy for $price" }
-            .padding(horizontal = 10.dp, vertical = 9.dp),
+            .padding(horizontal = if (compact) 6.dp else 10.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(price, color = Dusk.paperInk, fontSize = TypeScale.Body, fontWeight = FontWeight.Bold, maxLines = 1)
+        // A long local price shrinks to fit its tag rather than being cut off.
+        FitText(price, BodyText.copy(fontWeight = FontWeight.Bold), if (compact) 14.sp else TypeScale.Body, Dusk.paperInk)
     }
 }
