@@ -1,5 +1,9 @@
 package app.porchlight.game
 
+import androidx.compose.foundation.layout.fillMaxSize
+import kotlin.math.abs
+import kotlin.math.PI
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.text.style.TextOverflow
@@ -441,15 +445,25 @@ private val signOnWalnut = BodyText.copy(fontWeight = FontWeight.Bold, letterSpa
  * few seconds. It sinks under the finger like the other signs. [calm] keeps it still.
  */
 @Composable
-internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifier, sub: String? = null, glyph: Glyph? = null, onClick: () -> Unit) {
+internal fun PlayButton(
+    text: String,
+    calm: Boolean,
+    modifier: Modifier = Modifier,
+    sub: String? = null,
+    glyph: Glyph? = null,
+    lead: MothId? = null,
+    onClick: () -> Unit,
+) {
     val press = remember { MutableInteractionSource() }
     val pressed by press.collectIsPressedAsState()
     val squeeze by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "squeeze")
     val loop = rememberInfiniteTransition(label = "play")
     val sweep by loop.animateFloat(0f, 1f, infiniteRepeatable(tween(3_200, easing = LinearEasing), RepeatMode.Restart), label = "sweep")
+    // A slow clock for the lit sign: ten turns of 2π every 20 s, so whole-number rates loop cleanly.
+    val clock by loop.animateFloat(0f, 20f * PI.toFloat(), infiniteRepeatable(tween(20_000, easing = LinearEasing), RepeatMode.Restart), label = "clock")
     Box(
         modifier
-            .height(if (sub != null) 80.dp else 72.dp)
+            .height(if (lead != null) 96.dp else if (sub != null) 80.dp else 72.dp)
             .graphicsLayer {
                 scaleX = squeeze
                 scaleY = squeeze
@@ -459,8 +473,10 @@ internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifi
             .border(2.dp, BrassRule, RoundedCornerShape(14.dp))
             .drawWithContent {
                 drawContent()
-                rivet(Offset(16.dp.toPx(), size.height / 2), 4.dp.toPx())
-                rivet(Offset(size.width - 16.dp.toPx(), size.height / 2), 4.dp.toPx())
+                if (lead == null) {
+                    rivet(Offset(16.dp.toPx(), size.height / 2), 4.dp.toPx())
+                    rivet(Offset(size.width - 16.dp.toPx(), size.height / 2), 4.dp.toPx())
+                }
                 if (!calm) {
                     // The band of light: across in the first third of each cycle, then a rest.
                     val p = (sweep * 3f).coerceAtMost(1f)
@@ -479,9 +495,13 @@ internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifi
                 }
             }
             .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onClick)
-            .padding(horizontal = if (glyph != null) 28.dp else 34.dp),
+            .padding(horizontal = if (lead != null) 12.dp else if (glyph != null) 28.dp else 34.dp),
         contentAlignment = Alignment.Center,
     ) {
+        if (lead != null) {
+            PlaySignLit(text, sub, lead, if (calm) 0f else clock, pressed)
+            return@Box
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             // An icon carved into the board before the words: what pressing it will do.
             if (glyph != null) GlyphArt(glyph, Dusk.paperInk, Modifier.padding(end = 10.dp).size(26.dp))
@@ -502,6 +522,125 @@ internal fun PlayButton(text: String, calm: Boolean, modifier: Modifier = Modifi
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+/**
+ * The porch's PLAY sign, lit: the lead moth hovers in its own glow on the left, beating its wings;
+ * the word is burnt warm into the oak and breathes; a brass lamp-button on the right pulses with a
+ * ring of light going out from it; and a few fireflies wander over the board. [t] is a clock in
+ * radians (0 holds it all still).
+ */
+@Composable
+private fun PlaySignLit(text: String, sub: String?, lead: MothId, t: Float, pressed: Boolean) {
+    Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
+        // The lead, in a sunk brass ring, hovering and beating its wings.
+        Box(Modifier.size(70.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.matchParentSize()) {
+                val c = Offset(size.width / 2f, size.height / 2f)
+                val r = size.minDimension / 2f
+                val breathe = 0.5f + 0.5f * sin(t * 2f)
+                drawCircle(Brush.radialGradient(listOf(Color(0xFFFFE2A0).copy(alpha = 0.55f + 0.25f * breathe), Color.Transparent), c, r * 1.05f), r * 1.05f, c)
+                drawCircle(Brush.radialGradient(listOf(Color(0xFF3A2410), Color(0xFF1E1208)), c, r * 0.8f), r * 0.78f, c)
+                drawCircle(Brush.linearGradient(listOf(Craft.brassLight, Craft.brass, Craft.brassDark), c - Offset(r, r), c + Offset(r, r)), r * 0.82f, c, style = Stroke(r * 0.1f))
+                drawCircle(Color(0xFFFFC56A).copy(alpha = 0.25f + 0.2f * breathe), r * 0.6f, c)
+            }
+            val flap = 0.45f + 0.55f * abs(sin(t * 3f))
+            MothArt(
+                lead,
+                Modifier
+                    .size(46.dp)
+                    .graphicsLayer {
+                        translationY = sin(t * 2f) * 2.5f * density
+                        rotationZ = sin(t) * 6f
+                    },
+                open = if (t == 0f) 1f else flap,
+            )
+        }
+        // The word, burnt in and glowing, with the level and the lead under it.
+        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+            val glow = 0.5f + 0.5f * sin(t * 2f)
+            Box(
+                Modifier.graphicsLayer {
+                    val beat = 1f + 0.025f * sin(t * 4f).coerceAtLeast(0f)
+                    scaleX = beat
+                    scaleY = beat
+                },
+                contentAlignment = Alignment.Center,
+            ) {
+                // A warm haze behind the letters.
+                Text(
+                    text.uppercase(),
+                    style = TextCarved.copy(letterSpacing = 6.sp, shadow = Shadow(Color(0xFFFFB347).copy(alpha = 0.55f + 0.35f * glow), Offset.Zero, 28f)),
+                    fontSize = 36.sp,
+                    color = Dusk.paperInk,
+                    maxLines = 1,
+                )
+            }
+            if (sub != null) {
+                val (level, who) = sub.split(" · ").let { (it.getOrNull(0) ?: sub) to it.getOrNull(1) }
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
+                    Text(
+                        level.uppercase(),
+                        style = Label,
+                        color = Color(0xFFFFF0C8),
+                        maxLines = 1,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Brush.verticalGradient(listOf(Color(0xFF5A3A1A), Color(0xFF2E1C0C))))
+                            .padding(horizontal = 7.dp, vertical = 2.dp),
+                    )
+                    if (who != null) {
+                        Text(
+                            "  $who",
+                            style = BodyText.copy(fontWeight = FontWeight.Bold, shadow = TextCarved.shadow),
+                            fontSize = 13.sp,
+                            color = Dusk.paperInk.copy(alpha = 0.85f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+        // The lamp-button: a brass knob lit from inside, a ring of light going out from it.
+        Box(Modifier.size(64.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.matchParentSize()) {
+                val c = Offset(size.width / 2f, size.height / 2f)
+                val r = size.minDimension * 0.36f
+                for (k in 0 until 2) {
+                    val p = ((t / (2f * PI.toFloat()) * 0.8f + k * 0.5f) % 1f)
+                    if (t != 0f) drawCircle(Color(0xFFFFD27A).copy(alpha = 0.55f * (1f - p)), r * (1f + 0.45f * p), c, style = Stroke(2.dp.toPx() * (1f - p) + 0.5f))
+                }
+                val pulse = 0.5f + 0.5f * sin(t * 3f)
+                drawCircle(Brush.radialGradient(listOf(Color(0xFFFFD27A).copy(alpha = 0.5f + 0.3f * pulse), Color.Transparent), c, r * 1.5f), r * 1.5f, c)
+                drawCircle(Color(0xFF4A2E10), r, c + Offset(0f, 2.dp.toPx()))
+                drawCircle(Brush.linearGradient(listOf(Color(0xFFFFEDB0), Craft.brassLight, Craft.brass, Craft.brassDark), c - Offset(r, r), c + Offset(r, r)), r, c)
+                val face = if (pressed) 0.84f else 0.8f
+                drawCircle(Brush.radialGradient(listOf(Color(0xFFFFFBE6), Color(0xFFFFD27A), Color(0xFFE08A2A)), c - Offset(r * 0.15f, r * 0.2f), r), r * face, c)
+                val tri = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(c.x - r * 0.25f, c.y - r * 0.38f)
+                    lineTo(c.x + r * 0.42f, c.y)
+                    lineTo(c.x - r * 0.25f, c.y + r * 0.38f)
+                    close()
+                }
+                translate(r * 0.03f, r * 0.05f) { drawPath(tri, Color(0xFFFFF4D6).copy(alpha = 0.6f)) }
+                drawPath(tri, Color(0xFF4A2E10))
+                drawCircle(Color.White.copy(alpha = 0.5f), r * 0.14f, Offset(c.x - r * 0.42f, c.y - r * 0.45f))
+            }
+        }
+    }
+    // Fireflies wandering over the board.
+    if (t != 0f) {
+        Canvas(Modifier.fillMaxSize()) {
+            for (k in 0 until 5) {
+                val x = size.width * (0.2f + 0.6f * (0.5f + 0.5f * sin(t * (k % 3 + 1) * 0.5f + k * 1.7f)))
+                val y = size.height * (0.5f + 0.4f * sin(t * ((k + 1) % 2 + 1) + k * 2.3f))
+                val lit = sin(t * 2f + k * 1.3f).coerceAtLeast(0f)
+                drawCircle(Brush.radialGradient(listOf(Color(0xFFFFE27A).copy(alpha = 0.6f * lit), Color.Transparent), Offset(x, y), 8.dp.toPx()), 8.dp.toPx(), Offset(x, y))
+                drawCircle(Color(0xFFFFF4C8).copy(alpha = lit), 1.6.dp.toPx(), Offset(x, y))
             }
         }
     }

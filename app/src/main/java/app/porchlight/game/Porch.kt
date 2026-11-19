@@ -186,7 +186,7 @@ private fun Controls(session: Session, tight: Boolean = false) {
         Spacer(Modifier.height(if (tight) 6.dp else 10.dp))
         Box(contentAlignment = Alignment.TopCenter) {
             // The lead rides on the sign itself, carved small under PLAY: who leads, and what they bring.
-            PlayButton("Play", session.calm, Modifier.fillMaxWidth(), sub = "Level ${progress.current} · with ${lead.label}") { session.play() }
+            PlayButton("Play", session.calm, Modifier.fillMaxWidth(), sub = "Level ${progress.current} · with ${lead.label}", lead = lead) { session.play() }
             if (notice != null) {
                 Row(
                     Modifier
