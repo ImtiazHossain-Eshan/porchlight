@@ -3,9 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-// CI passes these in; local builds fall back to 1 / 0.7.3.
+// CI passes these in; local builds fall back to 1 / 0.7.4.
 val appVersionCode = System.getenv("VERSION_CODE")?.toIntOrNull() ?: 1
-val appVersionName = System.getenv("VERSION_NAME")?.removePrefix("v") ?: "0.7.3"
+val appVersionName = System.getenv("VERSION_NAME")?.removePrefix("v") ?: "0.7.4"
 
 // Google's own sample AdMob ids, which only ever serve test ads. Debug builds always use these;
 // a release build uses the owner's real ids from the environment, or these if none are given.
