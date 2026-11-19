@@ -440,6 +440,8 @@ private fun FirefliesTab(session: Session) {
         }
         Spacer(Modifier.height(14.dp))
     }
+    TillSection(session)
+    Spacer(Modifier.height(14.dp))
     Heading("Earned by playing")
     Column(
         Modifier
@@ -473,5 +475,99 @@ private fun EarnLine(what: String, amount: String) {
         FireflyIcon(Modifier.size(16.dp))
         Spacer(Modifier.width(3.dp))
         Text(amount, color = Craft.parchmentInk, fontSize = TypeScale.Body, fontWeight = FontWeight.Bold)
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
+// With money: behind the grown-up check, every time the shop is opened.
+
+@Composable
+private fun TillSection(session: Session) {
+    val till = session.till ?: return
+    val progress = session.store.progress
+    Heading("With money")
+    if (!session.grownUp) {
+        SecondaryButton("For grown-ups", Modifier.fillMaxWidth(), glyph = Glyph.Lock) {
+            session.askGrownUp("Fireflies packs, the starter pack and Supporter cost real money.") {}
+        }
+        return
+    }
+    val activity = androidx.activity.compose.LocalActivity.current
+    if (till.prices.isEmpty()) {
+        Note("Google Play isn't selling anything here right now. Please try again later.")
+        return
+    }
+    fun buy(product: Product) {
+        if (activity != null) {
+            session.sfx.play(Sound.Tap)
+            till.buy(activity, product)
+        }
+    }
+    for (product in Product.packs) {
+        val price = till.prices[product] ?: continue
+        val bonus = bonusPercent(product, till.micros)
+        Shelf(
+            product.title,
+            fireflies(product.fireflies) + (bonus?.let { " · $it% more than handfuls" } ?: ""),
+            icon = { FireflyIcon(Modifier.size(34.dp)) },
+        ) { MoneyChip(price) { buy(product) } }
+        Spacer(Modifier.height(8.dp))
+    }
+    if (!progress.ownsProduct(Product.Starter)) {
+        till.prices[Product.Starter]?.let { price ->
+            Shelf(
+                "${Product.Starter.title} · once only",
+                Product.Starter.gives,
+                icon = { CardBackPreview(lookById(STARTER_LOOK)!!.back!!, Modifier.size(30.dp, 40.dp)) },
+            ) { MoneyChip(price) { buy(Product.Starter) } }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+    if (progress.supporter) {
+        Text(
+            "You're a Supporter. Thank you for keeping the porch light on.",
+            color = Dusk.amber, fontSize = TypeScale.Body, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        )
+    } else {
+        till.prices[Product.Supporter]?.let { price ->
+            Shelf(
+                Product.Supporter.title,
+                Product.Supporter.gives,
+                icon = { PorchPreview(lookById(SUPPORTER_LOOK)!!.porch!!, Modifier.size(40.dp, 30.dp)) },
+            ) { MoneyChip(price) { buy(Product.Supporter) } }
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+    if (till.pending.isNotEmpty()) {
+        Note(
+            "Waiting for your payment to go through: ${till.pending.joinToString { it.title.lowercase() }}. " +
+                "It arrives the moment Google Play says it's paid.",
+        )
+        Spacer(Modifier.height(8.dp))
+    }
+    Text(
+        "You get exactly what it says: no loot boxes, nothing random. Payment is through Google Play.",
+        color = Dusk.inkSoft, fontSize = 13.sp, lineHeight = 18.sp, textAlign = TextAlign.Center,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+    )
+}
+
+/** A price in money, on a small oak tag: tap to go to Google Play's own checkout. */
+@Composable
+private fun MoneyChip(price: String, onClick: () -> Unit) {
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val sink by animateFloatAsState(if (pressed) 0.94f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "money")
+    Box(
+        Modifier
+            .graphicsLayer { scaleX = sink; scaleY = sink }
+            .plank(Wood.Oak, corner = 10.dp, elevation = 4.dp, seed = price.length)
+            .border(1.dp, BrassRule, RoundedCornerShape(10.dp))
+            .clickable(interactionSource = press, indication = null, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = "Buy for $price" }
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+    ) {
+        Text(price, color = Dusk.paperInk, fontSize = TypeScale.Body, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }

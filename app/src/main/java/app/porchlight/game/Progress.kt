@@ -558,18 +558,33 @@ class Store(private val prefs: SharedPreferences) {
         return result
     }
 
+    /** Grants a purchase Play says went through; false if this token was already granted. */
+    fun grantPurchase(product: Product, token: String, now: Long = System.currentTimeMillis()): Boolean {
+        val after = grant(progress, product, token, now) ?: return false
+        save(after)
+        // The Fireflies fly into the counter, like the daily gift.
+        gift += product.fireflies
+        return true
+    }
+
+    /** Takes back a refunded or voided purchase, as far as what it gave is still there. */
+    fun revokePurchase(product: Product, token: String, now: Long = System.currentTimeMillis()) {
+        val after = revoke(progress, product, token, now)
+        if (after != progress) save(after)
+    }
+
     fun finish(round: Round, lead: MothId, today: Long = 0, yesterday: Long = -1, now: Long = System.currentTimeMillis()): Report {
         val (after, report) = settleRound(progress, round, lead, today, yesterday, now)
         save(after)
         return report
     }
 
-    /** Today's gift, waiting to be shown flying into the counter; zero once it has been shown. */
+    /** Fireflies given outside a round (the daily gift, a purchase), waiting to fly into the counter; zero once shown. */
     var gift by mutableStateOf(0)
 
     /** The daily gift, once per [day]; returns the Fireflies given (0 if already given today). */
-    fun open(day: Long, now: Long = System.currentTimeMillis(), supporter: Boolean = false): Int {
-        val (after, given) = openToday(progress, day, now, supporter)
+    fun open(day: Long, now: Long = System.currentTimeMillis()): Int {
+        val (after, given) = openToday(progress, day, now, progress.supporter)
         if (given > 0) {
             save(after)
             gift += given

@@ -55,17 +55,33 @@ class MainActivity : ComponentActivity() {
         val ads = Ads.get(this, BuildConfig.REWARDED_AD_UNIT)
         //   ... --ez eea true   (debug only: run the consent check as if the phone were in the EEA)
         if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.getBooleanExtra("eea", false)) ads.pretendEea = true
-        setContent { GameScreen(store, sfx, ads) }
+        // The till outlives a rotation; it always finds the Store of the activity that is showing.
+        Tills.store = store
+        val till = Tills.till ?: run {
+            //   ... --ez fakeStore true   (debug only: a stand-in for Google Play, which has nothing to
+            //   sell to a build that isn't on a Play track; it charges nothing)
+            val fake = applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0 && intent.getBooleanExtra("fakeStore", false)
+            (if (fake) FakeTill { Tills.store } else PlayTill(this, { Tills.store }, BuildConfig.PLAY_LICENSE_KEY)).also { Tills.till = it }
+        }
+        setContent { GameScreen(store, sfx, ads, till) }
     }
 
     override fun onResume() {
         super.onResume()
         // The daily gift: the first time the app comes to the front on a day (also past midnight).
         store?.open(todaySeed())
+        // Each time the app comes back: prices, restores, pending payments that went through, refunds.
+        Tills.till?.start()
     }
 
     override fun onDestroy() {
         super.onDestroy()
         if (isFinishing) sfx.release()
     }
+}
+
+/** The one till for the app, and the Store it hands purchases to. */
+internal object Tills {
+    var store: Store? = null
+    var till: Till? = null
 }

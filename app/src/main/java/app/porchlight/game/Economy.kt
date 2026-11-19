@@ -78,6 +78,17 @@ object Economy {
     const val EARLY_LEAD_PRICE = 150
 
     // ---------------------------------------------------------------------------------------------
+    // Fireflies for money, through Google Play. The prices themselves are set in Play Console in each
+    // country's own tiers (USD: 0.99, 4.99, 9.99, 19.99; starter 1.99; Supporter 4.99). No loot boxes,
+    // no random rewards, no subscriptions.
+
+    const val PACK_HANDFUL = 100
+    const val PACK_JAR = 550
+    const val PACK_LANTERN = 1_200
+    const val PACK_PORCHFUL = 2_600
+    const val STARTER_FIREFLIES = 300
+
+    // ---------------------------------------------------------------------------------------------
     // Rewarded ads: only ever when the player taps to watch one. No interstitials, no banners.
 
     /** "Watch for 10 Fireflies" in the shop. */

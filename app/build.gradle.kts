@@ -14,6 +14,10 @@ val testRewardedUnit = "ca-app-pub-3940256099942544/5224354917"
 val releaseAdMobApp = System.getenv("ADMOB_APP_ID")?.takeIf { it.isNotBlank() } ?: testAdMobApp
 val releaseRewardedUnit = System.getenv("ADMOB_REWARDED_ID")?.takeIf { it.isNotBlank() } ?: testRewardedUnit
 
+// The licence key from Play Console (Monetize > Monetization setup), to check purchase signatures on
+// the phone. Optional: without it purchases are still granted, unchecked (see docs/ECONOMY.md).
+val playLicenseKey = System.getenv("PLAY_LICENSE_KEY")?.trim().orEmpty()
+
 // Release signing is optional. Without these the release APK is built unsigned.
 val keystorePath: String? = System.getenv("PORCHLIGHT_KEYSTORE")?.takeIf { it.isNotBlank() }
 
@@ -31,6 +35,7 @@ android {
         targetSdk = 36
         versionCode = appVersionCode
         versionName = appVersionName
+        buildConfigField("String", "PLAY_LICENSE_KEY", "\"$playLicenseKey\"")
     }
 
     signingConfigs {
@@ -82,6 +87,8 @@ dependencies {
     // Both are on Google Play's Families self-certified ads SDK list.
     implementation("com.google.android.gms:play-services-ads:25.5.0")
     implementation("com.google.android.ump:user-messaging-platform:4.0.0")
+    // Fireflies packs, the starter pack and Supporter, through Google Play.
+    implementation("com.android.billingclient:billing-ktx:9.1.0")
 
     testImplementation("junit:junit:4.13.2")
 }

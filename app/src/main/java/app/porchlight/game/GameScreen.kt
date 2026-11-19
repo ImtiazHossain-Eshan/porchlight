@@ -100,6 +100,28 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
     /** Rewarded ads; null where they can't run. */
     var ads: Ads? = null
 
+    /** Google Play's till; null where it can't run. */
+    var till: Till? = null
+
+    /** The grown-up check waiting to be passed: why it is asked, and what comes after. */
+    var gate by mutableStateOf<Pair<String, () -> Unit>?>(null)
+
+    /** A grown-up passed the check on this visit to the shop: the till stays open until the porch. */
+    var grownUp by mutableStateOf(false)
+
+    /** Asks for a grown-up before [then], unless one already said yes on this visit. */
+    fun askGrownUp(why: String, remember: Boolean = true, then: () -> Unit) {
+        if (remember && grownUp) {
+            then()
+            return
+        }
+        gate = why to {
+            gate = null
+            if (remember) grownUp = true
+            then()
+        }
+    }
+
     /** The results' Fireflies were doubled by an ad: once a round. */
     var doubled by mutableStateOf(false)
 
@@ -534,6 +556,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
     fun toPorch() {
         leaving = false
+        grownUp = false
         porchDark = false
         report = null
         reset()
@@ -544,7 +567,7 @@ internal class Session(val store: Store, val sfx: Sfx, val clock: Clock) {
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null) {
+fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null, till: Till? = null) {
     val clock = rememberClock()
     val session = rememberSaveable(
         saver = mapSaver(save = { it.saved() }, restore = { Session(store, sfx, clock).apply { restore(it) } }),
@@ -573,6 +596,7 @@ fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null) {
     }
     session.haptics = LocalHapticFeedback.current
     session.ads = ads
+    session.till = till
     session.scope = rememberCoroutineScope()
     sfx.muted = store.progress.muted
     sfx.music = store.progress.music
@@ -698,8 +722,9 @@ fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null) {
     }
 
     // Back from a round asks first; back from the results goes to the porch; back from the porch exits.
-    BackHandler(session.screen != Screen.Porch || session.leaving || session.offer != null) {
+    BackHandler(session.screen != Screen.Porch || session.leaving || session.offer != null || session.gate != null) {
         when {
+            session.gate != null -> session.gate = null
             session.offer != null -> session.offer = null
             session.leaving -> session.leaving = false
             session.screen.isMenu -> session.toPorch()
@@ -808,6 +833,7 @@ fun GameScreen(store: Store, sfx: Sfx, ads: Ads? = null) {
         Box(Modifier.fillMaxSize().graphicsLayer { alpha = session.pop.value }.background(Color.White))
         if (session.leaving) LeaveNotice(session)
         session.offer?.let { ConfirmSheet(session, it) }
+        session.gate?.let { (why, pass) -> ParentalGate(why, onPass = pass, onCancel = { session.gate = null }) }
         if (birthYear == 0) AgeScreen { year -> store.change { it.copy(birthYear = year) } }
         session.sharing?.let { card ->
             ShareSheet(card, gold = card.lead in session.store.progress.mastered, level = session.store.progress.level) { session.sharing = null }

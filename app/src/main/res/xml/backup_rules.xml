@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 11 and older: back up the saved game (progress, the Fireflies wallet and its purchase
+     tokens) with Android Auto Backup, so it survives a reinstall or a new phone. -->
+<full-backup-content>
+    <include domain="sharedpref" path="porchlight.xml" />
+</full-backup-content>
