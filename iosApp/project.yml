@@ -51,6 +51,8 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_USER_SCRIPT_SANDBOXING: false
+        # The shared module has no Intel simulator slice (Compose Multiplatform dropped iosX64).
+        "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
         # Shared.framework, built by Gradle in the build phase below.
         FRAMEWORK_SEARCH_PATHS: $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)
         OTHER_LDFLAGS: [$(inherited), -framework, Shared]

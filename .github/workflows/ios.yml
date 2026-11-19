@@ -69,7 +69,7 @@ jobs:
           xcodebuild build \
             -project iosApp/Porchlight.xcodeproj -scheme Porchlight -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath iosApp/build CODE_SIGNING_ALLOWED=NO > xcodebuild.log 2>&1 \
+            -derivedDataPath iosApp/build ARCHS=arm64 CODE_SIGNING_ALLOWED=NO > xcodebuild.log 2>&1 \
             || { grep -E "error:|BUILD FAILED" xcodebuild.log | head -40; tail -40 xcodebuild.log; exit 1; }
           tail -3 xcodebuild.log
 
