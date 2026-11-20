@@ -187,7 +187,7 @@ internal val Boost.glyph: Glyph get() = when (this) {
 // Boosts and getting ahead
 
 /** Each boost's own light: the halo behind its medallion. */
-private val Boost.halo: Color get() = when (this) {
+internal val Boost.halo: Color get() = when (this) {
     Boost.Time -> Color(0xFFFFB347)
     Boost.Peek -> Color(0xFF7FD8D0)
     Boost.Look -> Color(0xFFFFE27A)
@@ -196,7 +196,7 @@ private val Boost.halo: Color get() = when (this) {
 }
 
 /** A short name that fits on a medallion tile. */
-private val Boost.short: String get() = when (this) {
+internal val Boost.short: String get() = when (this) {
     Boost.Time -> "+${secondsText(Economy.BOOST_TIME_MS)} s bulb"
     else -> title
 }
@@ -401,7 +401,7 @@ private fun BoostToken(session: Session, boost: Boost, index: Int, wide: Boolean
  * shine slides across the face as it turns, and a soft shadow on the wood shrinks as it rises.
  */
 @Composable
-private fun Medallion(boost: Boost, clock: Clock, calm: Boolean, phase: Float, modifier: Modifier) {
+internal fun Medallion(boost: Boost, clock: Clock, calm: Boolean, phase: Float, modifier: Modifier) {
     Box(modifier, contentAlignment = Alignment.Center) {
         // The shadow on the wood (outside the turning layer, so it stays flat).
         Canvas(Modifier.matchParentSize()) {
@@ -460,7 +460,7 @@ private fun Medallion(boost: Boost, clock: Clock, calm: Boolean, phase: Float, m
 
 /** The price, big: a live firefly beside the number, both glowing on a dark glass pill. */
 @Composable
-private fun GlowPrice(price: Int, clock: Clock, calm: Boolean, phase: Float) {
+internal fun GlowPrice(price: Int, clock: Clock, calm: Boolean, phase: Float) {
     Row(
         Modifier
             .clip(RoundedCornerShape(20.dp))

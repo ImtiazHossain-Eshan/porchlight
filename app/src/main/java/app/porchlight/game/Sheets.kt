@@ -1,5 +1,18 @@
 package app.porchlight.game
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,21 +83,94 @@ private fun SheetFrame(description: String, onOutside: () -> Unit, glow: Color? 
     }
 }
 
-/** One boost on a sheet: its mark, what it does, its price, and a brass lever to take it. */
+/**
+ * One boost before a round, as a walnut tile with its brass medallion. Off, the coin bobs and waits;
+ * tap it and the coin spins over, the tile lifts and lights in the boost's own colour, and a spark
+ * runs round its edge. A boost the wallet can't cover sits dim and says how many more it needs.
+ */
 @Composable
-private fun BoostRow(boost: Boost, on: Boolean, enabled: Boolean, onToggle: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp).alpha(if (enabled || on) 1f else 0.5f),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+private fun RoundBoostTile(session: Session, boost: Boost, index: Int, on: Boolean, short: Int, modifier: Modifier, onToggle: () -> Unit) {
+    val clock = session.clock
+    val calm = session.calm
+    val enabled = on || short <= 0
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val bouncy = spring<Float>(dampingRatio = 0.55f, stiffness = Spring.StiffnessLow)
+    val lit by animateFloatAsState(if (on) 1f else 0f, if (calm) snap() else bouncy, label = "lit")
+    val spin by animateFloatAsState(if (on) 360f else 0f, if (calm) snap() else spring(dampingRatio = 0.7f, stiffness = 60f), label = "spin")
+    val sink by animateFloatAsState(if (pressed) 0.94f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "sink")
+    val phase = index * 1.7f
+    val shape = RoundedCornerShape(16.dp)
+    Box(
+        modifier
+            .height(190.dp)
+            .graphicsLayer {
+                cameraDistance = 12f * density
+                val s = sink * (1f + 0.04f * lit)
+                scaleX = s
+                scaleY = s
+                translationY = -6.dp.toPx() * lit
+                // A small lean toward the light while it is lit.
+                rotationX = if (calm) 0f else 6f * lit * kotlin.math.sin(clock.seconds * 1.1f + phase)
+                rotationY = if (calm) 0f else 5f * lit * kotlin.math.sin(clock.seconds * 0.8f + phase)
+                alpha = if (enabled) 1f else 0.5f
+            }
+            .toggleable(on, interactionSource = press, indication = null, enabled = enabled, role = Role.Checkbox) { onToggle() }
+            .semantics {
+                contentDescription = "${boost.title}, ${fireflies(boost.price)}. ${boost.detail}" +
+                    if (!enabled) " You need $short more." else ""
+            },
     ) {
-        GlyphArt(boost.glyph, Craft.parchmentInk, Modifier.size(24.dp))
-        Column(Modifier.weight(1f)) {
-            Text(boost.title, color = Craft.parchmentInk, fontSize = TypeScale.Body, fontWeight = FontWeight.SemiBold)
-            Text(boost.detail, color = Craft.parchmentInkSoft, fontSize = 13.sp, lineHeight = 17.sp)
+        Column(
+            Modifier
+                .matchParentSize()
+                .plank(Wood.Walnut, corner = 16.dp, elevation = (6 + 10 * lit).dp, seed = 70 + index)
+                .drawBehind {
+                    val c = Offset(size.width / 2f, size.height * 0.3f)
+                    val breathe = if (calm) 0.5f else 0.5f + 0.5f * kotlin.math.sin(clock.seconds * 1.8f + phase)
+                    val r = size.width * (0.75f + 0.25f * lit)
+                    drawCircle(Brush.radialGradient(listOf(boost.halo.copy(alpha = 0.16f + 0.1f * breathe + 0.3f * lit), Color.Transparent), c, r), r, c)
+                }
+                .border(1.5.dp + 1.dp * lit, if (lit > 0.5f) SolidColor(boost.halo) else BrassRule, shape)
+                .drawWithContent {
+                    drawContent()
+                    if (lit <= 0.01f) return@drawWithContent
+                    // Two sparks chasing each other round the edge.
+                    val w = size.width
+                    val h = size.height
+                    val per = 2f * (w + h)
+                    for (k in 0..1) {
+                        val u = (((if (calm) 0.1f else clock.seconds * 0.22f + phase) + k * 0.5f) % 1f + 1f) % 1f * per
+                        val p = when {
+                            u < w -> Offset(u, 0f)
+                            u < w + h -> Offset(w, u - w)
+                            u < 2 * w + h -> Offset(w - (u - w - h), h)
+                            else -> Offset(0f, h - (u - 2 * w - h))
+                        }
+                        val gr = 18.dp.toPx()
+                        drawCircle(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.9f * lit), boost.halo.copy(alpha = 0.6f * lit), Color.Transparent), p, gr), gr, p, blendMode = BlendMode.Plus)
+                    }
+                }
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                Modifier.size(84.dp).graphicsLayer {
+                    cameraDistance = 10f * density
+                    rotationY = spin
+                },
+            ) { Medallion(boost, clock, calm, phase, Modifier.matchParentSize()) }
+            FitText(boost.short, Display, 19.sp, Dusk.ink)
+            Spacer(Modifier.weight(1f))
+            GlowPrice(boost.price, clock, calm, phase)
+            Spacer(Modifier.height(6.dp))
+            val (label, tint) = when {
+                on -> "✓ IN THIS ROUND" to boost.halo
+                !enabled -> "NEED $short MORE" to Dusk.inkSoft
+                else -> "TAP TO ADD" to Dusk.inkSoft
+            }
+            Text(label, style = Label, color = tint, maxLines = 1)
         }
-        Price(boost.price, Craft.parchmentInk)
-        LeverSwitch(on, "${boost.title}, ${fireflies(boost.price)}") { if (enabled || on) onToggle() }
     }
 }
 
@@ -112,11 +198,14 @@ internal fun PreRoundSheet(session: Session) {
         Box(Modifier.fillMaxWidth().height(1.dp).background(Craft.parchmentShade))
         Spacer(Modifier.height(6.dp))
         Text("BOOSTS FOR THIS ROUND", style = Label, color = Craft.parchmentInkSoft, modifier = Modifier.fillMaxWidth())
-        for (boost in Boost.entries.filter { it.before }) {
-            val on = boost in picked
-            BoostRow(boost, on, enabled = balance - total >= boost.price) {
-                picked = if (on) picked - boost else picked + boost
-                session.sfx.play(Sound.Flip, vary = 0.06f)
+        Spacer(Modifier.height(16.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Boost.entries.filter { it.before }.forEachIndexed { i, boost ->
+                val on = boost in picked
+                RoundBoostTile(session, boost, i, on, short = boost.price - (balance - total), modifier = Modifier.weight(1f)) {
+                    picked = if (on) picked - boost else picked + boost
+                    session.sfx.play(Sound.Flip, vary = 0.06f)
+                }
             }
         }
         Text(
