@@ -10,11 +10,11 @@ Moths gather at a porch bulb, and the bulb is the clock. Find every pair before 
 <a href="https://github.com/ImtiazHossain-Eshan/porchlight/actions/workflows/android.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/ImtiazHossain-Eshan/porchlight/android.yml?branch=main&style=flat-square&label=build&labelColor=15181a&color=2c6f6c"></a>
 <img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-f4c20d?style=flat-square&logo=android&logoColor=white&labelColor=15181a">
 <img alt="Kotlin with Jetpack Compose" src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-f4c20d?style=flat-square&logo=kotlin&logoColor=white&labelColor=15181a">
-<img alt="141 tests passing" src="https://img.shields.io/badge/tests-141%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
+<img alt="245 tests passing" src="https://img.shields.io/badge/tests-245%20passing-f4c20d?style=flat-square&logo=junit5&logoColor=white&labelColor=15181a">
 <img alt="Sound synthesized in app" src="https://img.shields.io/badge/sound-synthesized-f4c20d?style=flat-square&labelColor=15181a">
 <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-f4c20d?style=flat-square&labelColor=15181a"></a>
 
-[Game](#the-game) · [Screens](#screens) · [The moths](#the-moths) · [Levels](#levels-and-the-daily-porch) · [Progression](#progression) · [Architecture](#architecture) · [Get started](#get-started) · [Tests](#tests) · [Releases](#builds-and-releases)
+[Game](#the-game) · [Screens](#screens) · [The moths](#the-moths) · [Levels](#levels-and-the-daily-porch) · [Progression](#progression) · [Fireflies](#fireflies-and-the-porch-shop) · [Architecture](#architecture) · [Get started](#get-started) · [Tests](#tests) · [Releases](#builds-and-releases)
 
 <sub>Designed and built by Imtiaz Hossain</sub>
 
@@ -198,9 +198,9 @@ The bulb is the clock. Its glow shrinks and its colour runs from warm white with
 
 A round opens like the porch light warming up. The cards drop onto the board face down one by one while the bulb is dark, then it flickers twice and comes on (tap to skip this). The cards turn up in a wave from the bulb down, the band says REMEMBER, and one big number counts the whole seconds left to look: 2, 1 for a 2-second peek, and 4, 3, 2, 1 for Iris's 3.4 seconds. The cards' warm rims brighten in the last half second. Then the cards fold shut from the bottom row up, GO! punches in, the bulb flares and the round's clock starts. Pausing during the peek holds the countdown exactly where it was. A recording is in [`docs/visuals/peek.mp4`](docs/visuals/peek.mp4). When time runs out the bulb pops bright for an instant and goes dark, its glass still hanging there. Found pairs glow teal, and Overdrive turns the wall's light gold.
 
-- **Lobby:** a mason jar with a filament inside, hung from an iron bracket. Tap it to switch the porch light off and on: the wall and the moths fall dark, then it flickers back with a hum and every moth starts up. Tonight's night, pairs, time and best sit quietly under the title, the lead moth on a small tag above a big **PLAY** sign that breathes a warm glow, and the four menu tiles are raised walnut blocks with 3D brass coins that bob and sink when pressed.
+- **Lobby:** a mason jar with a filament inside, hung from an iron bracket. Tap it to switch the porch light off and on: the wall and the moths fall dark, then it flickers back with a hum and every moth starts up. Tonight's night, pairs, time and best sit quietly under the title, the lead moth on a small tag above a big lit **PLAY** sign whose letters glow like a lamp, and the menu tiles are raised walnut blocks with 3D brass coins that bob and sink when pressed. The Fireflies counter sits at the top, and rolls up as earned fireflies fly into it.
 - **Level emblem:** the level is a brass emblem that grows with the player in four looks (a moth on brass; rivets and a laurel of wings; a silver rim, wider wings and a lit bulb; gold with rays and a shine), with XP as a gold ring and "152 XP to level 12" beside it. A level-up spins it once in 3D and flips the number like a departure board.
-- **Level map:** one long parchment scroll, a scene per chapter (the porch, the garden, the woods, the rooftops, the last porch), with the levels as thick brass coins along a copper route. A chapter you haven't opened yet is behind a brass plaque that shows the stars it needs, and beating a boss stamps the chapter complete. A coin rises under your finger, and tapping it opens a card that springs up with the level's stars, pairs, time and twist, and PLAY / Not now.
+- **Level map:** one long parchment scroll, a scene per chapter (the porch, the garden, the woods, the rooftops, the last porch), with the levels as thick brass coins along a copper route. The map tells a story, Luna's way home, one line per chapter ("Luna wakes under the porch lamp." through "At dawn, a porch light left on."), with Luna flying the route coin to coin past small story moments drawn into each scene. Each scene has its own light: lamplight on the porch, moonbeams in the garden, sunbeams and falling leaves through the woods, a rippling aurora over the rooftops, and sunrise behind the last porch. The scenery slides at different depths as the map scrolls. A chapter you haven't opened yet is behind a brass plaque that shows the stars it needs, and beating a boss stamps the chapter complete. A coin rises under your finger, and tapping it opens a card that springs up with the level's stars, pairs, time and twist, and PLAY / Not now.
 - **Round:** an Edison bulb in brass works, with two gears that turn while it burns and a pressure gauge whose needle falls with the time left. A bold gold band follows the glass's outline, open at the neck, and drains clockwise as the time runs out. The seconds sit under it in the bulb's colour, with tenths under ten seconds. The ✕ leaves the round (it asks first), and the pause sign offers Keep playing, Start over and Leave round.
 - **Cards:** ebony tiles in embossed brass frames. Faces are parchment; a found pair leaves an empty, recessed socket.
 - **Signs and buttons:** the main action is always an oak sign with carved lettering. Quieter actions are walnut with painted lettering. Round buttons (back, pause, ✕, settings) are thick 3D brass coins with a milled edge that sink when pressed.
@@ -223,7 +223,8 @@ Modern effects without a game engine or a WebView: Compose `graphicsLayer` for t
   - Fifty dust motes drift at different depths and glow when they cross the cone of light under the bulb.
   - The tilt sensor runs only while the game is on screen.
 - **Sparks** add their light where they overlap and leave short trails. Overdrive sends a 150 ms colour-split pulse through the area above the board.
-- **Scorecard.** The results spring up as a gilded panel over a board that blurs behind it, and play out as a short moment of about three seconds (tap to skip). A win's headline lights letter by letter; a loss flickers and cools to an ember, with "So close. 1 pair to go." or a tip. The stars fly in from the bulb with rising chimes, and an empty socket shakes and shows what would have earned it. The tally builds the score line by line, with each line's points flying up into a rolling odometer that lands with a punch and sparks. A new best stamps a ribbon across the corner; otherwise it shows how far short of your best you were. XP orbs fly into the level emblem, a level-up spins it, and unlocks arrive one at a time before the buttons rise in. A round with no pairs shows "0 / 6 pairs" by a dark bulb instead of a giant zero. See [`docs/visuals/results-moments.png`](docs/visuals/results-moments.png).
+- **Scorecard.** The results spring up as a gilded panel over a board that blurs behind it, and are kept clean: a headline, the stars, one big score that counts up and lands with a punch, a single line about the round (pairs, best streak, seconds left, wrong pairs), one big button to the next level, and a slim XP bar under it. A win's headline lights letter by letter; a loss flickers and cools to an ember, with "So close. 1 pair to go." or a tip. The stars fly in from the bulb with rising chimes, and an empty socket shakes and shows what would have earned it. A new best stamps a ribbon across the corner. A level-up spins the emblem, and unlocks arrive one at a time.
+- **Claim moment.** A win that earned Fireflies ends on one moment of its own: "Fireflies caught!" over a glowing firefly with turning rays, the amount counting up, and two buttons. **Claim ×2** (with a film icon and "Watch a short ad · N left today" under it) plays a rewarded ad and doubles the round's Fireflies; **Claim** takes them as they are. Either way the fireflies fly from the panel into the counter. Claim is never delayed or hidden, and the ×2 button only shows when an ad is ready.
 
 **Fallbacks.** Shaders need Android 13; blur needs Android 12.
 - **Android 12 (no shaders):** a gradient glow replaces the god rays, and a sliding sheen replaces the foil.
@@ -270,6 +271,37 @@ Every sound is synthesized in the app. The APK ships no audio files. A small mix
 
 Sound effects, night sounds, vibration and reduce motion each have their own switch in the settings.
 
+## Fireflies and the Porch shop
+
+Fireflies are the game's currency, earned by playing and spent in the **Porch shop**. Playing stays free and unlimited: no lives, no energy, no waiting, and nothing in the shop is needed to finish the game.
+
+| Earn | Fireflies |
+| --- | ---: |
+| A level's 1st, 2nd and 3rd star, the first time | 3, 5, 8 |
+| A replay win with no new star | 1 |
+| A boss beaten / a chapter complete | 25 / 50 |
+| The daily porch | 10, +5 a streak day, at most 30 |
+| A badge / a level up | 20 / 15 |
+| The first open of the day | 5 |
+
+The shop has four tabs on a walnut rail:
+
+- **Boosts:** +10 s on the bulb and a longer peek before a round; Second look and Light a pair from the pause screen; Relight after the bulb burns out; opening a waiting chapter early and skipping a level you've lost three times in a row. Each boost is a 3D brass medallion with a glowing price.
+- **Looks:** card backs, jar and bulb styles, moth colours and porch themes, plus seasonal sets shown in their season. Looks change how the porch looks, never how it plays.
+- **Moths:** a lead moth before its level.
+- **Fireflies:** packs, a one-time starter pack and Supporter through Google Play, and a rewarded ad for 10 Fireflies (5 a day).
+
+Before each round, the level-start sheet offers the pre-round boosts as lit tiles: tap one and its medallion spins, the tile lifts and leans, and sparks run round its edge.
+
+**The rules it keeps** (from [`PRODUCT.md`](PRODUCT.md)):
+- Rewarded ads only, and only when the player taps a button that says what it gives. No interstitials, no banners, ever.
+- Money can't buy stars: any boost caps a round at 2 stars. The daily porch takes no boosts.
+- Nothing random for money, no subscriptions, no countdowns or fake discounts. Every price shows the balance after it.
+- A neutral year-of-birth screen on first launch decides how ads are asked for: under 13 child-directed and rated G, under 16 never personalised. A grown-up check comes before every purchase and every link out of the app, never before an ad.
+- A free player is never blocked: `EconomyBalanceTest` plays a month as one and fails the build if a chapter can't be opened without money.
+
+Every number lives in [`Economy.kt`](app/src/main/java/app/porchlight/game/Economy.kt). [`docs/ECONOMY.md`](docs/ECONOMY.md) has the full earning and spending tables, how purchases are handled, and the month-long simulation; [`docs/PRIVACY.md`](docs/PRIVACY.md) and [`docs/STORE_FORMS.md`](docs/STORE_FORMS.md) cover privacy and the Play Store forms.
+
 ## Architecture
 
 A single-activity Compose app: a lobby with five screens off it, the round, and its scorecard. No navigation library. The game rules are plain Kotlin with no Android dependencies, which is what makes them testable.
@@ -303,8 +335,13 @@ flowchart LR
 | [`Moths.kt`](app/src/main/java/app/porchlight/game/Moths.kt) | Fourteen moths and a dead leaf, drawn as vector paths on a Compose `Canvas`. |
 | [`Sfx.kt`](app/src/main/java/app/porchlight/game/Sfx.kt) | The synthesizer and the mixer. |
 | [`Theme.kt`](app/src/main/java/app/porchlight/game/Theme.kt) | The night palette and the type. |
+| [`Economy.kt`](app/src/main/java/app/porchlight/game/Economy.kt), [`Wallet.kt`](app/src/main/java/app/porchlight/game/Wallet.kt), [`Shop.kt`](app/src/main/java/app/porchlight/game/Shop.kt), [`Looks.kt`](app/src/main/java/app/porchlight/game/Looks.kt) | Every Fireflies number in one table; the wallet and its ledger; what Fireflies buy, as pure functions; the looks. |
+| [`ShopScreen.kt`](app/src/main/java/app/porchlight/game/ShopScreen.kt), [`Sheets.kt`](app/src/main/java/app/porchlight/game/Sheets.kt), [`Swarm.kt`](app/src/main/java/app/porchlight/game/Swarm.kt) | The Porch shop's four tabs; the level-start sheet with its boost tiles, and the confirm sheets; fireflies flying into the counter. |
+| [`Ads.kt`](app/src/main/java/app/porchlight/game/Ads.kt), [`AdRules.kt`](app/src/main/java/app/porchlight/game/AdRules.kt), [`AgeScreen.kt`](app/src/main/java/app/porchlight/game/AgeScreen.kt) | Rewarded ads only, the daily caps, and the year-of-birth screen that decides how ads are asked for. |
+| [`Billing.kt`](app/src/main/java/app/porchlight/game/Billing.kt), [`Purchases.kt`](app/src/main/java/app/porchlight/game/Purchases.kt), [`ParentalGate.kt`](app/src/main/java/app/porchlight/game/ParentalGate.kt), [`PrivacyScreen.kt`](app/src/main/java/app/porchlight/game/PrivacyScreen.kt) | Google Play Billing, granting each purchase once and taking back refunds, the grown-up check, and the privacy page. |
+| [`MapScenes.kt`](app/src/main/java/app/porchlight/game/MapScenes.kt), [`MapStory.kt`](app/src/main/java/app/porchlight/game/MapStory.kt) | The map's chapter scenery and light, and Luna's story along the route. |
 
-**Stack:** Kotlin · Jetpack Compose (Material 3) · Android Gradle Plugin 9 · Gradle 9.6 · JUnit 4. Minimum Android 7.0 (API 24). No network, no analytics, no permissions. Progress stays on the device.
+**Stack:** Kotlin · Jetpack Compose (Material 3) · Android Gradle Plugin 9 · Gradle 9.6 · JUnit 4. Minimum Android 7.0 (API 24). No analytics and no account. The only network use is the rewarded-ad SDK (Google AdMob) and Google Play Billing; the game itself asks for no permissions. Progress and the Fireflies wallet stay on the device, backed up by Android Auto Backup.
 
 **On Android:**
 - A round pauses when the app goes to the background, and continues when you tap.
@@ -347,7 +384,7 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 
 ## Tests
 
-141 unit tests cover the rules, the progression system, the balance between leads and the difficulty curve. They run on the JVM in a few seconds, with no emulator.
+245 unit tests cover the rules, the progression system, the Fireflies economy, ads and purchases, the balance between leads and the difficulty curve. They run on the JVM in a few seconds, with no emulator.
 
 ```bash
 ./gradlew testDebugUnitTest
@@ -362,6 +399,12 @@ sdk.dir=C\:/Users/<you>/AppData/Local/Android/Sdk
 | [`PeekTest`](app/src/test/java/app/porchlight/game/PeekTest.kt) | The peek countdown shows the whole seconds left, rounded up: 2, 1 for 2 s and 4, 3, 2, 1 for 3.4 s |
 | [`BalanceTest`](app/src/test/java/app/porchlight/game/BalanceTest.kt) | Simulated perfect and typical players with every lead: none may beat the rest by more than 15% on both score and time |
 | [`LevelCurveTest`](app/src/test/java/app/porchlight/game/LevelCurveTest.kt) | A simulated player plays every level 2,000 times at three skills: each level within five points of its target win rate, no sudden spikes, breathers easier and bosses harder. |
+| [`WalletTest`](app/src/test/java/app/porchlight/game/WalletTest.kt) | The earning table: stars pay once, replays pay one, bosses, chapters, badges, the daily porch and gift, the ledger |
+| [`ShopTest`](app/src/test/java/app/porchlight/game/ShopTest.kt) | Opening a chapter early, skipping a level, early moths, looks and seasons, and that a short balance changes nothing |
+| [`BoostTest`](app/src/test/java/app/porchlight/game/BoostTest.kt) | Each boost's effect and price, none on the daily porch or the tutorial, and the 2-star cap |
+| [`AdRulesTest`](app/src/test/java/app/porchlight/game/AdRulesTest.kt) | No ads before a year of birth, child-directed and never-personalised ads by age, the daily caps per placement |
+| [`PurchasesTest`](app/src/test/java/app/porchlight/game/PurchasesTest.kt) | The products and their bonuses, one grant per purchase token, the starter pack and Supporter, refunds |
+| [`EconomyBalanceTest`](app/src/test/java/app/porchlight/game/EconomyBalanceTest.kt) | A month of a free player: every chapter opens without money, about one look a week, money can't buy a third star |
 
 CI runs them on every push. A failing test stops the build and uploads the HTML report.
 
