@@ -134,7 +134,6 @@ internal fun Results(session: Session, report: Report) {
     val slide = remember(report) { Animatable(1f) }
     var headline by remember(report) { mutableStateOf(false) }
     var starsIn by remember(report) { mutableIntStateOf(0) }
-    var linesIn by remember(report) { mutableIntStateOf(0) }
     var scoreShown by remember(report) { mutableIntStateOf(0) }
     var bestIn by remember(report) { mutableStateOf(false) }
     var xpIn by remember(report) { mutableStateOf(false) }
@@ -148,7 +147,7 @@ internal fun Results(session: Session, report: Report) {
 
     val rewards = remember(report) {
         buildList {
-            report.newLevel?.let { n ->
+            report.newLevel?.takeIf { !won || round.daily }?.let { n ->
                 add(Reward("Level $n is open", levelLine(levelAt(n))) { LevelSeal(n) })
             }
             report.newChapter?.let { c ->
@@ -187,6 +186,9 @@ internal fun Results(session: Session, report: Report) {
     // from the tally's Fireflies line.
     var firefliesIn by remember(report) { mutableStateOf(false) }
     var firefliesFrom by remember(report) { mutableStateOf(Offset.Unspecified) }
+    // After a win the Fireflies get their own moment: Claim, or Claim ×2 for a short ad.
+    val wantsClaim = won && report.fireflies > 0 && !report.practice && !session.doubled
+    var claim by remember(report) { mutableStateOf(false) }
     val held = remember(report) {
         if (!calm && report.fireflies > 0) session.swarm.hold(report.fireflies)
         if (!calm) report.fireflies else 0
@@ -194,16 +196,20 @@ internal fun Results(session: Session, report: Report) {
     fun fly() {
         if (firefliesIn) return
         firefliesIn = true
-        session.swarm.send(session.scope ?: return, firefliesFrom, report.fireflies, session.sfx, calm, held = held)
+        val from = if (firefliesFrom != Offset.Unspecified) firefliesFrom else spots.score
+        session.swarm.send(session.scope ?: return, from, report.fireflies, session.sfx, calm, held = held)
+    }
+    // Leaving before they flew: the counter stops holding them back.
+    androidx.compose.runtime.DisposableEffect(report) {
+        onDispose { if (!firefliesIn) session.swarm.release(held) }
     }
 
     // Everything at its final value: a tap to skip, or reduce motion (with a fade).
     suspend fun finish(fade: Boolean) {
         flights.clear()
-        fly()
+        if (wantsClaim) { if (!firefliesIn) claim = true } else fly()
         headline = true
         starsIn = 3
-        linesIn = lines.size
         scoreShown = round.score
         bestIn = report.newBest
         xpIn = true
@@ -237,27 +243,12 @@ internal fun Results(session: Session, report: Report) {
         }
         delay(120)
 
-        // The tally builds the score: each line slides in, and its points fly up into the score.
-        var running = 0
-        lines.forEachIndexed { i, line ->
-            linesIn = i + 1
-            delay(120)
-            if (line.points > 0) {
-                val from = spots.lines[i] ?: spots.score
-                val flight = Flight("+${line.points.grouped()}", from - spots.origin, spots.score - spots.origin)
-                flights += flight
-                flight.t.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
-                flights -= flight
-                running += line.points
-                scoreShown = running
-                // The odometer ticks as it rolls, faster and faster.
-                launch {
-                    for (k in 0 until 6) {
-                        sfx.play(Sound.Tick, volume = 0.3f, pitch = 1f + k * 0.06f)
-                        delay(70L - k * 9L)
-                    }
-                }
-                delay(330)
+        // The score counts up in one roll, ticking faster as it goes.
+        if (round.score > 0) {
+            scoreShown = round.score
+            for (k in 0 until 10) {
+                sfx.play(Sound.Tick, volume = 0.3f, pitch = 1f + k * 0.05f)
+                delay(80L - k * 5L)
             }
         }
         scoreShown = round.score
@@ -288,8 +279,8 @@ internal fun Results(session: Session, report: Report) {
         }
         delay(if (levelUp) 1_600 else 700)
 
-        // Fireflies: they lift off the tally's line and fly up into the wallet.
-        if (report.fireflies > 0) {
+        // Fireflies on a loss simply fly up into the wallet; a win's wait for their own moment.
+        if (report.fireflies > 0 && !wantsClaim) {
             fly()
             delay(600)
         }
@@ -302,6 +293,10 @@ internal fun Results(session: Session, report: Report) {
             delay(320)
         }
         buttons.animateTo(1f, spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow))
+        if (wantsClaim && !firefliesIn) {
+            delay(250)
+            claim = true
+        }
     }
 
     // A clock for everything that keeps moving: the aurora, the hero's rays, the shine on Again.
@@ -457,85 +452,34 @@ internal fun Results(session: Session, report: Report) {
                         }
                 }
                 val detailsPart: @Composable () -> Unit = {
-                        // Three numbers: pairs, score, and time left (a win) or your best (a loss).
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            StatTile("PAIRS", Glyph.Moth, accent, headline, skipped, 0, Modifier.weight(1f)) {
-                                Text("${round.pairs}/${round.pairCount}", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                            }
-                            StatTile(
-                                "SCORE",
-                                Glyph.Star,
-                                accent,
-                                headline,
-                                skipped,
-                                1,
-                                Modifier
-                                    .weight(1.25f)
-                                    .onGloballyPositioned { if (round.score > 0) spots.score = it.boundsInRoot().center }
-                                    .graphicsLayer {
-                                        scaleX = punch.value
-                                        scaleY = punch.value
-                                    },
-                            ) {
-                                CountUp(scoreShown, numberStyle(accent), 24.sp, durationMs = 300, instant = skipped, calm = calm)
-                            }
-                            if (won) {
-                                StatTile("TIME LEFT", Glyph.Clock, accent, headline, skipped, 2, Modifier.weight(1f)) {
-                                    Text("${(round.left + 999) / 1000} s", style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                                }
-                            } else {
-                                StatTile("BEST", Glyph.Trophy, accent, headline, skipped, 2, Modifier.weight(1f)) {
-                                    Text(progress.best.grouped(), style = numberStyle(accent), fontSize = 24.sp, maxLines = 1)
-                                }
-                            }
+                        // The score, big, and one line that says how it went.
+                        Text(
+                            "SCORE",
+                            style = Label,
+                            color = accent,
+                            modifier = Modifier
+                                .graphicsLayer { alpha = if (headline) 1f else 0f }
+                                .background(Color.White.copy(alpha = 0.07f), RoundedCornerShape(50))
+                                .padding(horizontal = 14.dp, vertical = 3.dp),
+                        )
+                        Box(
+                            Modifier
+                                .onGloballyPositioned { if (round.score > 0) spots.score = it.boundsInRoot().center }
+                                .graphicsLayer {
+                                    scaleX = punch.value
+                                    scaleY = punch.value
+                                },
+                        ) {
+                            CountUp(scoreShown, numberStyle(accent, strong = true), if (compact) 44.sp else 56.sp, durationMs = 800, instant = skipped, calm = calm)
                         }
-
-                        // The tally: short lines that build the score.
-                        if (lines.isNotEmpty() || (won && round.misses == 0) || report.practice) {
-                            Spacer(Modifier.height(10.dp))
-                            Column(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .plank(Wood.Walnut, corner = 14.dp, elevation = 4.dp, seed = 9)
-                                    .border(1.dp, BrassRule, RoundedCornerShape(14.dp))
-                                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            ) {
-                                lines.forEachIndexed { i, line ->
-                                    SlideIn(linesIn > i, skipped || calm) {
-                                        TallyRow(line, accent, last = i == lines.lastIndex, dense = dense, modifier = Modifier.onGloballyPositioned { spots.lines[i] = it.boundsInRoot().center })
-                                    }
-                                }
-                                if (won && round.misses == 0) {
-                                    Reveal(linesIn >= lines.size, skipped, stamp = !calm) { FlawlessBadge(Modifier.padding(top = 8.dp, bottom = 4.dp)) }
-                                }
-                                if (report.practice) Text("Practice round", style = BodyText, color = MUTED, modifier = Modifier.padding(top = 4.dp))
-                            }
-                        }
-                        if (!report.practice && !report.newBest && round.score > 0 && progress.best > round.score) {
-                            Reveal(linesIn >= lines.size && scoreShown == round.score, skipped) { ShortOfBest(round.score, progress.best, accent) }
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-                        Reveal(xpIn, skipped) {
-                            XpPanel(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
-                        }
-                        if (report.fireflies > 0) {
-                            Spacer(Modifier.height(10.dp))
-                            Reveal(xpIn, skipped) {
-                                FirefliesLine(
-                                    report = report,
-                                    doubled = session.doubled,
-                                    accent = accent,
-                                    modifier = Modifier.onGloballyPositioned { firefliesFrom = it.boundsInRoot().center },
-                                )
-                            }
-                            // Double it: an ad, only if the player wants one, after a win.
-                            if (won && !report.practice && !session.doubled) {
-                                Spacer(Modifier.height(8.dp))
-                                DoubleOffer(session, report) { activity, from -> session.watchDouble(activity, report, from) }
-                            }
-                        }
+                        Text(
+                            remember(report) { roundLine(round, report.practice) },
+                            style = BodyText,
+                            color = MUTED,
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.graphicsLayer { alpha = if (headline) 1f else 0f },
+                        )
 
                         if (rewards.isNotEmpty()) {
                             Spacer(Modifier.height(12.dp))
@@ -620,6 +564,12 @@ internal fun Results(session: Session, report: Report) {
                                 else shareText(context, dailyShare(todaySeed(), report.stars, round.score))
                             }
                         }
+                        // Where the player stands: one slim bar toward the next level.
+                        Reveal(xpIn, skipped) {
+                            Box(Modifier.padding(top = 4.dp)) {
+                                XpPanel(session, report, accent, play = xpIn, instant = skipped, t = { t }, onPlaced = { spots.emblem = it })
+                            }
+                        }
                     }
                     // Until they have risen, a tap there skips ahead like anywhere else.
                     if (buttons.value < 0.95f) {
@@ -660,7 +610,17 @@ internal fun Results(session: Session, report: Report) {
                 }
             }
         }
-        // What flies: points from the tally into the score, sparks off the landed score, XP orbs.
+        if (claim) {
+            ClaimMoment(
+                session, report, t = { t },
+                onPlaced = { firefliesFrom = it },
+                onClaim = {
+                    claim = false
+                    fly()
+                },
+            )
+        }
+        // What flies: sparks off the landed score, XP orbs.
         Box(Modifier.fillMaxSize().onGloballyPositioned { spots.origin = it.positionInRoot() }) {
             flights.forEach { f ->
                 Text(
@@ -707,21 +667,6 @@ internal fun Results(session: Session, report: Report) {
     }
 }
 
-/** A tally line slides in from the left as its turn comes. */
-@Composable
-private fun SlideIn(shown: Boolean, instant: Boolean, content: @Composable () -> Unit) {
-    val t by animateFloatAsState(
-        if (shown) 1f else 0f,
-        if (instant) tween(0) else tween(220, easing = FastOutSlowInEasing),
-        label = "slideIn",
-    )
-    Box(
-        Modifier.graphicsLayer {
-            alpha = t
-            translationX = -(1f - t) * 40.dp.toPx()
-        },
-    ) { content() }
-}
 
 /** A level's number, or a chapter's numeral, on a brass seal. */
 @Composable
@@ -830,69 +775,7 @@ private fun DrawScope.resultBackdrop(won: Boolean, t: Float, appear: Float, calm
 
 
 
-/** A number on a small glass tile with its label and icon; the tiles flip up one after another. */
-@Composable
-private fun StatTile(label: String, glyph: Glyph, accent: Color, shown: Boolean, instant: Boolean, order: Int, modifier: Modifier, value: @Composable () -> Unit) {
-    val up = remember { Animatable(0f) }
-    LaunchedEffect(shown, instant) {
-        if (!shown) return@LaunchedEffect
-        if (instant) {
-            up.snapTo(1f)
-            return@LaunchedEffect
-        }
-        delay(order * 90L)
-        up.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
-    }
-    Column(
-        modifier
-            .graphicsLayer {
-                val u = up.value
-                cameraDistance = 10f * density
-                transformOrigin = TransformOrigin(0.5f, 1f)
-                rotationX = (1f - u) * 80f
-                alpha = u.coerceIn(0f, 1f)
-            }
-            .plate(RoundedCornerShape(12.dp))
-            .border(1.dp, BrassRule, RoundedCornerShape(12.dp))
-            .padding(horizontal = 10.dp, vertical = 10.dp)
-            .semantics(mergeDescendants = true) {},
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        value()
-        Text(label, style = Label, color = MUTED, maxLines = 1)
-    }
-}
 
-/** "312 short of your best", over a brass gauge set in an ebony slot: the score against the best. */
-@Composable
-private fun ShortOfBest(score: Int, best: Int, accent: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(top = 10.dp)) {
-        Text("${(best - score).grouped()} short of your best", style = BodyText, color = MUTED)
-        Canvas(
-            Modifier
-                .padding(top = 5.dp)
-                .size(180.dp, 12.dp)
-                .plate(RoundedCornerShape(6.dp))
-                .border(1.dp, BrassRule, RoundedCornerShape(6.dp)),
-        ) {
-            val inset = 2.5.dp.toPx()
-            val w = (size.width - inset * 2) * (score.toFloat() / best).coerceIn(0f, 1f)
-            if (w > 0f) {
-                drawRoundRect(
-                    Brush.verticalGradient(listOf(Craft.brassLight, Craft.gold, Craft.brassDark), inset, size.height - inset),
-                    Offset(inset, inset),
-                    Size(w, size.height - inset * 2),
-                    CornerRadius(size.height),
-                )
-            }
-            // Ticks cut every tenth, so it reads as a gauge.
-            for (k in 1 until 10) {
-                val x = inset + (size.width - inset * 2) * k / 10f
-                drawLine(Color.Black.copy(alpha = 0.4f), Offset(x, inset), Offset(x, size.height - inset), 1.dp.toPx())
-            }
-        }
-    }
-}
 
 /**
  * The hero: the porch's own mason-jar lamp, lit gold with moths circling it in 3D (a win), or dark
@@ -1097,54 +980,7 @@ private fun MedalStar(filled: Boolean, turn: Boolean, instant: Boolean, calm: Bo
     }
 }
 
-/** One line of the tally: an icon on a tinted tile, what it was and a word about it, and its points. */
-@Composable
-private fun TallyRow(line: TallyLine, accent: Color, last: Boolean, dense: Boolean = false, modifier: Modifier = Modifier) {
-    val (icon, caption) = when (line.kind) {
-        TallyKind.Pairs -> Glyph.Moth to "Matched"
-        TallyKind.Streak -> Glyph.Flame to "Best chain"
-        TallyKind.Time -> Glyph.Clock to "Bulb to spare"
-        TallyKind.Misses -> Glyph.Close to "Wrong pairs"
-    }
-    Column(Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(vertical = if (dense) 4.dp else 7.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(if (dense) 28.dp else 34.dp)
-                    .shadow(3.dp, RoundedCornerShape(50), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
-                    .metal(corner = 17.dp, copper = line.kind == TallyKind.Streak || line.kind == TallyKind.Misses),
-                contentAlignment = Alignment.Center,
-            ) { GlyphArt(icon, Dusk.paperInk, Modifier.size(17.dp)) }
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
-                Text(line.text, style = BodyText, fontWeight = FontWeight.Bold, color = Dusk.ink, maxLines = 1)
-                if (!dense) Text(caption, style = Label, color = MUTED, maxLines = 1)
-            }
-            if (line.points > 0) {
-                Text("+${line.points.grouped()}", style = numberStyle(accent, strong = true), fontSize = 19.sp, textAlign = TextAlign.End, modifier = modifier)
-            } else {
-                Spacer(modifier)
-            }
-        }
-        if (!last) Box(Modifier.fillMaxWidth().height(1.dp).background(Craft.brassDark.copy(alpha = 0.55f)))
-    }
-}
 
-/** No wrong pairs: a small brass plaque, stamped under the tally, its words cut into the metal. */
-@Composable
-private fun FlawlessBadge(modifier: Modifier = Modifier) {
-    Row(
-        modifier
-            .shadow(4.dp, RoundedCornerShape(6.dp), ambientColor = Dusk.shadow, spotColor = Dusk.shadow)
-            .metal(corner = 6.dp)
-            .padding(horizontal = 12.dp, vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        GlyphArt(Glyph.Check, Dusk.paperInk, Modifier.size(14.dp))
-        Spacer(Modifier.width(6.dp))
-        Text("CLEAN SWEEP · NO WRONG PAIRS", style = TextEngraved, fontSize = 12.sp, letterSpacing = 1.2.sp, color = Dusk.paperInk)
-    }
-}
 
 /**
  * XP: the level emblem beside a thick, glossy bar in segments that fills with what this round
@@ -1191,21 +1027,17 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
         bar.animateTo(levelFill(xpAfter), tween(600, easing = FastOutSlowInEasing))
     }
     val level = levelFor(xpAfter)
-    val into = xpAfter - xpFor(level)
-    val span = xpFor(level + 1) - xpFor(level)
     Row(
         Modifier
             .fillMaxWidth()
-            .plank(Wood.Walnut, corner = 14.dp, elevation = 4.dp, seed = 11)
-            .border(1.dp, BrassRule, RoundedCornerShape(14.dp))
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Emblem(
             report.levelAfter,
             Modifier
                 .flies("emblem")
-                .size(56.dp)
+                .size(44.dp)
                 .onGloballyPositioned { onPlaced(it.boundsInRoot().center) }
                 .graphicsLayer {
                     cameraDistance = 12f * density
@@ -1220,7 +1052,7 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("LEVEL ${report.levelAfter}", style = numberStyle(WIN), fontSize = 18.sp)
+                Text("LEVEL ${report.levelAfter}", style = numberStyle(WIN), fontSize = 15.sp)
                 if (up) {
                     Spacer(Modifier.width(6.dp))
                     Text(
@@ -1254,8 +1086,8 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
             Canvas(
                 Modifier
                     .fillMaxWidth()
-                    .height(14.dp)
-                    .clip(RoundedCornerShape(7.dp)),
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp)),
             ) {
                 val radius = CornerRadius(size.height / 2f)
                 // A recessed track.
@@ -1285,11 +1117,8 @@ private fun XpPanel(session: Session, report: Report, accent: Color, play: Boole
                     drawLine(Color.Black.copy(alpha = 0.35f), Offset(x, 0f), Offset(x, size.height), 1.5.dp.toPx())
                 }
             }
-            Spacer(Modifier.height(6.dp))
-            Row {
-                Text("${xpToGo(xpAfter).grouped()} to level ${level + 1}", style = Label, color = MUTED, modifier = Modifier.weight(1f))
-                Text("${into.grouped()} / ${span.grouped()}", style = Label, color = MUTED.copy(alpha = 0.7f))
-            }
+            Spacer(Modifier.height(4.dp))
+            Text("${xpToGo(xpAfter).grouped()} XP to level ${level + 1}", style = Label, color = MUTED)
         }
     }
 }
@@ -1488,194 +1317,132 @@ private fun FitHeight(content: @Composable () -> Unit) {
 
 private val COUNTER_SLOT = 108.dp
 
-/** The tally's last line: what this round paid in Fireflies, and what for. */
-@Composable
-private fun FirefliesLine(report: Report, doubled: Boolean, accent: Color, modifier: Modifier = Modifier) {
-    val total = report.fireflies * (if (doubled) 2 else 1)
-    val why = report.earnings.groupBy { it.source }.map { (source, list) -> "${source.label} ${list.sumOf { it.amount }}" }
-        .let { if (doubled) it + "Doubled ${report.fireflies}" else it }
-        .joinToString(" · ")
-    Row(
-        modifier
-            .fillMaxWidth()
-            .plate(RoundedCornerShape(12.dp))
-            .border(1.dp, BrassRule, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .semantics(mergeDescendants = true) { contentDescription = "${fireflies(total)} earned. $why" },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        FireflyIcon(Modifier.size(30.dp))
-        Column(Modifier.weight(1f)) {
-            Text("FIREFLIES", style = Label, color = accent)
-            Text(why, style = BodyText, color = MUTED, fontSize = 12.sp, lineHeight = 15.sp, maxLines = 2)
-        }
-        Text("+${total.grouped()}", style = numberStyle(accent), fontSize = 22.sp, maxLines = 1)
+
+
+
+
+/** How the round went, in one line: "6 pairs · streak ×4 · 5 s left · no wrong pairs". */
+private fun roundLine(round: Round, practice: Boolean): String = buildList {
+    if (round.phase == Phase.Won) add(if (round.pairs == 1) "1 pair" else "${round.pairs} pairs")
+    else add("${round.pairs} of ${round.pairCount} pairs")
+    if (round.bestMultiplier >= 2) add("streak ×${round.bestMultiplier}")
+    if (round.phase == Phase.Won && round.left >= 1000) add("${round.left / 1000} s left")
+    when {
+        round.phase != Phase.Won -> Unit
+        round.misses == 0 -> add("no wrong pairs")
+        round.misses == 1 -> add("1 miss")
+        else -> add("${round.misses} misses")
     }
-}
+    if (practice) add("practice round")
+}.joinToString(" · ")
 
 /**
- * "Double this level's Fireflies", as an offer that can be seen at a glance: a brass ×2 coin turning
- * in 3D, what the level earned and what it becomes (+23 → +46), a short-ad tag so it never hides what
- * it is, and a lamp knob to press. A shine runs across it now and then and fireflies drift round the
- * coin; under Reduce motion it holds still. It sits below the results and never above Next level.
+ * A win's Fireflies, given their own moment over the results: a big firefly glowing in a turning
+ * fan of light, the amount, and two plain choices. Claim ×2 plays a short ad (marked with its
+ * clapperboard and how many are left today) and doubles them; Claim takes them as they are, at once,
+ * with no wait. Without an ad to show, Claim is the only button. Under Reduce motion it holds still.
  */
 @Composable
-private fun DoubleOffer(session: Session, report: Report, modifier: Modifier = Modifier, onTap: (android.app.Activity?, Offset) -> Unit) {
-    val ads = session.ads ?: return
-    val left = adsLeft(session.store.progress, Placement.Double, todaySeed())
-    val activity = androidx.activity.compose.LocalActivity.current
-    if (left <= 0) {
-        Text(
-            "Doubling is back tomorrow",
-            style = Label, color = MUTED, textAlign = TextAlign.Center,
-            modifier = modifier.padding(vertical = 6.dp),
-        )
-        return
-    }
-    if (!ads.ready || ads.showing) return
-    val clock = session.clock
+private fun ClaimMoment(session: Session, report: Report, t: () -> Float, onPlaced: (Offset) -> Unit, onClaim: () -> Unit) {
     val calm = session.calm
-    val earned = report.fireflies
-    var from by remember { mutableStateOf(Offset.Unspecified) }
-    val press = remember { MutableInteractionSource() }
-    val pressed by press.collectIsPressedAsState()
-    val sink by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "sink")
-    // It arrives with a small hop, so the eye catches it once.
-    val arrive = remember { Animatable(if (calm) 1f else 0.86f) }
-    LaunchedEffect(Unit) { if (!calm) arrive.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = 220f)) }
-    val shape = RoundedCornerShape(16.dp)
-    val amber = Color(0xFFFFB347)
-    Row(
-        modifier
-            .fillMaxWidth()
-            .graphicsLayer {
-                val s = sink * arrive.value
-                scaleX = s
-                scaleY = s
-            }
-            .onGloballyPositioned { from = it.boundsInRoot().center }
-            .shadow(12.dp, shape, ambientColor = amber, spotColor = amber)
-            .clip(shape)
-            .background(Brush.verticalGradient(listOf(Color(0xFF4A2C12), Color(0xFF241509))))
-            .drawBehind {
-                // Warm light pooling round the coin.
-                val c = Offset(size.height * 0.62f, size.height / 2f)
-                val breathe = if (calm) 0.5f else 0.5f + 0.5f * sin(clock.seconds * 2f)
-                drawCircle(Brush.radialGradient(listOf(amber.copy(alpha = 0.32f + 0.18f * breathe), Color.Transparent), c, size.height * 1.5f), size.height * 1.5f, c)
-            }
-            .drawWithContent {
-                drawContent()
-                if (calm) return@drawWithContent
-                val t = clock.seconds
-                // A shine that runs across every few seconds.
-                val cycle = (t % 4f) / 1.1f
-                if (cycle < 1f) {
-                    val x = -size.width * 0.3f + cycle * size.width * 1.6f
-                    drawRect(
-                        Brush.linearGradient(
-                            listOf(Color.Transparent, Color.White.copy(alpha = 0.22f), Color.Transparent),
-                            Offset(x - size.height, 0f), Offset(x, size.height),
-                        ),
-                        blendMode = BlendMode.Plus,
-                    )
-                }
-                // Fireflies drifting about the coin.
-                val c = Offset(size.height * 0.62f, size.height / 2f)
-                for (k in 0 until 4) {
-                    val a = t * (0.6f + 0.15f * k) + k * 1.9f
-                    val p = c + Offset(cos(a) * size.height * (0.5f + 0.08f * k), sin(a * 1.3f) * size.height * 0.36f)
-                    val lit = 0.5f + 0.5f * sin(t * 3f + k * 2.1f)
-                    val r = 7.dp.toPx()
-                    drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF2A8).copy(alpha = 0.85f * lit), Color(0xFFFFD45A).copy(alpha = 0.3f * lit), Color.Transparent), p, r), r, p, blendMode = BlendMode.Plus)
-                }
-            }
-            .border(2.dp, Brush.linearGradient(listOf(Color(0xFFFFE9A6), Craft.gold, Craft.goldDeep, Craft.gold)), shape)
-            .clickable(interactionSource = press, indication = null, role = Role.Button, onClickLabel = "Watch a short ad") { onTap(activity, from) }
-            .semantics(mergeDescendants = true) {
-                contentDescription = "Double this level's Fireflies: watch a short ad for ${fireflies(earned)} more, ${fireflies(earned * 2)} in all. $left left today."
-            }
-            .padding(start = 10.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        DoubleCoin(clock, calm, Modifier.size(62.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    "AD",
-                    style = Label, fontSize = 10.sp, color = Color(0xFF241509),
-                    modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Craft.gold).padding(horizontal = 5.dp, vertical = 1.dp),
-                )
-                Text("DOUBLE YOUR FIREFLIES", style = Label, color = Craft.gold, maxLines = 1)
-            }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("+$earned", style = numberStyle(MUTED), fontSize = 18.sp, maxLines = 1)
-                Text("  →  ", style = BodyText, color = MUTED, fontSize = 16.sp)
-                Text(
-                    "+${(earned * 2).grouped()}",
-                    style = numberStyle(Craft.gold).copy(shadow = androidx.compose.ui.graphics.Shadow(amber, Offset.Zero, 18f)),
-                    fontSize = 28.sp, maxLines = 1,
-                )
-            }
-            Text("Watch a short ad · $left left today", style = BodyText, color = MUTED, fontSize = 12.sp, maxLines = 1)
-        }
-        // A lamp knob with a play mark: the thing to press.
-        Canvas(Modifier.size(46.dp)) {
-            val t = if (calm) 0f else clock.seconds
-            val c = Offset(size.width / 2f, size.height / 2f)
-            val r = size.minDimension / 2f
-            if (!calm) {
-                val ring = (t % 1.6f) / 1.6f
-                drawCircle(Craft.gold.copy(alpha = 0.5f * (1f - ring)), r * (0.9f + 0.5f * ring), c, style = Stroke(2.dp.toPx()))
-            }
-            drawCircle(Color(0xFF3A2410), r * 0.94f, c + Offset(0f, r * 0.08f))
-            drawCircle(Brush.linearGradient(listOf(Color(0xFFFFEDB0), Craft.gold, Craft.goldDeep), c - Offset(r, r), c + Offset(r, r)), r * 0.86f, c)
-            val tri = androidx.compose.ui.graphics.Path().apply {
-                moveTo(c.x - r * 0.24f, c.y - r * 0.36f)
-                lineTo(c.x + r * 0.4f, c.y)
-                lineTo(c.x - r * 0.24f, c.y + r * 0.36f)
-                close()
-            }
-            drawPath(tri, Color(0xFF3A2410))
+    val ads = session.ads
+    val left = adsLeft(session.store.progress, Placement.Double, todaySeed())
+    val canDouble = ads != null && left > 0 && ads.ready && !session.doubled
+    val activity = androidx.activity.compose.LocalActivity.current
+    val appear = remember { Animatable(if (calm) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        if (!calm) {
+            session.sfx.play(Sound.Chime, volume = 0.6f)
+            appear.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
         }
     }
-}
-
-/** A thick brass coin stamped ×2, turning and bobbing in 3D with a shine across its face. */
-@Composable
-private fun DoubleCoin(clock: Clock, calm: Boolean, modifier: Modifier) {
+    var from by remember { mutableStateOf(Offset.Unspecified) }
+    // Doubled: the number climbs to its new amount, then the moment closes and they all fly home.
+    LaunchedEffect(session.doubled) {
+        if (session.doubled) {
+            delay(1_100)
+            onClaim()
+        }
+    }
+    val amount = report.fireflies * (if (session.doubled) 2 else 1)
     Box(
-        modifier.graphicsLayer {
-            val t = if (calm) 0f else clock.seconds
-            cameraDistance = 9f * density
-            rotationY = coinTurn(t)
-            rotationX = 8f * sin(t * 0.8f)
-            translationY = -size.height * 0.06f * (0.5f + 0.5f * sin(t * 1.6f))
-        },
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer { alpha = appear.value.coerceIn(0f, 1f) }
+            .background(Color(0xFF07060A).copy(alpha = 0.93f))
+            .swallowTaps()
+            .safeDrawingPadding(),
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(Modifier.matchParentSize()) {
-            val r = size.minDimension / 2f
-            val c = Offset(size.width / 2f, size.height / 2f)
-            drawCircle(Color(0xFF4A2E10), r * 0.98f, c + Offset(0f, r * 0.08f))
-            drawCircle(Brush.linearGradient(listOf(Color(0xFFFFEDB0), Craft.gold, Craft.goldDeep), c - Offset(r, r), c + Offset(r, r)), r * 0.96f, c)
-            drawCircle(Brush.radialGradient(listOf(Color(0xFFFFE9A6), Craft.gold, Craft.goldDeep), c - Offset(r * 0.25f, r * 0.3f), r * 1.1f), r * 0.78f, c)
-            drawCircle(Color(0xFF4A2E10).copy(alpha = 0.35f), r * 0.78f, c, style = Stroke(1.5.dp.toPx()))
+        Column(
+            Modifier
+                .widthIn(max = 380.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 32.dp)
+                .graphicsLayer {
+                    val s = 0.7f + 0.3f * appear.value
+                    scaleX = s
+                    scaleY = s
+                },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            HeroTitle("Fireflies caught!", won = true, shown = true, instant = calm, calm = calm, t = t, fontSize = 36.sp)
+            // The prize: a big firefly in a turning fan of warm light, a few more circling it.
+            Canvas(
+                Modifier
+                    .size(230.dp)
+                    .onGloballyPositioned {
+                        from = it.boundsInRoot().center
+                        onPlaced(from)
+                    }
+                    .semantics { contentDescription = fireflies(amount) },
+            ) {
+                val time = if (calm) 0f else t()
+                val c = Offset(size.width / 2f, size.height / 2f)
+                val r = size.minDimension / 2f
+                drawCircle(Brush.radialGradient(listOf(Color(0xFFFFD45A).copy(alpha = 0.55f), Color(0xFFFFB347).copy(alpha = 0.18f), Color.Transparent), c, r), r, c)
+                rotate(time * 18f, c) {
+                    for (k in 0 until 12) {
+                        val a0 = (k * 30f) * (PI.toFloat() / 180f)
+                        val a1 = a0 + 13f * (PI.toFloat() / 180f)
+                        val ray = androidx.compose.ui.graphics.Path().apply {
+                            moveTo(c.x, c.y)
+                            lineTo(c.x + cos(a0) * r, c.y + sin(a0) * r)
+                            lineTo(c.x + cos(a1) * r, c.y + sin(a1) * r)
+                            close()
+                        }
+                        drawPath(ray, Brush.radialGradient(listOf(Color(0xFFFFE9A6).copy(alpha = 0.35f), Color.Transparent), c, r))
+                    }
+                }
+                for (k in 0 until 5) {
+                    val a = time * (0.7f + 0.12f * k) + k * 1.26f
+                    val p = c + Offset(cos(a) * r * (0.62f + 0.06f * k), sin(a * 1.2f) * r * 0.5f)
+                    firefly(p, r * 0.16f, lit = 0.55f + 0.45f * sin(time * 3f + k))
+                }
+                val bob = if (calm) 0f else sin(time * 1.8f) * r * 0.05f
+                firefly(c + Offset(0f, bob), r * 0.78f, lit = if (calm) 1f else 0.8f + 0.2f * sin(time * 2.6f))
+            }
+            Row(Modifier.offset(y = (-10).dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("+", style = numberStyle(WIN, strong = true), fontSize = 52.sp)
+                CountUp(amount, numberStyle(WIN, strong = true), 60.sp, durationMs = 700, calm = calm)
+            }
+            Text(
+                if (session.doubled) "Doubled!" else fireflies(amount).substringAfter(' '),
+                style = Label, color = MUTED,
+                modifier = Modifier.offset(y = (-8).dp),
+            )
+            Spacer(Modifier.height(22.dp))
+            if (!session.doubled) {
+                if (canDouble) {
+                    PrimaryButton("Claim ×2", Modifier.fillMaxWidth(), glyph = Glyph.Film) { session.watchDouble(activity, report, from) }
+                    Text(
+                        "Watch a short ad · $left left today",
+                        style = BodyText, color = MUTED, fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
+                    )
+                }
+                SecondaryButton("Claim", Modifier.fillMaxWidth()) { onClaim() }
+            }
         }
-        // The other face reads the right way round too, as on a real coin.
-        Text(
-            "×2", style = Display, fontSize = 22.sp, color = Color(0xFF4A2E10), maxLines = 1,
-            modifier = Modifier.graphicsLayer {
-                val a = coinTurn(if (calm) 0f else clock.seconds) * (PI.toFloat() / 180f)
-                scaleX = if (cos(a) < 0f) -1f else 1f
-            },
-        )
     }
-}
-
-/** The coin's turn in degrees: mostly a sway, and every five seconds a whole turn, like a coin flipped in the hand. */
-private fun coinTurn(t: Float): Float {
-    val flip = ((t % 5f) - 4f).coerceIn(0f, 1f)
-    return 22f * sin(t * 1.1f) + 360f * flip * flip * (3f - 2f * flip)
 }

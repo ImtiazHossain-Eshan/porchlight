@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.drawscope.translate
 internal enum class Glyph(val path: String, val filled: Boolean = false) {
     Pause("M9 5 V19 M15 5 V19"),
     Play("M8 5 L19 12 L8 19 Z", filled = true),
+    /** A clapperboard with a play mark: a short ad. */
+    Film("M4 10 H20 V19 H4 Z M4 10 L5.5 5.5 L19 5.5 L20 10 M9.5 5.5 L8 10 M14.5 5.5 L13 10 M10.5 12.5 L14.5 14.5 L10.5 16.5 Z"),
     Gear(
         "M12 8.5 A3.5 3.5 0 1 0 12 15.5 A3.5 3.5 0 1 0 12 8.5 Z " +
             "M12 2.5 V5 M12 19 V21.5 M2.5 12 H5 M19 12 H21.5 M5.3 5.3 L7 7 M17 17 L18.7 18.7 M5.3 18.7 L7 17 M17 7 L18.7 5.3",

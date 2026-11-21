@@ -59,6 +59,11 @@ internal class Swarm(private val clock: Clock) {
         if (amount > 0) inFlight += amount
     }
 
+    /** Lets go of [amount] held by [hold] that will never fly (the screen closed first). */
+    fun release(amount: Int) {
+        if (amount > 0) inFlight = (inFlight - amount).coerceAtLeast(0)
+    }
+
     /**
      * Sends [amount] from [from] to the counter. [held] is how much of it [hold] already set aside.
      * With [calm] (reduce motion), or no counter on screen, it simply arrives.
