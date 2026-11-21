@@ -39,32 +39,46 @@ Pick a lead moth before each round. Each one bends the rules its own way.
 
 <table>
   <tr>
-    <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: the level emblem with its XP ring, a lit mason jar with moths resting around it, a big oak sign reading Play, and four menu tiles" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/1-home.png" alt="The lobby: the level emblem with its XP bar, the Fireflies counter, a lit mason jar with moths resting around it, a big oak PLAY sign with the lead moth, and four menu tiles" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/2-peek.png" alt="The opening peek: every card face up with a warm rim, and REMEMBER with a big 2 under the bulb in its brass works" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/3-streak.png" alt="Overdrive: found moths circle the bulb, the score reads 1,400 and the streak plate says OVERDRIVE ×4" width="100%"></td>
     <td align="center" width="20%"><img src="docs/screens/5-low.png" alt="The last seconds: the bulb is red and smoking, 0.2 seconds left in red under it, and the last cards washed red" width="100%"></td>
-    <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="The scorecard after a lost round: the headline cooled to ember, 0 of 6 pairs, and the level emblem at its new level 10 with wings and a lit bulb" width="100%"></td>
+    <td align="center" width="20%"><img src="docs/screens/4-result.png" alt="The scorecard after a win: three stars under the lit jar, Every pair found!, a score of 2,200, one line reading 6 pairs, streak ×4, 5 s left, no wrong pairs, a big Next level sign, and a slim XP bar showing level 10" width="100%"></td>
   </tr>
   <tr>
     <td align="center"><sub><b>The lobby</b><br>Tap the jar for the light</sub></td>
     <td align="center"><sub><b>The peek</b><br>Remember, 2, 1</sub></td>
     <td align="center"><sub><b>Overdrive</b><br>The light turns gold</sub></td>
     <td align="center"><sub><b>Last seconds</b><br>Red, smoke, flicker</sub></td>
-    <td align="center"><sub><b>Scorecard</b><br>Built line by line</sub></td>
+    <td align="center"><sub><b>Scorecard</b><br>Score, one line, next</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screens/6-levels.png" alt="The level map: chapter 5, the last porch, a plum sky turning gold over a house with its lamp blazing, brass coins 42 to 50 along a copper route with moths and a lantern, and a card below for boss level 50, Last Light: 24 cards, 27 s, Wanderer, Shadow, Lookalikes" width="100%"></td>
+    <td align="center"><img src="docs/screens/6-levels.png" alt="The level map: chapter 1, the porch, with the story line Luna wakes under the porch lamp, brass coins 1 to 10 along a copper route past a lamp, a cat in a lit window, an open door and a moonlit porthole, and a card below for level 7, a breather" width="100%"></td>
     <td align="center"><img src="docs/screens/9-daily.png" alt="Daily porch: a calendar leaf, the week as 3D coins with their stars, your streak and best, your best days, and a big PLAY TODAY sign" width="100%"></td>
     <td align="center"><img src="docs/screens/7-moths.png" alt="Lead moths: each moth beating its wings in a glass jar on velvet, with its strengths as pips" width="100%"></td>
     <td align="center"><img src="docs/screens/8-badges.png" alt="Badges: seventeen medals, each with its own mark, in bronze, silver and gold with tier ribbons; the ones not yet earned are dark outlines" width="100%"></td>
     <td align="center"><img src="docs/screens/10-settings.png" alt="Settings: a walnut switchboard with four lever switches and Replay the tutorial" width="100%"></td>
   </tr>
   <tr>
-    <td align="center"><sub><b>Fifty levels</b><br>Five chapters, one map</sub></td>
+    <td align="center"><sub><b>Fifty levels</b><br>Luna's way home</sub></td>
     <td align="center"><sub><b>Daily porch</b><br>One scored try a day</sub></td>
     <td align="center"><sub><b>Lead moths</b><br>Wings beating in jars</sub></td>
     <td align="center"><sub><b>Badges</b><br>Seventeen medals</sub></td>
     <td align="center"><sub><b>Settings</b><br>Four switches</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screens/11-boosts.png" alt="The level-start sheet for level 7: BOOSTS FOR THIS ROUND with two walnut tiles, +10 s bulb lit and lifted with a gold border reading IN THIS ROUND, and Longer peek reading TAP TO ADD, the balance after it, and a PLAY sign" width="100%"></td>
+    <td align="center"><img src="docs/screens/12-claim.png" alt="The Claim moment: Fireflies caught! over a glowing firefly with rays, +16 Fireflies, a Claim ×2 sign with a film icon and Watch a short ad, 2 left today, and a Claim sign" width="100%"></td>
+    <td align="center"><img src="docs/screens/13-shop.png" alt="The Porch shop's Boosts tab: brass medallions for +10 s bulb, Longer peek, Second look, Light a pair and Relight, each with a glowing price, and a note that a boosted round earns two stars at most" width="100%"></td>
+    <td align="center"><img src="docs/screens/14-looks.png" alt="The Porch shop's Looks tab: card backs on plum velvet, some owned, one worn, others priced at 300 and 400 Fireflies, and the seasonal Harvest back marked in season" width="100%"></td>
+    <td align="center"><img src="docs/screens/15-fireflies.png" alt="The Porch shop's Fireflies tab: a jar offering +10 Fireflies free for a short ad, Fireflies packs from Handful to Porchful behind Ask a grown-up to open, and what is earned by playing" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Boosts</b><br>Tap to light one</sub></td>
+    <td align="center"><sub><b>Claim</b><br>Or ×2 for an ad</sub></td>
+    <td align="center"><sub><b>Porch shop</b><br>Boosts</sub></td>
+    <td align="center"><sub><b>Porch shop</b><br>Looks</sub></td>
+    <td align="center"><sub><b>Porch shop</b><br>Fireflies</sub></td>
   </tr>
 </table>
 
