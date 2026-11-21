@@ -533,13 +533,7 @@ internal fun Results(session: Session, report: Report) {
                             // Double it: an ad, only if the player wants one, after a win.
                             if (won && !report.practice && !session.doubled) {
                                 Spacer(Modifier.height(8.dp))
-                                var from by remember { mutableStateOf(Offset.Unspecified) }
-                                AdButton(
-                                    session,
-                                    Placement.Double,
-                                    "Double this level's Fireflies",
-                                    Modifier.fillMaxWidth().onGloballyPositioned { from = it.boundsInRoot().center },
-                                ) { session.watchDouble(it, report, from) }
+                                DoubleOffer(session, report) { activity, from -> session.watchDouble(activity, report, from) }
                             }
                         }
 
@@ -1518,4 +1512,170 @@ private fun FirefliesLine(report: Report, doubled: Boolean, accent: Color, modif
         }
         Text("+${total.grouped()}", style = numberStyle(accent), fontSize = 22.sp, maxLines = 1)
     }
+}
+
+/**
+ * "Double this level's Fireflies", as an offer that can be seen at a glance: a brass ×2 coin turning
+ * in 3D, what the level earned and what it becomes (+23 → +46), a short-ad tag so it never hides what
+ * it is, and a lamp knob to press. A shine runs across it now and then and fireflies drift round the
+ * coin; under Reduce motion it holds still. It sits below the results and never above Next level.
+ */
+@Composable
+private fun DoubleOffer(session: Session, report: Report, modifier: Modifier = Modifier, onTap: (android.app.Activity?, Offset) -> Unit) {
+    val ads = session.ads ?: return
+    val left = adsLeft(session.store.progress, Placement.Double, todaySeed())
+    val activity = androidx.activity.compose.LocalActivity.current
+    if (left <= 0) {
+        Text(
+            "Doubling is back tomorrow",
+            style = Label, color = MUTED, textAlign = TextAlign.Center,
+            modifier = modifier.padding(vertical = 6.dp),
+        )
+        return
+    }
+    if (!ads.ready || ads.showing) return
+    val clock = session.clock
+    val calm = session.calm
+    val earned = report.fireflies
+    var from by remember { mutableStateOf(Offset.Unspecified) }
+    val press = remember { MutableInteractionSource() }
+    val pressed by press.collectIsPressedAsState()
+    val sink by animateFloatAsState(if (pressed) 0.96f else 1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium), label = "sink")
+    // It arrives with a small hop, so the eye catches it once.
+    val arrive = remember { Animatable(if (calm) 1f else 0.86f) }
+    LaunchedEffect(Unit) { if (!calm) arrive.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = 220f)) }
+    val shape = RoundedCornerShape(16.dp)
+    val amber = Color(0xFFFFB347)
+    Row(
+        modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                val s = sink * arrive.value
+                scaleX = s
+                scaleY = s
+            }
+            .onGloballyPositioned { from = it.boundsInRoot().center }
+            .shadow(12.dp, shape, ambientColor = amber, spotColor = amber)
+            .clip(shape)
+            .background(Brush.verticalGradient(listOf(Color(0xFF4A2C12), Color(0xFF241509))))
+            .drawBehind {
+                // Warm light pooling round the coin.
+                val c = Offset(size.height * 0.62f, size.height / 2f)
+                val breathe = if (calm) 0.5f else 0.5f + 0.5f * sin(clock.seconds * 2f)
+                drawCircle(Brush.radialGradient(listOf(amber.copy(alpha = 0.32f + 0.18f * breathe), Color.Transparent), c, size.height * 1.5f), size.height * 1.5f, c)
+            }
+            .drawWithContent {
+                drawContent()
+                if (calm) return@drawWithContent
+                val t = clock.seconds
+                // A shine that runs across every few seconds.
+                val cycle = (t % 4f) / 1.1f
+                if (cycle < 1f) {
+                    val x = -size.width * 0.3f + cycle * size.width * 1.6f
+                    drawRect(
+                        Brush.linearGradient(
+                            listOf(Color.Transparent, Color.White.copy(alpha = 0.22f), Color.Transparent),
+                            Offset(x - size.height, 0f), Offset(x, size.height),
+                        ),
+                        blendMode = BlendMode.Plus,
+                    )
+                }
+                // Fireflies drifting about the coin.
+                val c = Offset(size.height * 0.62f, size.height / 2f)
+                for (k in 0 until 4) {
+                    val a = t * (0.6f + 0.15f * k) + k * 1.9f
+                    val p = c + Offset(cos(a) * size.height * (0.5f + 0.08f * k), sin(a * 1.3f) * size.height * 0.36f)
+                    val lit = 0.5f + 0.5f * sin(t * 3f + k * 2.1f)
+                    val r = 7.dp.toPx()
+                    drawCircle(Brush.radialGradient(listOf(Color(0xFFFFF2A8).copy(alpha = 0.85f * lit), Color(0xFFFFD45A).copy(alpha = 0.3f * lit), Color.Transparent), p, r), r, p, blendMode = BlendMode.Plus)
+                }
+            }
+            .border(2.dp, Brush.linearGradient(listOf(Color(0xFFFFE9A6), Craft.gold, Craft.goldDeep, Craft.gold)), shape)
+            .clickable(interactionSource = press, indication = null, role = Role.Button, onClickLabel = "Watch a short ad") { onTap(activity, from) }
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Double this level's Fireflies: watch a short ad for ${fireflies(earned)} more, ${fireflies(earned * 2)} in all. $left left today."
+            }
+            .padding(start = 10.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        DoubleCoin(clock, calm, Modifier.size(62.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    "AD",
+                    style = Label, fontSize = 10.sp, color = Color(0xFF241509),
+                    modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(Craft.gold).padding(horizontal = 5.dp, vertical = 1.dp),
+                )
+                Text("DOUBLE YOUR FIREFLIES", style = Label, color = Craft.gold, maxLines = 1)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("+$earned", style = numberStyle(MUTED), fontSize = 18.sp, maxLines = 1)
+                Text("  →  ", style = BodyText, color = MUTED, fontSize = 16.sp)
+                Text(
+                    "+${(earned * 2).grouped()}",
+                    style = numberStyle(Craft.gold).copy(shadow = androidx.compose.ui.graphics.Shadow(amber, Offset.Zero, 18f)),
+                    fontSize = 28.sp, maxLines = 1,
+                )
+            }
+            Text("Watch a short ad · $left left today", style = BodyText, color = MUTED, fontSize = 12.sp, maxLines = 1)
+        }
+        // A lamp knob with a play mark: the thing to press.
+        Canvas(Modifier.size(46.dp)) {
+            val t = if (calm) 0f else clock.seconds
+            val c = Offset(size.width / 2f, size.height / 2f)
+            val r = size.minDimension / 2f
+            if (!calm) {
+                val ring = (t % 1.6f) / 1.6f
+                drawCircle(Craft.gold.copy(alpha = 0.5f * (1f - ring)), r * (0.9f + 0.5f * ring), c, style = Stroke(2.dp.toPx()))
+            }
+            drawCircle(Color(0xFF3A2410), r * 0.94f, c + Offset(0f, r * 0.08f))
+            drawCircle(Brush.linearGradient(listOf(Color(0xFFFFEDB0), Craft.gold, Craft.goldDeep), c - Offset(r, r), c + Offset(r, r)), r * 0.86f, c)
+            val tri = androidx.compose.ui.graphics.Path().apply {
+                moveTo(c.x - r * 0.24f, c.y - r * 0.36f)
+                lineTo(c.x + r * 0.4f, c.y)
+                lineTo(c.x - r * 0.24f, c.y + r * 0.36f)
+                close()
+            }
+            drawPath(tri, Color(0xFF3A2410))
+        }
+    }
+}
+
+/** A thick brass coin stamped ×2, turning and bobbing in 3D with a shine across its face. */
+@Composable
+private fun DoubleCoin(clock: Clock, calm: Boolean, modifier: Modifier) {
+    Box(
+        modifier.graphicsLayer {
+            val t = if (calm) 0f else clock.seconds
+            cameraDistance = 9f * density
+            rotationY = coinTurn(t)
+            rotationX = 8f * sin(t * 0.8f)
+            translationY = -size.height * 0.06f * (0.5f + 0.5f * sin(t * 1.6f))
+        },
+        contentAlignment = Alignment.Center,
+    ) {
+        Canvas(Modifier.matchParentSize()) {
+            val r = size.minDimension / 2f
+            val c = Offset(size.width / 2f, size.height / 2f)
+            drawCircle(Color(0xFF4A2E10), r * 0.98f, c + Offset(0f, r * 0.08f))
+            drawCircle(Brush.linearGradient(listOf(Color(0xFFFFEDB0), Craft.gold, Craft.goldDeep), c - Offset(r, r), c + Offset(r, r)), r * 0.96f, c)
+            drawCircle(Brush.radialGradient(listOf(Color(0xFFFFE9A6), Craft.gold, Craft.goldDeep), c - Offset(r * 0.25f, r * 0.3f), r * 1.1f), r * 0.78f, c)
+            drawCircle(Color(0xFF4A2E10).copy(alpha = 0.35f), r * 0.78f, c, style = Stroke(1.5.dp.toPx()))
+        }
+        // The other face reads the right way round too, as on a real coin.
+        Text(
+            "×2", style = Display, fontSize = 22.sp, color = Color(0xFF4A2E10), maxLines = 1,
+            modifier = Modifier.graphicsLayer {
+                val a = coinTurn(if (calm) 0f else clock.seconds) * (PI.toFloat() / 180f)
+                scaleX = if (cos(a) < 0f) -1f else 1f
+            },
+        )
+    }
+}
+
+/** The coin's turn in degrees: mostly a sway, and every five seconds a whole turn, like a coin flipped in the hand. */
+private fun coinTurn(t: Float): Float {
+    val flip = ((t % 5f) - 4f).coerceIn(0f, 1f)
+    return 22f * sin(t * 1.1f) + 360f * flip * flip * (3f - 2f * flip)
 }
